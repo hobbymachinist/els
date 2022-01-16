@@ -1,0 +1,26 @@
+%TF.GenerationSoftware,KiCad,Pcbnew,5.99.0+really5.1.10+dfsg1-1*%
+%TF.CreationDate,2021-08-26T21:24:32+10:00*%
+%TF.ProjectId,power-clamp,706f7765-722d-4636-9c61-6d702e6b6963,rev?*%
+%TF.SameCoordinates,Original*%
+%TF.FileFunction,Profile,NP*%
+%FSLAX46Y46*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by KiCad (PCBNEW 5.99.0+really5.1.10+dfsg1-1) date 2021-08-26 21:24:32*
+%MOMM*%
+%LPD*%
+G01*
+G04 APERTURE LIST*
+%TA.AperFunction,Profile*%
+%ADD10C,0.050000*%
+%TD*%
+G04 APERTURE END LIST*
+D10*
+X86000000Y-38000000D02*
+X60000000Y-38000000D01*
+X86000000Y-90000000D02*
+X86000000Y-38000000D01*
+X60000000Y-90000000D02*
+X86000000Y-90000000D01*
+X60000000Y-38000000D02*
+X60000000Y-90000000D01*
+M02*

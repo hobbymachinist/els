@@ -1,0 +1,30 @@
+{
+    "config": {
+        "base": 54,
+        "bold": 0,
+        "charHeight": 73,
+        "charSpacing": 0,
+        "face": "gears",
+        "italic": 0,
+        "lineSpacing": 0,
+        "size": 50,
+        "smooth": 1,
+        "textureFile": "gears_regular_50.PNG",
+        "textureHeight": 64,
+        "textureWidth": 64
+    },
+    "kerning": [
+    ],
+    "symbols": [
+        {
+            "height": 35,
+            "id": 78,
+            "width": 49,
+            "x": 1,
+            "xadvance": 67,
+            "xoffset": 3,
+            "y": 1,
+            "yoffset": 7
+        }
+    ]
+}

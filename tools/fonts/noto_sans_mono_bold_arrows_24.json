@@ -1,0 +1,60 @@
+{
+    "config": {
+        "base": 35,
+        "bold": 0,
+        "charHeight": 44,
+        "charSpacing": 0,
+        "face": "Noto Sans Mono",
+        "italic": 0,
+        "lineSpacing": 0,
+        "size": 24,
+        "smooth": 0,
+        "textureFile": "noto_sans_mono_bold_arrows_24.PNG",
+        "textureHeight": 32,
+        "textureWidth": 64
+    },
+    "kerning": [
+    ],
+    "symbols": [
+        {
+            "height": 7,
+            "id": 65,
+            "width": 15,
+            "x": 1,
+            "xadvance": 19,
+            "xoffset": 2,
+            "y": 10,
+            "yoffset": 26
+        },
+        {
+            "height": 19,
+            "id": 66,
+            "width": 7,
+            "x": 17,
+            "xadvance": 19,
+            "xoffset": 6,
+            "y": 1,
+            "yoffset": 17
+        },
+        {
+            "height": 7,
+            "id": 67,
+            "width": 15,
+            "x": 25,
+            "xadvance": 19,
+            "xoffset": 2,
+            "y": 10,
+            "yoffset": 26
+        },
+        {
+            "height": 19,
+            "id": 68,
+            "width": 7,
+            "x": 41,
+            "xadvance": 19,
+            "xoffset": 6,
+            "y": 1,
+            "yoffset": 17
+        }
+    ]
+}

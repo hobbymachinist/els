@@ -1,0 +1,101 @@
+#!/usr/bin/env ruby
+
+require 'io/console'
+require 'chunky_png'
+require 'json'
+
+class Glyph
+  attr_reader :width, :height, :data, :char, :xoffset, :xadvance, :yoffset
+
+  def initialize(char, width, height, xoffset, yoffset, xadvance, data)
+    @char = char
+    @width = width
+    @height = height
+    @data = data
+    @xoffset = xoffset
+    @yoffset = yoffset
+    @xadvance = xadvance
+  end
+
+  def c_definition
+    cdata = data.
+              each_slice(8).
+              map {|slice| slice.reduce(0) {|mask, s| s > 0 ? (mask << 1) | 1 : (mask << 1) }}.
+              each_slice(10).
+              map {|slice| slice.map {|n| '0x%02x' % n}.join(', ') }.
+              join(",\n    ")
+
+    c = <<~C
+      {
+        .character = 0x#{'%02x' % char.ord},
+        .width     = #{width},
+        .height    = #{height},
+        .xoffset   = #{xoffset},
+        .yoffset   = #{yoffset},
+        .xadvance  = #{xadvance},
+        .data      = (const uint8_t[]){
+          #{cdata}
+        }
+      }
+    C
+  end
+end
+
+json, image = *ARGV
+
+config = JSON.parse(File.read(json))
+png = ChunkyPNG::Image.from_file(image)
+
+fheight = config["config"]["size"]
+
+glyphs = []
+
+config["symbols"].each do |glyph|
+  char = glyph["id"].chr
+  width = glyph["width"]
+  height = glyph["height"]
+  xstart = glyph["x"]
+  ystart = glyph["y"]
+  xoffset = glyph["xoffset"]
+  yoffset = glyph["yoffset"]
+  xadvance = glyph["xadvance"]
+
+  data = []
+  for y in ystart..((ystart + height) - 1)
+    for x in xstart..((xstart + width) - 1)
+      if ChunkyPNG::Color.a(png[x, y]) > 0
+        #print '1' if char == '0'
+        data << 1
+      else
+        data << 0
+        #print '0' if char == '0'
+      end
+    end
+    #puts if char == '0'
+  end
+
+  glyphs << Glyph.new(char, width, height, xoffset, yoffset, xadvance, data)
+end
+
+c_glyphs = glyphs.
+            map {|glyph| glyph.c_definition.strip.split($/).map {|l| '     ' + l }.join($/) }.
+            join(",\n")
+
+yoffset_min = glyphs.map {|g| g.yoffset}.min + 1
+
+name = File.basename(image, File.extname(image))
+
+#=begin
+puts <<~C
+#include "fonts.h"
+
+const tft_font_t #{name} = {
+  .size = #{fheight},
+  .yoffset = #{yoffset_min},
+  .glyph_count = #{glyphs.size},
+  .glyphs = (const tft_font_glyph_t[]){
+#{c_glyphs}
+  }
+};
+C
+#=end

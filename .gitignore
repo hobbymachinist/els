@@ -1,0 +1,10 @@
+*.o
+*.hex
+*.bin
+*.d
+*.map
+*.elf
+*.flatcam
+*.nc
+obj/
+tmp/

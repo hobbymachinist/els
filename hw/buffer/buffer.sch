@@ -1,0 +1,490 @@
+EESchema Schematic File Version 4
+EELAYER 30 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L 4xxx:4050 U1
+U 1 1 6180FFA0
+P 2600 2200
+F 0 "U1" H 2600 2517 50  0000 C CNN
+F 1 "4050" H 2600 2426 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm_Socket_LongPads" H 2600 2200 50  0001 C CNN
+F 3 "http://www.intersil.com/content/dam/intersil/documents/cd40/cd4050bms.pdf" H 2600 2200 50  0001 C CNN
+	1    2600 2200
+	1    0    0    -1  
+$EndComp
+$Comp
+L 4xxx:4050 U1
+U 2 1 61810C60
+P 2600 2700
+F 0 "U1" H 2600 3017 50  0000 C CNN
+F 1 "4050" H 2600 2926 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm_Socket_LongPads" H 2600 2700 50  0001 C CNN
+F 3 "http://www.intersil.com/content/dam/intersil/documents/cd40/cd4050bms.pdf" H 2600 2700 50  0001 C CNN
+	2    2600 2700
+	1    0    0    -1  
+$EndComp
+$Comp
+L 4xxx:4050 U1
+U 3 1 618115CD
+P 2600 3200
+F 0 "U1" H 2600 3517 50  0000 C CNN
+F 1 "4050" H 2600 3426 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm_Socket_LongPads" H 2600 3200 50  0001 C CNN
+F 3 "http://www.intersil.com/content/dam/intersil/documents/cd40/cd4050bms.pdf" H 2600 3200 50  0001 C CNN
+	3    2600 3200
+	1    0    0    -1  
+$EndComp
+$Comp
+L 4xxx:4050 U1
+U 4 1 6181212A
+P 2600 4200
+F 0 "U1" H 2600 4517 50  0000 C CNN
+F 1 "4050" H 2600 4426 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm_Socket_LongPads" H 2600 4200 50  0001 C CNN
+F 3 "http://www.intersil.com/content/dam/intersil/documents/cd40/cd4050bms.pdf" H 2600 4200 50  0001 C CNN
+	4    2600 4200
+	1    0    0    -1  
+$EndComp
+$Comp
+L 4xxx:4050 U1
+U 5 1 618128C3
+P 2600 4700
+F 0 "U1" H 2600 5017 50  0000 C CNN
+F 1 "4050" H 2600 4926 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm_Socket_LongPads" H 2600 4700 50  0001 C CNN
+F 3 "http://www.intersil.com/content/dam/intersil/documents/cd40/cd4050bms.pdf" H 2600 4700 50  0001 C CNN
+	5    2600 4700
+	1    0    0    -1  
+$EndComp
+$Comp
+L 4xxx:4050 U1
+U 6 1 61813212
+P 2600 5200
+F 0 "U1" H 2600 5517 50  0000 C CNN
+F 1 "4050" H 2600 5426 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm_Socket_LongPads" H 2600 5200 50  0001 C CNN
+F 3 "http://www.intersil.com/content/dam/intersil/documents/cd40/cd4050bms.pdf" H 2600 5200 50  0001 C CNN
+	6    2600 5200
+	1    0    0    -1  
+$EndComp
+$Comp
+L 4xxx:4050 U1
+U 7 1 61813F20
+P 4200 2200
+F 0 "U1" H 4430 2246 50  0000 L CNN
+F 1 "4050" H 4430 2155 50  0000 L CNN
+F 2 "Package_DIP:DIP-16_W7.62mm_Socket_LongPads" H 4200 2200 50  0001 C CNN
+F 3 "http://www.intersil.com/content/dam/intersil/documents/cd40/cd4050bms.pdf" H 4200 2200 50  0001 C CNN
+	7    4200 2200
+	1    0    0    -1  
+$EndComp
+$Comp
+L Regulator_Switching:CRE1S0505SC U2
+U 1 1 61817103
+P 6200 2200
+F 0 "U2" H 6200 2667 50  0000 C CNN
+F 1 "CRE1S0505SC" H 6200 2576 50  0000 C CNN
+F 2 "Converter_DCDC:Converter_DCDC_muRata_CRE1xxxxxxSC_THT" H 6200 1800 50  0001 C CNN
+F 3 "http://power.murata.com/datasheet?/data/power/ncl/kdc_cre1.pdf" H 6200 1700 50  0001 C CNN
+	1    6200 2200
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:Conn_01x04_Female J1
+U 1 1 61818B84
+P 5200 3500
+F 0 "J1" H 5228 3476 50  0000 L CNN
+F 1 "XINPUT" H 5228 3385 50  0000 L CNN
+F 2 "TerminalBlock:TerminalBlock_bornier-4_P5.08mm" H 5200 3500 50  0001 C CNN
+F 3 "~" H 5200 3500 50  0001 C CNN
+	1    5200 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:Conn_01x04_Female J2
+U 1 1 618196D7
+P 5200 4200
+F 0 "J2" H 5228 4176 50  0000 L CNN
+F 1 "ZINPUT" H 5228 4085 50  0000 L CNN
+F 2 "TerminalBlock:TerminalBlock_bornier-4_P5.08mm" H 5200 4200 50  0001 C CNN
+F 3 "~" H 5200 4200 50  0001 C CNN
+	1    5200 4200
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:Conn_01x04_Female J3
+U 1 1 6181A07D
+P 6700 3500
+F 0 "J3" H 6728 3476 50  0000 L CNN
+F 1 "XOUTPUT" H 6728 3385 50  0000 L CNN
+F 2 "TerminalBlock:TerminalBlock_bornier-4_P5.08mm" H 6700 3500 50  0001 C CNN
+F 3 "~" H 6700 3500 50  0001 C CNN
+	1    6700 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:Conn_01x04_Female J4
+U 1 1 6181AD8F
+P 6700 4200
+F 0 "J4" H 6728 4176 50  0000 L CNN
+F 1 "ZOUTPUT" H 6728 4085 50  0000 L CNN
+F 2 "TerminalBlock:TerminalBlock_bornier-4_P5.08mm" H 6700 4200 50  0001 C CNN
+F 3 "~" H 6700 4200 50  0001 C CNN
+	1    6700 4200
+	1    0    0    -1  
+$EndComp
+Text GLabel 2100 2700 0    50   Input ~ 0
+XIDIR
+Text GLabel 2100 3200 0    50   Input ~ 0
+XIPUL
+Text GLabel 2100 2200 0    50   Input ~ 0
+XIENA
+Text GLabel 2100 4700 0    50   Input ~ 0
+ZIDIR
+Text GLabel 2100 5200 0    50   Input ~ 0
+ZIPUL
+Text GLabel 2100 4200 0    50   Input ~ 0
+ZIENA
+Text GLabel 3100 2700 2    50   Input ~ 0
+XODIR
+Text GLabel 3100 3200 2    50   Input ~ 0
+XOPUL
+Text GLabel 3100 2200 2    50   Input ~ 0
+XOENA
+Text GLabel 3100 4700 2    50   Input ~ 0
+ZODIR
+Text GLabel 3100 5200 2    50   Input ~ 0
+ZOPUL
+Text GLabel 3100 4200 2    50   Input ~ 0
+ZOENA
+Wire Wire Line
+	2100 2200 2300 2200
+Wire Wire Line
+	2900 2200 3100 2200
+Wire Wire Line
+	2900 2700 3100 2700
+Wire Wire Line
+	2300 2700 2100 2700
+Wire Wire Line
+	2300 3200 2100 3200
+Wire Wire Line
+	2900 3200 3100 3200
+Wire Wire Line
+	2900 4200 3100 4200
+Wire Wire Line
+	2900 4700 3100 4700
+Wire Wire Line
+	2900 5200 3100 5200
+Wire Wire Line
+	2100 5200 2300 5200
+Wire Wire Line
+	2100 4700 2300 4700
+Wire Wire Line
+	2100 4200 2300 4200
+$Comp
+L power:GND #PWR04
+U 1 1 6185AB91
+P 4200 2900
+F 0 "#PWR04" H 4200 2650 50  0001 C CNN
+F 1 "GND" H 4205 2727 50  0000 C CNN
+F 2 "" H 4200 2900 50  0001 C CNN
+F 3 "" H 4200 2900 50  0001 C CNN
+	1    4200 2900
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR03
+U 1 1 6185C863
+P 4200 1500
+F 0 "#PWR03" H 4200 1350 50  0001 C CNN
+F 1 "+5V" H 4215 1673 50  0000 C CNN
+F 2 "" H 4200 1500 50  0001 C CNN
+F 3 "" H 4200 1500 50  0001 C CNN
+	1    4200 1500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4200 1500 4200 1600
+Wire Wire Line
+	4200 2700 4200 2800
+$Comp
+L Device:C_Small C1
+U 1 1 6185F3C6
+P 4800 2200
+F 0 "C1" H 4892 2246 50  0000 L CNN
+F 1 "10uF" H 4892 2155 50  0000 L CNN
+F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4800 2200 50  0001 C CNN
+F 3 "~" H 4800 2200 50  0001 C CNN
+	1    4800 2200
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4200 1600 4800 1600
+Wire Wire Line
+	4800 1600 4800 2100
+Connection ~ 4200 1600
+Wire Wire Line
+	4200 1600 4200 1700
+Wire Wire Line
+	4800 2300 4800 2800
+Wire Wire Line
+	4800 2800 4200 2800
+Connection ~ 4200 2800
+Wire Wire Line
+	4200 2800 4200 2900
+$Comp
+L power:+5V #PWR07
+U 1 1 6186434A
+P 6900 1700
+F 0 "#PWR07" H 6900 1550 50  0001 C CNN
+F 1 "+5V" H 6915 1873 50  0000 C CNN
+F 2 "" H 6900 1700 50  0001 C CNN
+F 3 "" H 6900 1700 50  0001 C CNN
+	1    6900 1700
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6700 2000 6900 2000
+Wire Wire Line
+	6900 2000 6900 1700
+$Comp
+L power:GND #PWR08
+U 1 1 6186521D
+P 6900 2700
+F 0 "#PWR08" H 6900 2450 50  0001 C CNN
+F 1 "GND" H 6905 2527 50  0000 C CNN
+F 2 "" H 6900 2700 50  0001 C CNN
+F 3 "" H 6900 2700 50  0001 C CNN
+	1    6900 2700
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6700 2400 6900 2400
+Wire Wire Line
+	6900 2400 6900 2700
+Text GLabel 5600 2000 0    50   Input ~ 0
+VIN+
+Text GLabel 5600 2400 0    50   Input ~ 0
+VIN-
+Wire Wire Line
+	5600 2000 5700 2000
+Wire Wire Line
+	5600 2400 5700 2400
+Text GLabel 4300 3600 0    50   Input ~ 0
+XIDIR
+Text GLabel 4300 3700 0    50   Input ~ 0
+XIENA
+Text GLabel 4300 3500 0    50   Input ~ 0
+XIPUL
+$Comp
+L power:GND #PWR01
+U 1 1 6187AA58
+P 3800 3600
+F 0 "#PWR01" H 3800 3350 50  0001 C CNN
+F 1 "GND" H 3805 3427 50  0000 C CNN
+F 2 "" H 3800 3600 50  0001 C CNN
+F 3 "" H 3800 3600 50  0001 C CNN
+	1    3800 3600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3800 3600 3800 3400
+Wire Wire Line
+	3800 3400 5000 3400
+Text GLabel 6300 3600 0    50   Input ~ 0
+XODIR
+Text GLabel 6300 3700 0    50   Input ~ 0
+XOENA
+Text GLabel 6300 3500 0    50   Input ~ 0
+XOPUL
+Wire Wire Line
+	6300 3500 6500 3500
+Wire Wire Line
+	6300 3600 6500 3600
+Wire Wire Line
+	6300 3700 6500 3700
+Text GLabel 6300 4300 0    50   Input ~ 0
+ZODIR
+Text GLabel 6300 4400 0    50   Input ~ 0
+ZOPUL
+Text GLabel 6300 4200 0    50   Input ~ 0
+ZOENA
+Wire Wire Line
+	6300 4200 6500 4200
+Wire Wire Line
+	6300 4300 6500 4300
+Wire Wire Line
+	6300 4400 6500 4400
+$Comp
+L power:GND #PWR06
+U 1 1 618C27C3
+P 5900 4300
+F 0 "#PWR06" H 5900 4050 50  0001 C CNN
+F 1 "GND" H 5905 4127 50  0000 C CNN
+F 2 "" H 5900 4300 50  0001 C CNN
+F 3 "" H 5900 4300 50  0001 C CNN
+	1    5900 4300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5900 4300 5900 4100
+Wire Wire Line
+	5900 4100 6500 4100
+$Comp
+L power:GND #PWR05
+U 1 1 618C3BDB
+P 5900 3600
+F 0 "#PWR05" H 5900 3350 50  0001 C CNN
+F 1 "GND" H 5905 3427 50  0000 C CNN
+F 2 "" H 5900 3600 50  0001 C CNN
+F 3 "" H 5900 3600 50  0001 C CNN
+	1    5900 3600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5900 3600 5900 3400
+Wire Wire Line
+	5900 3400 6500 3400
+$Comp
+L Connector:Conn_01x02_Female J5
+U 1 1 618C6E7E
+P 8300 2000
+F 0 "J5" H 8328 1976 50  0000 L CNN
+F 1 "Conn_01x02_Female" H 8328 1885 50  0000 L CNN
+F 2 "TerminalBlock:TerminalBlock_bornier-2_P5.08mm" H 8300 2000 50  0001 C CNN
+F 3 "~" H 8300 2000 50  0001 C CNN
+	1    8300 2000
+	1    0    0    -1  
+$EndComp
+Text GLabel 7900 2000 0    50   Input ~ 0
+VIN+
+Text GLabel 7900 2100 0    50   Input ~ 0
+VIN-
+Wire Wire Line
+	7900 2000 8100 2000
+Wire Wire Line
+	7900 2100 8100 2100
+$Comp
+L Device:Ferrite_Bead_Small L1
+U 1 1 61833F0F
+P 4500 3500
+F 0 "L1" V 4460 3620 50  0000 C CNN
+F 1 "Ferrite_Bead_Small" H 4600 3455 50  0001 L CNN
+F 2 "Inductor_SMD:L_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4430 3500 50  0001 C CNN
+F 3 "~" H 4500 3500 50  0001 C CNN
+	1    4500 3500
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4300 3500 4400 3500
+Wire Wire Line
+	4600 3500 5000 3500
+$Comp
+L Device:Ferrite_Bead_Small L3
+U 1 1 61858B0C
+P 4600 3600
+F 0 "L3" V 4555 3720 50  0000 C CNN
+F 1 "Ferrite_Bead_Small" H 4700 3555 50  0001 L CNN
+F 2 "Inductor_SMD:L_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4530 3600 50  0001 C CNN
+F 3 "~" H 4600 3600 50  0001 C CNN
+	1    4600 3600
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:Ferrite_Bead_Small L5
+U 1 1 61858FC9
+P 4700 3700
+F 0 "L5" V 4650 3820 50  0000 C CNN
+F 1 "Ferrite_Bead_Small" H 4800 3655 50  0001 L CNN
+F 2 "Inductor_SMD:L_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4630 3700 50  0001 C CNN
+F 3 "~" H 4700 3700 50  0001 C CNN
+	1    4700 3700
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4300 3600 4500 3600
+Wire Wire Line
+	4300 3700 4600 3700
+Wire Wire Line
+	4700 3600 5000 3600
+Wire Wire Line
+	4800 3700 5000 3700
+Text GLabel 4300 4300 0    50   Input ~ 0
+ZIDIR
+Text GLabel 4300 4400 0    50   Input ~ 0
+ZIPUL
+Text GLabel 4300 4200 0    50   Input ~ 0
+ZIENA
+$Comp
+L power:GND #PWR02
+U 1 1 6186E465
+P 3800 4300
+F 0 "#PWR02" H 3800 4050 50  0001 C CNN
+F 1 "GND" H 3805 4127 50  0000 C CNN
+F 2 "" H 3800 4300 50  0001 C CNN
+F 3 "" H 3800 4300 50  0001 C CNN
+	1    3800 4300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3800 4300 3800 4100
+Wire Wire Line
+	3800 4100 5000 4100
+$Comp
+L Device:Ferrite_Bead_Small L2
+U 1 1 6186E471
+P 4500 4200
+F 0 "L2" V 4460 4320 50  0000 C CNN
+F 1 "Ferrite_Bead_Small" H 4600 4155 50  0001 L CNN
+F 2 "Inductor_SMD:L_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4430 4200 50  0001 C CNN
+F 3 "~" H 4500 4200 50  0001 C CNN
+	1    4500 4200
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4300 4200 4400 4200
+Wire Wire Line
+	4600 4200 5000 4200
+$Comp
+L Device:Ferrite_Bead_Small L4
+U 1 1 6186E47D
+P 4600 4300
+F 0 "L4" V 4555 4420 50  0000 C CNN
+F 1 "Ferrite_Bead_Small" H 4700 4255 50  0001 L CNN
+F 2 "Inductor_SMD:L_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4530 4300 50  0001 C CNN
+F 3 "~" H 4600 4300 50  0001 C CNN
+	1    4600 4300
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:Ferrite_Bead_Small L6
+U 1 1 6186E487
+P 4700 4400
+F 0 "L6" V 4650 4520 50  0000 C CNN
+F 1 "Ferrite_Bead_Small" H 4800 4355 50  0001 L CNN
+F 2 "Inductor_SMD:L_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 4630 4400 50  0001 C CNN
+F 3 "~" H 4700 4400 50  0001 C CNN
+	1    4700 4400
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4300 4300 4500 4300
+Wire Wire Line
+	4300 4400 4600 4400
+Wire Wire Line
+	4700 4300 5000 4300
+Wire Wire Line
+	4800 4400 5000 4400
+$EndSCHEMATC

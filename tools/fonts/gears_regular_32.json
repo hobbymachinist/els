@@ -1,0 +1,100 @@
+{
+    "config": {
+        "base": 35,
+        "bold": 0,
+        "charHeight": 47,
+        "charSpacing": 0,
+        "face": "gears",
+        "italic": 0,
+        "lineSpacing": 0,
+        "size": 32,
+        "smooth": 1,
+        "textureFile": "gears_regular_32.PNG",
+        "textureHeight": 128,
+        "textureWidth": 128
+    },
+    "kerning": [
+    ],
+    "symbols": [
+        {
+            "height": 27,
+            "id": 65,
+            "width": 36,
+            "x": 1,
+            "xadvance": 35,
+            "xoffset": 0,
+            "y": 1,
+            "yoffset": 4
+        },
+        {
+            "height": 27,
+            "id": 66,
+            "width": 36,
+            "x": 38,
+            "xadvance": 35,
+            "xoffset": 0,
+            "y": 1,
+            "yoffset": 4
+        },
+        {
+            "height": 31,
+            "id": 67,
+            "width": 27,
+            "x": 75,
+            "xadvance": 26,
+            "xoffset": 0,
+            "y": 1,
+            "yoffset": 4
+        },
+        {
+            "height": 36,
+            "id": 68,
+            "width": 27,
+            "x": 1,
+            "xadvance": 26,
+            "xoffset": 0,
+            "y": 33,
+            "yoffset": -1
+        },
+        {
+            "height": 36,
+            "id": 70,
+            "width": 36,
+            "x": 29,
+            "xadvance": 35,
+            "xoffset": 0,
+            "y": 33,
+            "yoffset": -1
+        },
+        {
+            "height": 31,
+            "id": 72,
+            "width": 35,
+            "x": 66,
+            "xadvance": 34,
+            "xoffset": 0,
+            "y": 38,
+            "yoffset": 4
+        },
+        {
+            "height": 35,
+            "id": 74,
+            "width": 35,
+            "x": 1,
+            "xadvance": 34,
+            "xoffset": 0,
+            "y": 70,
+            "yoffset": 0
+        },
+        {
+            "height": 33,
+            "id": 75,
+            "width": 35,
+            "x": 37,
+            "xadvance": 34,
+            "xoffset": 0,
+            "y": 74,
+            "yoffset": 4
+        }
+    ]
+}

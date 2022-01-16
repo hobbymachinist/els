@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="9.772048cm"
+   height="4.1010418cm"
+   viewBox="374.8984 357.5313 1385.0126 581.25119"
+   version="1.0"
+   id="svg68"
+   sodipodi:docname="bolt.svg"
+   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
+   inkscape:export-filename="/tmp/bolt.png"
+   inkscape:export-xdpi="40.258064"
+   inkscape:export-ydpi="40.258064">
+  <metadata
+     id="metadata74">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs72" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1600"
+     inkscape:window-height="848"
+     id="namedview70"
+     showgrid="true"
+     inkscape:zoom="1.2842674"
+     inkscape:cx="218.02998"
+     inkscape:cy="76.652391"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer3"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:document-rotation="0">
+    <inkscape:grid
+       type="xygrid"
+       id="grid370"
+       originx="-641.24849"
+       originy="-480.00083" />
+  </sodipodi:namedview>
+  <desc
+     id="desc2">
+  Exported by the ArtWorks SVGExport module.
+  Source document: Untitled1
+</desc>
+  <g
+     inkscape:groupmode="layer"
+     id="layer3"
+     inkscape:label="Layer 2"
+     transform="translate(-641.25077,-480.00083)">
+    <rect
+       style="fill:#e6e6e6;stroke:#e6e6e6;stroke-width:7.55074;paint-order:markers stroke fill"
+       id="rect368"
+       width="596.20081"
+       height="573.70044"
+       x="1019.9207"
+       y="841.3075"
+       ry="0" />
+    <path
+       style="fill:#e6e6e6;stroke:#e6e6e6;stroke-width:3.75001px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 1619.8465,845.03229 66.8673,83.43744 42.7627,-71.53813 45.0468,74.141 43.5,-74.0004 43.625,74.0004 43.0469,-71.54728 44,71.54728 43.5469,-74.0004 43.4531,74.0004 40.8273,-69.59418 40.4531,69.73478 45.5467,-72.73478 42.9998,74.00038 44.4063,-71.81288 44.0469,73.4536 43.5468,-73.9536 61.7657,73.9536 v 396.81268 l -97.3594,77.5 -43.4063,-73.9532 -43.6406,73.9532 -44.9061,-71.4063 -43.453,71.4531 -42.2342,-74 -43.9524,72.1875 -41.5,-74.1875 -43.5468,73.9532 -43,-70.5938 -44.0469,70.5938 -43.5469,-73.9532 -43.7187,68.9532 -43.9532,-67 -42.9218,72 -43.7656,-73.5 -33.1405,83.0468 z"
+       id="path372" />
+  </g>
+</svg>

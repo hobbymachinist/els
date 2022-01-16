@@ -1,0 +1,584 @@
+EESchema Schematic File Version 4
+EELAYER 30 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L Driver_Motor:Pololu_Breakout_DRV8825 A1
+U 1 1 6131E2E5
+P 2400 1600
+F 0 "A1" H 2400 1800 50  0000 C CNN
+F 1 "Pololu_Breakout_DRV8825" H 2400 2290 50  0001 C CNN
+F 2 "Module:Pololu_Breakout-16_15.2x20.3mm" H 2600 800 50  0001 L CNN
+F 3 "https://www.pololu.com/product/2982" H 2500 1300 50  0001 C CNN
+	1    2400 1600
+	1    0    0    -1  
+$EndComp
+NoConn ~ 2000 1200
+$Comp
+L Device:R_Small R1
+U 1 1 613220FC
+P 1400 1100
+F 0 "R1" H 1459 1146 50  0000 L CNN
+F 1 "1k" H 1459 1055 50  0000 L CNN
+F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 1400 1100 50  0001 C CNN
+F 3 "~" H 1400 1100 50  0001 C CNN
+	1    1400 1100
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+12V #PWR04
+U 1 1 61322E77
+P 2400 900
+F 0 "#PWR04" H 2400 750 50  0001 C CNN
+F 1 "+12V" H 2415 1073 50  0000 C CNN
+F 2 "" H 2400 900 50  0001 C CNN
+F 3 "" H 2400 900 50  0001 C CNN
+	1    2400 900 
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2400 900  2400 1000
+Wire Wire Line
+	1400 900  1400 1000
+Wire Wire Line
+	1400 1200 1400 1300
+Wire Wire Line
+	1400 1300 2000 1300
+Wire Wire Line
+	1400 1300 1400 1400
+Wire Wire Line
+	1400 1400 2000 1400
+Connection ~ 1400 1300
+$Comp
+L Switch:SW_DIP_x04 SW1
+U 1 1 61325E8A
+P 1900 4000
+F 0 "SW1" H 1900 4375 50  0000 C CNN
+F 1 "MICROSTEP" H 1900 4376 50  0001 C CNN
+F 2 "Button_Switch_THT:SW_DIP_SPSTx04_Slide_9.78x12.34mm_W7.62mm_P2.54mm" H 1900 4000 50  0001 C CNN
+F 3 "" H 1900 4000 50  0001 C CNN
+	1    1900 4000
+	-1   0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR05
+U 1 1 61327CF0
+P 2400 2800
+F 0 "#PWR05" H 2400 2550 50  0001 C CNN
+F 1 "GND" H 2405 2627 50  0000 C CNN
+F 2 "" H 2400 2800 50  0001 C CNN
+F 3 "" H 2400 2800 50  0001 C CNN
+	1    2400 2800
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GNDA #PWR07
+U 1 1 613285D7
+P 2500 2500
+F 0 "#PWR07" H 2500 2250 50  0001 C CNN
+F 1 "GNDA" H 2505 2327 50  0000 C CNN
+F 2 "" H 2500 2500 50  0001 C CNN
+F 3 "" H 2500 2500 50  0001 C CNN
+	1    2500 2500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2400 2400 2400 2800
+Wire Wire Line
+	2500 2400 2500 2500
+$Comp
+L power:+5V #PWR01
+U 1 1 6132BD48
+P 1400 900
+F 0 "#PWR01" H 1400 750 50  0001 C CNN
+F 1 "+5V" H 1415 1073 50  0000 C CNN
+F 2 "" H 1400 900 50  0001 C CNN
+F 3 "" H 1400 900 50  0001 C CNN
+	1    1400 900 
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR06
+U 1 1 6132C325
+P 2400 3600
+F 0 "#PWR06" H 2400 3450 50  0001 C CNN
+F 1 "+5V" H 2415 3773 50  0000 C CNN
+F 2 "" H 2400 3600 50  0001 C CNN
+F 3 "" H 2400 3600 50  0001 C CNN
+	1    2400 3600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2200 3800 2400 3800
+Wire Wire Line
+	2400 3800 2400 3600
+Wire Wire Line
+	2200 3900 2400 3900
+Wire Wire Line
+	2400 3900 2400 3800
+Connection ~ 2400 3800
+Wire Wire Line
+	2200 4000 2400 4000
+Wire Wire Line
+	2400 4000 2400 3900
+Connection ~ 2400 3900
+Wire Wire Line
+	2200 4100 2400 4100
+Wire Wire Line
+	2400 4100 2400 4000
+Connection ~ 2400 4000
+NoConn ~ 1600 4100
+Text GLabel 1800 2000 0    50   Input ~ 0
+M00
+Wire Wire Line
+	1800 2000 2000 2000
+Text GLabel 1800 2100 0    50   Input ~ 0
+M01
+Text GLabel 1800 2200 0    50   Input ~ 0
+M02
+Wire Wire Line
+	1800 2100 2000 2100
+Wire Wire Line
+	1800 2200 2000 2200
+Text GLabel 1800 1700 0    50   Input ~ 0
+PUL0
+Wire Wire Line
+	1800 1700 2000 1700
+Text GLabel 1800 1800 0    50   Input ~ 0
+DIR0
+Wire Wire Line
+	1800 1800 2000 1800
+Text GLabel 2900 1500 2    50   Input ~ 0
+A01
+Text GLabel 2900 1600 2    50   Input ~ 0
+A02
+Wire Wire Line
+	2800 1500 2900 1500
+Wire Wire Line
+	2800 1600 2900 1600
+Text GLabel 2900 1800 2    50   Input ~ 0
+B01
+Text GLabel 2900 1900 2    50   Input ~ 0
+B02
+Wire Wire Line
+	2800 1800 2900 1800
+Wire Wire Line
+	2800 1900 2900 1900
+Text GLabel 1400 3800 0    50   Input ~ 0
+M00
+Wire Wire Line
+	1400 3800 1600 3800
+Text GLabel 1400 3900 0    50   Input ~ 0
+M01
+Text GLabel 1400 4000 0    50   Input ~ 0
+M02
+Wire Wire Line
+	1400 3900 1600 3900
+Wire Wire Line
+	1400 4000 1600 4000
+$Comp
+L Connector:Conn_01x04_Female J2
+U 1 1 61335371
+P 2800 3800
+F 0 "J2" H 2700 3400 50  0000 C CNN
+F 1 "Motor" H 2700 3500 50  0000 C CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Horizontal" H 2800 3800 50  0001 C CNN
+F 3 "~" H 2800 3800 50  0001 C CNN
+	1    2800 3800
+	-1   0    0    -1  
+$EndComp
+Text GLabel 3100 3700 2    50   Input ~ 0
+A02
+Text GLabel 3100 3800 2    50   Input ~ 0
+A01
+Wire Wire Line
+	3000 3700 3100 3700
+Wire Wire Line
+	3000 3800 3100 3800
+Text GLabel 3100 3900 2    50   Input ~ 0
+B01
+Text GLabel 3100 4000 2    50   Input ~ 0
+B02
+Wire Wire Line
+	3000 3900 3100 3900
+Wire Wire Line
+	3000 4000 3100 4000
+$Comp
+L Connector:Conn_01x02_Female J1
+U 1 1 613416CB
+P 1700 5100
+F 0 "J1" H 1600 5300 50  0000 C CNN
+F 1 "VMOTOR" H 1728 4985 50  0001 L CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical" H 1700 5100 50  0001 C CNN
+F 3 "~" H 1700 5100 50  0001 C CNN
+	1    1700 5100
+	-1   0    0    -1  
+$EndComp
+$Comp
+L power:+12V #PWR02
+U 1 1 61344B19
+P 2100 5000
+F 0 "#PWR02" H 2100 4850 50  0001 C CNN
+F 1 "+12V" H 2115 5173 50  0000 C CNN
+F 2 "" H 2100 5000 50  0001 C CNN
+F 3 "" H 2100 5000 50  0001 C CNN
+	1    2100 5000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1900 5100 2100 5100
+Wire Wire Line
+	2100 5100 2100 5000
+$Comp
+L power:GNDA #PWR03
+U 1 1 6134621C
+P 2100 5300
+F 0 "#PWR03" H 2100 5050 50  0001 C CNN
+F 1 "GNDA" H 2105 5127 50  0000 C CNN
+F 2 "" H 2100 5300 50  0001 C CNN
+F 3 "" H 2100 5300 50  0001 C CNN
+	1    2100 5300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1900 5200 2100 5200
+Wire Wire Line
+	2100 5200 2100 5300
+$Comp
+L power:+5V #PWR08
+U 1 1 61347623
+P 3200 5000
+F 0 "#PWR08" H 3200 4850 50  0001 C CNN
+F 1 "+5V" H 3215 5173 50  0000 C CNN
+F 2 "" H 3200 5000 50  0001 C CNN
+F 3 "" H 3200 5000 50  0001 C CNN
+	1    3200 5000
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:Conn_01x02_Female J3
+U 1 1 61348699
+P 2800 5100
+F 0 "J3" H 2700 5300 50  0000 C CNN
+F 1 "VLOGIC" H 2828 4985 50  0001 L CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical" H 2800 5100 50  0001 C CNN
+F 3 "~" H 2800 5100 50  0001 C CNN
+	1    2800 5100
+	-1   0    0    -1  
+$EndComp
+Wire Wire Line
+	3000 5100 3200 5100
+Wire Wire Line
+	3200 5100 3200 5000
+$Comp
+L power:GND #PWR09
+U 1 1 61349835
+P 3200 5300
+F 0 "#PWR09" H 3200 5050 50  0001 C CNN
+F 1 "GND" H 3205 5127 50  0000 C CNN
+F 2 "" H 3200 5300 50  0001 C CNN
+F 3 "" H 3200 5300 50  0001 C CNN
+	1    3200 5300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3000 5200 3200 5200
+Wire Wire Line
+	3200 5200 3200 5300
+$Comp
+L Driver_Motor:Pololu_Breakout_DRV8825 A2
+U 1 1 6135ED7D
+P 5400 1600
+F 0 "A2" H 5400 1800 50  0000 C CNN
+F 1 "Pololu_Breakout_DRV8825" H 5400 2290 50  0001 C CNN
+F 2 "Module:Pololu_Breakout-16_15.2x20.3mm" H 5600 800 50  0001 L CNN
+F 3 "https://www.pololu.com/product/2982" H 5500 1300 50  0001 C CNN
+	1    5400 1600
+	1    0    0    -1  
+$EndComp
+NoConn ~ 5000 1200
+$Comp
+L Device:R_Small R2
+U 1 1 6135EEEE
+P 4400 1100
+F 0 "R2" H 4459 1146 50  0000 L CNN
+F 1 "1k" H 4459 1055 50  0000 L CNN
+F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4400 1100 50  0001 C CNN
+F 3 "~" H 4400 1100 50  0001 C CNN
+	1    4400 1100
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+12V #PWR011
+U 1 1 6135EEF8
+P 5400 900
+F 0 "#PWR011" H 5400 750 50  0001 C CNN
+F 1 "+12V" H 5415 1073 50  0000 C CNN
+F 2 "" H 5400 900 50  0001 C CNN
+F 3 "" H 5400 900 50  0001 C CNN
+	1    5400 900 
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5400 900  5400 1000
+Wire Wire Line
+	4400 900  4400 1000
+Wire Wire Line
+	4400 1200 4400 1300
+Wire Wire Line
+	4400 1300 5000 1300
+Wire Wire Line
+	4400 1300 4400 1400
+Wire Wire Line
+	4400 1400 5000 1400
+Connection ~ 4400 1300
+$Comp
+L Switch:SW_DIP_x04 SW2
+U 1 1 6135EF09
+P 4900 4000
+F 0 "SW2" H 4900 4375 50  0000 C CNN
+F 1 "MICROSTEP" H 4900 4376 50  0001 C CNN
+F 2 "Button_Switch_THT:SW_DIP_SPSTx04_Slide_9.78x12.34mm_W7.62mm_P2.54mm" H 4900 4000 50  0001 C CNN
+F 3 "" H 4900 4000 50  0001 C CNN
+	1    4900 4000
+	-1   0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR012
+U 1 1 6135EF13
+P 5400 2800
+F 0 "#PWR012" H 5400 2550 50  0001 C CNN
+F 1 "GND" H 5405 2627 50  0000 C CNN
+F 2 "" H 5400 2800 50  0001 C CNN
+F 3 "" H 5400 2800 50  0001 C CNN
+	1    5400 2800
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GNDA #PWR014
+U 1 1 6135EF1D
+P 5500 2500
+F 0 "#PWR014" H 5500 2250 50  0001 C CNN
+F 1 "GNDA" H 5505 2327 50  0000 C CNN
+F 2 "" H 5500 2500 50  0001 C CNN
+F 3 "" H 5500 2500 50  0001 C CNN
+	1    5500 2500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5400 2400 5400 2800
+Wire Wire Line
+	5500 2400 5500 2500
+$Comp
+L power:+5V #PWR010
+U 1 1 6135EF29
+P 4400 900
+F 0 "#PWR010" H 4400 750 50  0001 C CNN
+F 1 "+5V" H 4415 1073 50  0000 C CNN
+F 2 "" H 4400 900 50  0001 C CNN
+F 3 "" H 4400 900 50  0001 C CNN
+	1    4400 900 
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR013
+U 1 1 6135EF33
+P 5400 3600
+F 0 "#PWR013" H 5400 3450 50  0001 C CNN
+F 1 "+5V" H 5415 3773 50  0000 C CNN
+F 2 "" H 5400 3600 50  0001 C CNN
+F 3 "" H 5400 3600 50  0001 C CNN
+	1    5400 3600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5200 3800 5400 3800
+Wire Wire Line
+	5400 3800 5400 3600
+Wire Wire Line
+	5200 3900 5400 3900
+Wire Wire Line
+	5400 3900 5400 3800
+Connection ~ 5400 3800
+Wire Wire Line
+	5200 4000 5400 4000
+Wire Wire Line
+	5400 4000 5400 3900
+Connection ~ 5400 3900
+Wire Wire Line
+	5200 4100 5400 4100
+Wire Wire Line
+	5400 4100 5400 4000
+Connection ~ 5400 4000
+NoConn ~ 4600 4100
+Text GLabel 4800 2000 0    50   Input ~ 0
+M10
+Wire Wire Line
+	4800 2000 5000 2000
+Text GLabel 4800 2100 0    50   Input ~ 0
+M11
+Text GLabel 4800 2200 0    50   Input ~ 0
+M12
+Wire Wire Line
+	4800 2100 5000 2100
+Wire Wire Line
+	4800 2200 5000 2200
+Text GLabel 4800 1700 0    50   Input ~ 0
+PUL1
+Wire Wire Line
+	4800 1700 5000 1700
+Text GLabel 4800 1800 0    50   Input ~ 0
+DIR1
+Wire Wire Line
+	4800 1800 5000 1800
+Text GLabel 5900 1500 2    50   Input ~ 0
+A11
+Text GLabel 5900 1600 2    50   Input ~ 0
+A12
+Wire Wire Line
+	5800 1500 5900 1500
+Wire Wire Line
+	5800 1600 5900 1600
+Text GLabel 5900 1800 2    50   Input ~ 0
+B11
+Text GLabel 5900 1900 2    50   Input ~ 0
+B12
+Wire Wire Line
+	5800 1800 5900 1800
+Wire Wire Line
+	5800 1900 5900 1900
+Text GLabel 4400 3800 0    50   Input ~ 0
+M10
+Wire Wire Line
+	4400 3800 4600 3800
+Text GLabel 4400 3900 0    50   Input ~ 0
+M11
+Text GLabel 4400 4000 0    50   Input ~ 0
+M12
+Wire Wire Line
+	4400 3900 4600 3900
+Wire Wire Line
+	4400 4000 4600 4000
+$Comp
+L Connector:Conn_01x04_Female J4
+U 1 1 6135EF62
+P 5800 3800
+F 0 "J4" H 5700 3400 50  0000 C CNN
+F 1 "Motor" H 5700 3500 50  0000 C CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Horizontal" H 5800 3800 50  0001 C CNN
+F 3 "~" H 5800 3800 50  0001 C CNN
+	1    5800 3800
+	-1   0    0    -1  
+$EndComp
+Text GLabel 6100 3700 2    50   Input ~ 0
+A12
+Text GLabel 6100 3800 2    50   Input ~ 0
+A11
+Wire Wire Line
+	6000 3700 6100 3700
+Wire Wire Line
+	6000 3800 6100 3800
+Text GLabel 6100 3900 2    50   Input ~ 0
+B11
+Text GLabel 6100 4000 2    50   Input ~ 0
+B12
+Wire Wire Line
+	6000 3900 6100 3900
+Wire Wire Line
+	6000 4000 6100 4000
+$Comp
+L Connector:Conn_01x04_Female J5
+U 1 1 6138D128
+P 1700 6100
+F 0 "J5" H 1600 5700 50  0000 C CNN
+F 1 "DRIVE" H 1600 5800 50  0000 C CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Horizontal" H 1700 6100 50  0001 C CNN
+F 3 "~" H 1700 6100 50  0001 C CNN
+	1    1700 6100
+	-1   0    0    1   
+$EndComp
+$Comp
+L power:GND #PWR015
+U 1 1 61390617
+P 2100 6300
+F 0 "#PWR015" H 2100 6050 50  0001 C CNN
+F 1 "GND" H 2105 6127 50  0000 C CNN
+F 2 "" H 2100 6300 50  0001 C CNN
+F 3 "" H 2100 6300 50  0001 C CNN
+	1    2100 6300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1900 6200 2100 6200
+Wire Wire Line
+	2100 6200 2100 6300
+Text GLabel 1800 1600 0    50   Input ~ 0
+ENA0
+Wire Wire Line
+	1800 1600 2000 1600
+Text GLabel 4800 1600 0    50   Input ~ 0
+ENA1
+Wire Wire Line
+	4800 1600 5000 1600
+Text GLabel 2100 6000 2    50   Input ~ 0
+DIR0
+Wire Wire Line
+	2100 6000 1900 6000
+Text GLabel 2100 5900 2    50   Input ~ 0
+PUL0
+Wire Wire Line
+	2100 5900 1900 5900
+Text GLabel 2100 6100 2    50   Input ~ 0
+ENA0
+Wire Wire Line
+	2100 6100 1900 6100
+$Comp
+L Connector:Conn_01x04_Female J6
+U 1 1 613AAAA1
+P 4800 6100
+F 0 "J6" H 4700 5700 50  0000 C CNN
+F 1 "DRIVE" H 4700 5800 50  0000 C CNN
+F 2 "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Horizontal" H 4800 6100 50  0001 C CNN
+F 3 "~" H 4800 6100 50  0001 C CNN
+	1    4800 6100
+	-1   0    0    1   
+$EndComp
+$Comp
+L power:GND #PWR016
+U 1 1 613AABA3
+P 5200 6300
+F 0 "#PWR016" H 5200 6050 50  0001 C CNN
+F 1 "GND" H 5205 6127 50  0000 C CNN
+F 2 "" H 5200 6300 50  0001 C CNN
+F 3 "" H 5200 6300 50  0001 C CNN
+	1    5200 6300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5000 6200 5200 6200
+Wire Wire Line
+	5200 6200 5200 6300
+Text GLabel 5200 6000 2    50   Input ~ 0
+DIR1
+Wire Wire Line
+	5200 6000 5000 6000
+Text GLabel 5200 5900 2    50   Input ~ 0
+PUL1
+Wire Wire Line
+	5200 5900 5000 5900
+Text GLabel 5200 6100 2    50   Input ~ 0
+ENA1
+Wire Wire Line
+	5200 6100 5000 6100
+$EndSCHEMATC

@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+
+require 'io/console'
+require 'chunky_png'
+
+file = ARGV.shift
+png = ChunkyPNG::Image.from_file(file)
+data = []
+mask = 0
+bits = 0
+for y in 0..(png.height - 1)
+  for x in 0..(png.width - 1)
+    if ChunkyPNG::Color.a(png[x, y]) > 0 && ChunkyPNG::Color.b(png[x, y]) > 0
+      mask = (mask << 1) | 1
+    else
+      mask = mask << 1
+    end
+    bits = bits + 1
+
+    if bits == 8
+      data << mask
+      mask = 0
+      bits = 0
+    end
+  end
+end
+
+if bits > 0
+  data << mask
+end
+
+name = File.basename(file, File.extname(file))
+puts(<<~C)
+#include "tft/image.h"
+
+const tft_image_t #{name} = {
+  .width = #{png.width},
+  .height = #{png.height},
+  .data = (const uint8_t[]){
+    #{data.each_slice(10).map {|slice| slice.map {|b| '0x%02x' % b }.join(', ') }.join(",\n    ")}
+  }
+};
+C
