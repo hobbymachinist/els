@@ -664,7 +664,7 @@ Steps:
 1. Move tool to Z/X origin as required
 2. Zero out Z and X axis
 3. Set feed and depth of cut
-4. Set length and depth of taper. Press F2 - The angle should be displayed in addition to DRO values.
+4. Set radius and depth of arc.
 5. Turn on spindle
 6. Press Ready to start
 
@@ -700,7 +700,7 @@ Steps:
 1. Move tool to Z/X origin as required
 2. Zero out Z and X axis
 3. Set feed and depth of cut
-4. Set length and depth of taper. Press F2 - The angle should be displayed in addition to DRO values.
+4. Set radius and depth of arc.
 5. Turn on spindle
 6. Press Ready to start
 
