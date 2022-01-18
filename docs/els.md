@@ -1,5 +1,7 @@
 # ELSv2
 
+[TOC]
+
 ## Demos
 
 Some short demos available on YouTube
