@@ -34,11 +34,11 @@ Optional extras:
 - hw/demo-driver: A standalone demo board with drv8825 for testing
 - hw/power-clamp: Voltage clamp / suppression board.
 
-#### Main Board
+### Main Board
 
 Kicad files in hw/els
 
-##### Active components
+#### Active components
 
 * Nucleo-F446RE https://www.st.com/en/evaluation-tools/nucleo-f446re.html
 * GL850G USB HUB Controller
@@ -51,15 +51,33 @@ jumper changes and soldering to permit the firmware to use the required GPIO pin
 Refer to the GPIO pins listed below, the solder bridges for these pins should be setup correctly. See Nucleo 446RE
 documentation UM1724, Section 6.9 on Solder Bridges.
 
-##### Optional design guidance
+#### Using main board without USB hub & USB UART
 
 The main board is primarily a breakout board for the Nucleo F446RE with a USB hub, USB USART controller
-and additional terminal connectors. If you don't care about the USB UART serial, you can just use the
-Nucleo F446RE without populating the board with GL850G and CH340C.
+and additional terminal connectors. You can skip these (GL850G, CH340C and associated passives) and directly
+wire PA9 and PA10 to the CN3 connectors marked RX and TX respectively. This will allow you to read the serial
+comms via the onboard stlink CDC device.
 
-**NOTE**
-You will not be able to use UART through the onboard programmer since USART2 peripheral cannot be used. The corresponding
-GPIOs (PA2 & PA3) are used for the LCD.
+The default UART baud rate in firmware is 921600, with 8 bits, no partity & 1 stop bit.
+
+#### External Oscillator (HSE) on Nucleo 64
+
+By default the firmware configures the clock to use the HSE. Nucleo 64 boards do not come with the crystal and passives
+populated. Refer to UM1724 Section 6.7.1 for instructions on using HSE.
+
+The following configuration is needed:
+  – SB54 and SB55 OFF
+  – R35 and R37 soldered
+  – C33 and C34 soldered with 20 pF capacitors
+  – SB16 and SB50 OFF
+
+It's recommended to use an external crystal for better timing accuracy, but this is optional. If you want to use the
+internal oscillator, set the `ELS_USE_HSE` directive to 0 in src/clock.c
+
+#### EEPROM
+
+This is again optional but without an external FT24C64A EEPROM, you will not be able to save the settings and the
+defaults from constants.h will be used.
 
 ### ILI9481 Breakout
 
