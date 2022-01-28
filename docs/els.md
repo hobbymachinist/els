@@ -66,10 +66,10 @@ By default the firmware configures the clock to use the HSE. Nucleo 64 boards do
 populated. Refer to UM1724 Section 6.7.1 for instructions on using HSE.
 
 The following configuration is needed:
-  – SB54 and SB55 OFF
-  – R35 and R37 soldered
-  – C33 and C34 soldered with 20 pF capacitors
-  – SB16 and SB50 OFF
+  - SB54 and SB55 OFF
+  - R35 and R37 soldered
+  - C33 and C34 soldered with 20 pF capacitors
+  - SB16 and SB50 OFF
 
 It's recommended to use an external crystal for better timing accuracy, but this is optional. If you want to use the
 internal oscillator, set the `ELS_USE_HSE` directive to 0 in src/clock.c
