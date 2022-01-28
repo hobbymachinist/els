@@ -137,6 +137,20 @@ than the minimum required PPR.
   - https://www.aliexpress.com/item/1005002628784693.html
 
 
+### DRO
+
+Supports TTL optical DROs. Defaults to the commonly available 5uM resolution versions. The DRO module only supports half the
+resolution along Z axis 10uM (0.01mm) to avoid the overhead of processing an additional interrupt. This seems to be
+enough for my needs.
+
+Most TTL optical DROs you get from China operate on a 5V logic level. You need to to get a DB9 panel or PCB socket (male)
+and break out the 4 wires based on the wiring diagram for your DRO scale.
+
+- +5V
+- Ground
+- Signal A
+- Signal B
+
 ## Wiring / GPIO Map
 
 ```
@@ -219,12 +233,6 @@ Keymap, top to bottom and left to right
 16. Set position as maximum limit (only for manual turning)
 17. Jog to minimum (only available in manual operations)
 17. Jog to maximum (only available in manual operations)
-
-## DRO
-
-Supports TTL optical DROs. Defaults to the commonly available 5uM resolution versions. The DRO module only supports half the
-resolution along Z axis 10uM (0.01mm) to avoid the overhead of processing an additional interrupt. This seems to be
-enough for my needs.
 
 ## Lathe Functions
 
