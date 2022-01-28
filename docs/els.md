@@ -21,7 +21,7 @@ https://www.youtube.com/channel/UCVE05OvPm0yVd1yQSVZ0YSA/videos
     - This ensures any leadscrew backlash is taken care of in the lathe.
     - Allows the backlash compensation to kick in, ready for the turning steps.
 
-### Hardware files
+### Kicad assets
 
 All hw designs are done in Kicad.
 
@@ -34,25 +34,45 @@ Optional extras:
 - hw/demo-driver: A standalone demo board with drv8825 for testing
 - hw/power-clamp: Voltage clamp / suppression board.
 
-### Main Board
+#### Main Board
+
+Kicad files in hw/els
+
+##### Active components
 
 * Nucleo-F446RE https://www.st.com/en/evaluation-tools/nucleo-f446re.html
 * GL850G USB HUB Controller
 * CH340C USB UART
 * FT24C64A EEPROM
 
+The Nucleo 64 is connected to the main board USB hub with a small cable. Nucleo 446RE will need a fair few
+jumper changes and soldering to permit the firmware to use the required GPIO pins.
+
+Refer to the GPIO pins listed below, the solder bridges for these pins should be setup correctly. See Nucleo 446RE
+documentation UM1724, Section 6.9 on Solder Bridges.
+
+##### Optional design guidance
+
+The main board is primarily a breakout board for the Nucleo F446RE with a USB hub, USB USART controller
+and additional terminal connectors. If you don't care about the USB UART serial, you can just use the
+Nucleo F446RE without populating the board with GL850G and CH340C.
+
 **NOTE**
-1. In the design, the Nucleo 64 is connected to the main board USB hub with a small cable.
-2. Nucleo 446RE will need a fair few jumper changes and soldering.
-    - Jumpers for the external hse crystal
-    - Jumpers for the GPIO pins listed in docs/eld.md. See Nucleo 446RE documentation UM1724, Section 6.9 on Solder Bridges.
+You will not be able to use UART through the onboard programmer since USART2 peripheral cannot be used. The corresponding
+GPIOs (PA2 & PA3) are used for the LCD.
 
 ### ILI9481 Breakout
+
+Kicad files in hw/lcd
+
+This primarily a carrier / breakout board with an IDC ribbon cable connector to main board.
 
 * ILI9481 TFT LCD, https://www.aliexpress.com/item/1005001288341298.html
 * The main board is connected to the LCD module using an adapter board that breaks out the pins to a 16 pin IDC socket.
 
 ### Output buffer / pulse shaper
+
+Kicad files in hw/buffer
 
 Optional add-on for cleaning up the high frequency pulses from the main board to the stepper drivers. This needs to be powered
 separately and co-located with the stepper drivers. You may not need this depending on the length of the signal cables from
@@ -693,7 +713,7 @@ Zero Z axis or X axis (DRO)
 
 #### F2
 
-Display DRO or diagram. This also displays the taper angle.
+Display DRO or diagram.
 
 ### Convex External - Left
 
@@ -729,7 +749,7 @@ Zero Z axis or X axis (DRO)
 
 #### F2
 
-Display DRO or diagram. This also displays the taper angle.
+Display DRO or diagram.
 
 ### Concave External - Right
 
