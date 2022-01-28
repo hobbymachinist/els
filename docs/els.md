@@ -106,6 +106,11 @@ very reliable and resistant to liquids in the workshop. The seller can also lase
 
 - IP65 18 Key, PS2 Keypad, https://www.aliexpress.com/item/1005002340320709.html
 
+#### Input without keypad
+
+You can make do with this for trying out the firmware by using UART as an input. To do it, edit src/keypad.c and set
+`ELS_KEYPAD_ENABLE_USART_INPUT` to 1
+
 ### Encoder
 
 **IMPORTANT NOTE**

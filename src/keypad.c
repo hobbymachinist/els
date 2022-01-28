@@ -126,14 +126,19 @@ void ELS_KEYPAD_ISR(void) {
 #endif
 }
 
+#define ELS_KEYPAD_ENABLE_USART_INPUT 0
+
 //==============================================================================
 // API
 //==============================================================================
 void els_keypad_setup(void) {
   ringbuffer_init(&ringbuffer, sizeof(buffer), buffer);
+
   // NOTE: key input via UART disabled by default.
-  // nvic_enable_irq(NVIC_USART1_IRQ);
-  // usart_enable_rx_interrupt(USART1);
+  #if ELS_KEYPAD_ENABLE_USART_INPUT
+    nvic_enable_irq(NVIC_USART1_IRQ);
+    usart_enable_rx_interrupt(USART1);
+  #endif
 
   // PS/2 keypad.
   gpio_mode_setup(ELS_KEYPAD_CLK_PORT, GPIO_MODE_INPUT, GPIO_PUPD_NONE, ELS_KEYPAD_CLK_PIN);
