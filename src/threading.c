@@ -114,6 +114,9 @@ static struct {
   // input read for jogging
   int32_t  encoder_pos;
 
+  // encoder multiplier
+  int16_t encoder_multiplier;
+
   // jogging
   int32_t  stepper_pulse_pos;
   int32_t  stepper_pulse_curr;
@@ -212,6 +215,7 @@ static void els_threading_display_pitch(void);
 static void els_threading_display_pitch_type(void);
 static void els_threading_display_axes(void);
 static void els_threading_display_header(void);
+static void els_threading_display_encoder_pips(void);
 
 static void els_threading_set_pitch(void);
 static void els_threading_set_min(void);
@@ -251,12 +255,14 @@ static void els_threading_zjog_auto(double travel);
 // API
 //==============================================================================
 void els_threading_setup(void) {
-  els_threading_configure_gpio();
-  els_threading_configure_timer();
+  // no-op
 }
 
 void els_threading_start(void) {
   char text[32];
+
+  els_threading_configure_gpio();
+  els_threading_configure_timer();
 
   tft_filled_rectangle(&tft, 0,   0, 480, 320, ILI9481_BLACK);
 
@@ -358,6 +364,12 @@ void els_threading_update(void) {
   if (elapsed - last_refreshed_at > 1e5) {
     last_refreshed_at = elapsed;
     els_threading_display_refresh();
+  }
+
+  int16_t em = els_encoder_get_multiplier();
+  if (em != els_threading.encoder_multiplier) {
+    els_threading.encoder_multiplier = em;
+    els_threading_display_encoder_pips();
   }
 }
 
@@ -490,16 +502,24 @@ static void els_threading_display_axes(void) {
 }
 
 static void els_threading_display_header(void) {
-  if (els_threading.locked) {
-    tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
-    tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
-  }
-  else {
-    tft_filled_rectangle(&tft, 0,   0, 480,  50, ILI9481_FOREST);
-    tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_FOREST);
-    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_FOREST);
-  }
+  tft_rgb_t color = els_threading.locked ? ILI9481_RED : ILI9481_FOREST;
+
+  tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+  tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  els_threading_display_encoder_pips();
+}
+
+static void els_threading_display_encoder_pips(void) {
+  // multiplier is 100, 10 or 1
+  size_t pips = els_threading.encoder_multiplier;
+  pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
+
+  for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
+    tft_filled_rectangle(&tft,
+      440, 32 - (n * 10 + spacing * 2),
+      15 + n * 10, 10,
+      (n < pips ? ILI9481_WHITE : els_threading.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR2));
+
 }
 
 static void els_threading_display_refresh(void) {
@@ -598,7 +618,7 @@ static void els_threading_keypad_process(void) {
     case ELS_KEY_EXIT:
       if (els_threading.state & (ELS_THREADING_PAUSED | ELS_THREADING_ACTIVE))
         els_threading.state = ELS_THREADING_IDLE;
-      els_encoder_set_rotation_debounce(10e3);
+      els_encoder_set_rotation_debounce(25e3);
       break;
     case ELS_KEY_SET_FEED:
       els_threading.state = ELS_THREADING_SET_PITCH;
@@ -609,7 +629,7 @@ static void els_threading_keypad_process(void) {
     case ELS_KEY_SET_ZX:
       if (els_threading.state & (ELS_THREADING_IDLE | ELS_THREADING_PAUSED)) {
         els_threading.state = ELS_THREADING_SET_ZAXES;
-        els_encoder_set_rotation_debounce(10e3);
+        els_encoder_set_rotation_debounce(25e3);
         els_threading.encoder_pos = 0;
         els_threading.stepper_pulse_curr = 0;
         els_threading.stepper_pulse_pos  = 0;
@@ -675,7 +695,7 @@ static void els_threading_run(void) {
 //
 static void els_threading_recalulate_pitch_ratio(void) {
   uint32_t n = (els_threading.pitch_um * els_config->z_pulses_per_mm) / 1000;
-  uint32_t d = els_config->spindle_encoder_ppr * 2;
+  uint32_t d = els_config->spindle_encoder_ppr;
 
   uint32_t g = els_gcd(n, d);
 
@@ -818,7 +838,7 @@ static void els_threading_set_min(void) {
       encoder_curr = els_encoder_read();
       if (els_threading.encoder_pos != encoder_curr) {
         int32_t delta = (encoder_curr - els_threading.encoder_pos);
-        els_threading.zmin += (delta * 0.1);
+        els_threading.zmin += (delta * 0.01 * els_threading.encoder_multiplier);
         els_threading.encoder_pos = encoder_curr;
         els_threading_display_axes();
       }
@@ -842,7 +862,7 @@ static void els_threading_set_max(void) {
       encoder_curr = els_encoder_read();
       if (els_threading.encoder_pos != encoder_curr) {
         int32_t delta = (encoder_curr - els_threading.encoder_pos);
-        els_threading.zmax += (delta * 0.1);
+        els_threading.zmax += (delta * 0.01 * els_threading.encoder_multiplier);
         els_threading.encoder_pos = encoder_curr;
         els_threading_display_axes();
       }
@@ -854,7 +874,7 @@ static void els_threading_set_max(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_threading_zjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
@@ -862,9 +882,8 @@ static void els_threading_zjog(void) {
     // ----------------------------------------------------------------------------------
     // Jog pulse calculation
     // ----------------------------------------------------------------------------------
-    delta = (encoder_curr - els_threading.encoder_pos);
-    els_printf("jog: pulses %ld\n", (int32_t)(delta * ELS_THREADING_ZJOG_PULSES));
-    els_threading.stepper_pulse_curr += (delta * ELS_THREADING_ZJOG_PULSES);
+    delta = (encoder_curr - els_threading.encoder_pos) * 0.01 * els_threading.encoder_multiplier;
+    els_threading.stepper_pulse_curr += (delta * els_config->z_pulses_per_mm);
     els_threading.encoder_pos = encoder_curr;
     els_threading_display_axes();
   }
@@ -922,7 +941,7 @@ static void els_threading_zjog_auto(double travel) {
     if (els_threading.zdir != 1)
       ELS_THREADING_Z_BACKLASH_FIX;
     els_threading.zdir = 1;
-    els_threading.zjog_steps = (int32_t)(travel * els_config->z_pulses_per_mm);
+    els_threading.zjog_steps = (int32_t)round(travel * els_config->z_pulses_per_mm);
     els_threading.state |= ELS_THREADING_ZJOG;
   }
   else if (travel < 0) {
@@ -930,7 +949,7 @@ static void els_threading_zjog_auto(double travel) {
     if (els_threading.zdir != -1)
       ELS_THREADING_Z_BACKLASH_FIX;
     els_threading.zdir = -1;
-    els_threading.zjog_steps = (int32_t)(-travel * els_config->z_pulses_per_mm);
+    els_threading.zjog_steps = (int32_t)round(-travel * els_config->z_pulses_per_mm);
     els_threading.state |= ELS_THREADING_ZJOG;
   }
 }
@@ -962,7 +981,7 @@ static void els_threading_configure_gpio(void) {
   gpio_mode_setup(ELS_S_ENCODER2_PORTB, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, ELS_S_ENCODER2_PINB);
 
   exti_select_source(ELS_S_ENCODER2_EXTI, ELS_S_ENCODER2_PORTA);
-  exti_set_trigger(ELS_S_ENCODER2_EXTI, EXTI_TRIGGER_BOTH);
+  exti_set_trigger(ELS_S_ENCODER2_EXTI, EXTI_TRIGGER_RISING);
   exti_enable_request(ELS_S_ENCODER2_EXTI);
 }
 

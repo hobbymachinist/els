@@ -20,6 +20,13 @@ typedef struct {
 
   uint32_t spindle_encoder_ppr;
 
+  uint32_t x_retract_jog_mm_s;
+  uint32_t z_retract_jog_mm_s;
+
+  // boolean
+  bool     x_closed_loop;
+  bool     z_closed_loop;
+
   // computed
   uint32_t x_backlash_pulses;
   uint32_t z_backlash_pulses;

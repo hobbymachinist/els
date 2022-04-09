@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+
 #include "tft/tft.h"
 #include "tft/tft_platform.h"
 
@@ -631,3 +633,43 @@ void tft_filled_circle(const tft_device_t * tft, uint16_t x0, uint16_t y0, uint1
     tft_line(tft, x0 - y, y0 - x, x0 - y, y0 + x - 1, color);
   }
 }
+
+// https://forum.arduino.cc/t/adafruit_gfx-fillarc/397741/6
+void tft_filled_arc(const tft_device_t *tft,
+  uint16_t x, uint16_t y, uint16_t rx, uint16_t ry,
+  uint16_t start_angle, uint16_t segments, uint16_t width,
+  tft_rgb_t color) {
+
+  uint8_t seg = 3; // Segments are 3 degrees wide = 120 segments for 360 degrees
+  uint8_t inc = 3; // Draw segments every 3 degrees, increase to 6 for segmented ring
+
+  // Calculate first pair of coordinates for segment start
+  float sx = cos(((start_angle - 90) * M_PI) / 180);
+  float sy = sin(((start_angle - 90) * M_PI) / 180);
+  uint16_t x0 = sx * (rx - width) + x;
+  uint16_t y0 = sy * (ry - width) + y;
+  uint16_t x1 = sx * rx + x;
+  uint16_t y1 = sy * ry + y;
+
+  // Draw colour blocks every inc degrees
+  for (uint16_t i = start_angle; i < start_angle + seg * segments; i += inc) {
+    // Calculate pair of coordinates for segment end
+    float sx2 = cos(((i + seg - 90) * M_PI) / 180);
+    float sy2 = sin(((i + seg - 90) * M_PI) / 180);
+    uint16_t x2 = sx2 * (rx - width) + x;
+    uint16_t y2 = sy2 * (ry - width) + y;
+    uint16_t x3 = sx2 * rx + x;
+    uint16_t y3 = sy2 * ry + y;
+
+    tft_filled_triangle(tft, x0, y0, x1, y1, x2, y2, color);
+    tft_filled_triangle(tft, x1, y1, x2, y2, x3, y3, color);
+
+    // Copy segment end to segment start for next segment
+    x0 = x2;
+    y0 = y2;
+    x1 = x3;
+    y1 = y3;
+  }
+}
+
+

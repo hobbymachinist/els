@@ -26,6 +26,7 @@
 
 #include "constants.h"
 
+#include "config.h"
 #include "dro.h"
 #include "encoder.h"
 #include "keypad.h"
@@ -38,10 +39,7 @@
 #define ELS_Z_JOG_MM_S  8
 #define ELS_X_JOG_MM_S  4
 
-#define ELS_Z_SLO_MM_S  2
-#define ELS_X_SLO_MM_S  1
-
-
+#define PRECISION       (1e-2)
 //==============================================================================
 // Externs
 //==============================================================================
@@ -49,6 +47,7 @@ extern tft_device_t tft;
 
 extern const tft_font_t noto_sans_mono_bold_arrows_24;
 extern const tft_font_t noto_sans_mono_bold_26;
+extern const tft_font_t noto_sans_mono_bold_20;
 extern const tft_font_t noto_sans_mono_bold_14;
 extern const tft_font_t gears_regular_32;
 extern const tft_font_t gears_regular_50;
@@ -58,17 +57,18 @@ extern const tft_font_t inconsolata_lgc_bold_14;
 // Config
 //==============================================================================
 typedef enum {
-  ELS_CONVEX_EXT_IDLE      = 1,
-  ELS_CONVEX_EXT_PAUSED    = 2,
-  ELS_CONVEX_EXT_ACTIVE    = 4,
-  ELS_CONVEX_EXT_SET_ZAXES = 8,
-  ELS_CONVEX_EXT_ZJOG      = 16,
-  ELS_CONVEX_EXT_SET_XAXES = 32,
-  ELS_CONVEX_EXT_XJOG      = 64,
-  ELS_CONVEX_EXT_SET_FEED  = 128,
-  ELS_CONVEX_EXT_SET_DOC   = 256,
-  ELS_CONVEX_EXT_SET_RAD   = 512,
-  ELS_CONVEX_EXT_SET_DEPTH = 1024
+  ELS_CONVEX_EXT_IDLE       = 1,
+  ELS_CONVEX_EXT_PAUSED     = 2,
+  ELS_CONVEX_EXT_ACTIVE     = 4,
+  ELS_CONVEX_EXT_SET_ZAXES  = 8,
+  ELS_CONVEX_EXT_ZJOG       = 16,
+  ELS_CONVEX_EXT_SET_XAXES  = 32,
+  ELS_CONVEX_EXT_XJOG       = 64,
+  ELS_CONVEX_EXT_SET_FEED   = 128,
+  ELS_CONVEX_EXT_SET_DOC    = 256,
+  ELS_CONVEX_EXT_SET_RADIUS = 512,
+  ELS_CONVEX_EXT_SET_DEPTH  = 1024,
+  ELS_CONVEX_EXT_SET_LENGTH = 2048
 } els_convex_ext_r_state_t;
 
 typedef enum {
@@ -123,14 +123,19 @@ static struct {
 
   uint32_t spring_pass_count;
 
+  double   depth;
   double   length;
   double   radius;
-  double   depth;
+
+  double   arc_center_z, arc_center_x;
 
   double   xcurr;
 
-  // input read for jogging
+  // input read for jogging etc
   int32_t  encoder_pos;
+
+  // encoder multiplier
+  int16_t encoder_multiplier;
 
   // module state
   els_convex_ext_r_state_t state;
@@ -152,7 +157,9 @@ static struct {
   .depth_of_cut_um = 200,
   .feed_um = 4000,
   .radius = 12.5,
-  .depth = 5
+  .length = 5,
+  .depth = 5,
+  .encoder_multiplier = 1
 };
 
 //==============================================================================
@@ -166,11 +173,15 @@ static void els_convex_ext_r_display_setting(void);
 static void els_convex_ext_r_display_axes(void);
 static void els_convex_ext_r_display_header(void);
 static void els_convex_ext_r_display_diagram(void);
+static void els_convex_ext_r_display_encoder_pips(void);
+
+static void els_convex_ext_r_calculate_arc(void);
 
 static void els_convex_ext_r_set_feed(void);
 static void els_convex_ext_r_set_depth_of_cut(void);
 static void els_convex_ext_r_set_radius(void);
 static void els_convex_ext_r_set_depth(void);
+static void els_convex_ext_r_set_length(void);
 
 static void els_convex_ext_r_set_zaxes(void);
 static void els_convex_ext_r_set_xaxes(void);
@@ -217,7 +228,7 @@ void els_convex_ext_r_start(void) {
   els_convex_ext_r.prev_state = 0;
   els_convex_ext_r.prev_dir = 0;
   els_convex_ext_r.feed_mm_s = els_convex_ext_r.feed_um / 1000.0;
-  els_convex_ext_r.length = sqrt(SQR(els_convex_ext_r.radius) - SQR(els_convex_ext_r.radius - els_convex_ext_r.depth));
+  els_convex_ext_r_calculate_arc();
 
   els_convex_ext_r.state = ELS_CONVEX_EXT_IDLE;
   els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_IDLE;
@@ -240,7 +251,6 @@ bool els_convex_ext_r_busy(void) {
 
 void els_convex_ext_r_update(void) {
   static uint64_t last_refreshed_at = 0;
-
   uint64_t elapsed = els_timer_elapsed_microseconds();
 
   bool kp_locked = els_keypad_locked();
@@ -263,11 +273,14 @@ void els_convex_ext_r_update(void) {
     case ELS_CONVEX_EXT_SET_DOC:
       els_convex_ext_r_set_depth_of_cut();
       break;
-    case ELS_CONVEX_EXT_SET_RAD:
+    case ELS_CONVEX_EXT_SET_RADIUS:
       els_convex_ext_r_set_radius();
       break;
     case ELS_CONVEX_EXT_SET_DEPTH:
       els_convex_ext_r_set_depth();
+      break;
+    case ELS_CONVEX_EXT_SET_LENGTH:
+      els_convex_ext_r_set_length();
       break;
     default:
       if (els_convex_ext_r.state & (ELS_CONVEX_EXT_SET_ZAXES | ELS_CONVEX_EXT_ZJOG))
@@ -280,6 +293,12 @@ void els_convex_ext_r_update(void) {
   if (elapsed - last_refreshed_at > 1e5) {
     last_refreshed_at = elapsed;
     els_convex_ext_r_display_refresh();
+  }
+
+  int16_t em = els_encoder_get_multiplier();
+  if (em != els_convex_ext_r.encoder_multiplier) {
+    els_convex_ext_r.encoder_multiplier = em;
+    els_convex_ext_r_display_encoder_pips();
   }
 }
 
@@ -306,16 +325,22 @@ static void els_convex_ext_r_display_setting(void) {
     tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_convex_ext_r.radius, "R");
-  if (els_convex_ext_r.state == ELS_CONVEX_EXT_SET_RAD)
-    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  if (els_convex_ext_r.state == ELS_CONVEX_EXT_SET_RADIUS)
+    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_20, ILI9481_YELLOW, ILI9481_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_20, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_convex_ext_r.depth, "D");
   if (els_convex_ext_r.state == ELS_CONVEX_EXT_SET_DEPTH)
-    tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 252, text, &noto_sans_mono_bold_20, ILI9481_YELLOW, ILI9481_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 252, text, &noto_sans_mono_bold_20, ILI9481_WHITE, ILI9481_BLACK);
+
+  els_sprint_double3(text, sizeof(text), els_convex_ext_r.length, "L");
+  if (els_convex_ext_r.state == ELS_CONVEX_EXT_SET_LENGTH)
+    tft_font_write_bg(&tft, 310, 276, text, &noto_sans_mono_bold_20, ILI9481_YELLOW, ILI9481_BLACK);
+  else
+    tft_font_write_bg(&tft, 310, 276, text, &noto_sans_mono_bold_20, ILI9481_WHITE, ILI9481_BLACK);
 
   if (els_convex_ext_r.only_spring_pass) {
     tft_filled_rectangle(&tft, 227, 149, 73, 25, ILI9481_WHITE);
@@ -347,14 +372,8 @@ static void els_convex_ext_r_display_axes(void) {
     els_sprint_double33(text, sizeof(text), (els_dro.zpos_um / 1000.0), "Z");
     tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-    if (els_convex_ext_r.state == ELS_CONVEX_EXT_SET_RAD || els_convex_ext_r.state == ELS_CONVEX_EXT_SET_DEPTH) {
-      els_sprint_double33(text, sizeof(text), els_convex_ext_r.length, "L");
-      tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
-    }
-    else {
-      els_sprint_double33(text, sizeof(text), (els_dro.xpos_um / 1000.0), "X");
-      tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
-    }
+    els_sprint_double33(text, sizeof(text), (els_dro.xpos_um / 1000.0), "X");
+    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
   }
 }
 
@@ -389,16 +408,22 @@ static void els_convex_ext_r_display_diagram(void) {
 }
 
 static void els_convex_ext_r_display_header(void) {
-  if (els_convex_ext_r.locked) {
-    tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
-    tft_font_write_bg(&tft, 8, 0, "CONVEX EXTERNAL - R", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
-  }
-  else {
-    tft_filled_rectangle(&tft, 0,   0, 480,  50, ILI9481_CERULEAN);
-    tft_font_write_bg(&tft, 8, 0, "CONVEX EXTERNAL - R", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_CERULEAN);
-    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_CERULEAN);
-  }
+  tft_rgb_t color = (els_convex_ext_r.locked ? ILI9481_RED : ILI9481_CERULEAN);
+  tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+  tft_font_write_bg(&tft, 8, 0, "CONVEX EXTERNAL - R", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  els_convex_ext_r_display_encoder_pips();
+}
+
+static void els_convex_ext_r_display_encoder_pips(void) {
+  // multiplier is 100, 10 or 1
+  size_t pips = els_convex_ext_r.encoder_multiplier;
+  pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
+
+  for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
+    tft_filled_rectangle(&tft,
+      440, 32 - (n * 10 + spacing * 2),
+      15 + n * 10, 10,
+      (n < pips ? ILI9481_WHITE : els_convex_ext_r.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR1));
 }
 
 static void els_convex_ext_r_display_refresh(void) {
@@ -460,7 +485,7 @@ static void els_convex_ext_r_keypad_process(void) {
           els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_READY;
         }
         else {
-          els_convex_ext_r.state = ELS_CONVEX_EXT_SET_RAD;
+          els_convex_ext_r.state = ELS_CONVEX_EXT_SET_RADIUS;
           els_convex_ext_r_display_setting();
         }
       }
@@ -481,7 +506,7 @@ static void els_convex_ext_r_keypad_process(void) {
       break;
     case ELS_KEY_FUN_F1:
       if (els_convex_ext_r.state & (ELS_CONVEX_EXT_IDLE | ELS_CONVEX_EXT_PAUSED)) {
-        els_convex_ext_r.state = ELS_CONVEX_EXT_SET_RAD;
+        els_convex_ext_r.state = ELS_CONVEX_EXT_SET_RADIUS;
         els_convex_ext_r.encoder_pos = 0;
         els_convex_ext_r_display_setting();
         els_encoder_reset();
@@ -534,7 +559,6 @@ static void els_convex_ext_r_run(void) {
     els_convex_ext_r_turn();
 }
 
-#define TURN_PRECISION (5e-3)
 static void els_convex_ext_r_turn(void) {
   double xd, remaining, ztarget;
 
@@ -549,8 +573,8 @@ static void els_convex_ext_r_turn(void) {
       if (els_stepper->zbusy)
         break;
 
-      if (fabs(els_stepper->zpos) > TURN_PRECISION)
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_SLO_MM_S);
+      if (fabs(els_stepper->zpos) > PRECISION)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
       else
         els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_MOVEX0;
       break;
@@ -558,8 +582,8 @@ static void els_convex_ext_r_turn(void) {
       if (els_stepper->xbusy)
         break;
 
-      if (fabs(els_stepper->xpos) > TURN_PRECISION)
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_SLO_MM_S);
+      if (fabs(els_stepper->xpos) > PRECISION)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
       else
         els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_START;
       break;
@@ -569,7 +593,7 @@ static void els_convex_ext_r_turn(void) {
 
       els_convex_ext_r.spring_pass_count = 0;
       if (els_convex_ext_r.only_spring_pass) {
-        els_stepper_move_x(-els_convex_ext_r.depth - els_stepper->xpos + 0.1, ELS_X_SLO_MM_S);
+        els_stepper_move_x(-els_convex_ext_r.depth - els_stepper->xpos + 0.1, els_config->x_retract_jog_mm_s);
         els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_FEED;
       }
       else {
@@ -586,7 +610,7 @@ static void els_convex_ext_r_turn(void) {
       if (remaining <= (els_convex_ext_r.depth_of_cut_um / 1000.0))
         els_convex_ext_r.spring_pass_count++;
 
-      els_stepper_move_x(-xd, ELS_X_SLO_MM_S);
+      els_stepper_move_x(-xd, els_config->x_retract_jog_mm_s);
       els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_PLAN;
       break;
     case ELS_CONVEX_EXT_OP_PLAN:
@@ -596,13 +620,18 @@ static void els_convex_ext_r_turn(void) {
       els_convex_ext_r.xcurr = els_stepper->xpos;
       els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_TURNING;
       if (els_convex_ext_r.spring_pass_count > 0) {
-        els_stepper_move_cw_arc(els_convex_ext_r.radius, els_convex_ext_r.depth, els_convex_ext_r.feed_mm_s);
+        els_stepper_move_arc_q2_cw(
+          els_convex_ext_r.arc_center_z,
+          els_convex_ext_r.arc_center_x,
+          els_convex_ext_r.radius,
+          els_convex_ext_r.depth,
+          els_convex_ext_r.feed_mm_s / 4.0
+        );
       }
       else {
-        ztarget = els_convex_ext_r.length -
-                  sqrt(SQR(els_convex_ext_r.radius) - SQR(els_convex_ext_r.radius + els_stepper->xpos));
-
-        els_stepper_move_z(-ztarget - els_stepper->zpos + 0.25, els_convex_ext_r.feed_mm_s);
+        ztarget = sqrt(SQR(els_convex_ext_r.radius) - SQR(els_stepper->xpos - els_convex_ext_r.arc_center_x)) +
+                  els_convex_ext_r.arc_center_z;
+        els_stepper_move_z(ztarget - els_stepper->zpos + 0.25, els_convex_ext_r.feed_mm_s);
       }
       break;
     case ELS_CONVEX_EXT_OP_TURNING:
@@ -610,7 +639,7 @@ static void els_convex_ext_r_turn(void) {
         break;
 
       els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_RESETZ;
-      els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_SLO_MM_S);
+      els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
       break;
     case ELS_CONVEX_EXT_OP_RESETZ:
       if (els_stepper->zbusy)
@@ -620,7 +649,7 @@ static void els_convex_ext_r_turn(void) {
         els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_DONE;
       }
       else {
-        els_stepper_move_x(els_convex_ext_r.xcurr - els_stepper->xpos, ELS_X_SLO_MM_S);
+        els_stepper_move_x(els_convex_ext_r.xcurr - els_stepper->xpos, els_config->x_retract_jog_mm_s);
         els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_RESETX;
       }
       break;
@@ -663,7 +692,7 @@ static void els_convex_ext_r_set_feed(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_convex_ext_r.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_convex_ext_r.encoder_pos) * 100;
+        int32_t delta = (encoder_curr - els_convex_ext_r.encoder_pos) * 10 * els_convex_ext_r.encoder_multiplier;
         if (els_convex_ext_r.feed_um + delta <= ELS_CONVEX_EXT_FEED_MIN)
           els_convex_ext_r.feed_um = ELS_CONVEX_EXT_FEED_MIN;
         else if (els_convex_ext_r.feed_um + delta >= ELS_CONVEX_EXT_FEED_MAX)
@@ -696,7 +725,7 @@ static void els_convex_ext_r_set_depth_of_cut(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_convex_ext_r.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_convex_ext_r.encoder_pos) * 50;
+        int32_t delta = (encoder_curr - els_convex_ext_r.encoder_pos) * 10 * els_convex_ext_r.encoder_multiplier;
         if (els_convex_ext_r.depth_of_cut_um + delta <= ELS_CONVEX_EXT_DOC_MIN)
           els_convex_ext_r.depth_of_cut_um = ELS_CONVEX_EXT_DOC_MIN;
         else if (els_convex_ext_r.depth_of_cut_um + delta >= ELS_CONVEX_EXT_DOC_MAX)
@@ -717,6 +746,7 @@ void els_convex_ext_r_set_radius(void) {
     case ELS_KEY_EXIT:
       els_convex_ext_r.state = ELS_CONVEX_EXT_IDLE;
       els_convex_ext_r_display_setting();
+      els_convex_ext_r_calculate_arc();
       break;
     case ELS_KEY_FUN_F1:
       els_convex_ext_r.state = ELS_CONVEX_EXT_SET_DEPTH;
@@ -725,7 +755,7 @@ void els_convex_ext_r_set_radius(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_convex_ext_r.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_convex_ext_r.encoder_pos) * 0.1;
+        double delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
         if (els_convex_ext_r.radius + delta <= 0)
           els_convex_ext_r.radius = 0;
         else if (els_convex_ext_r.radius + delta >= ELS_X_MAX_MM)
@@ -735,7 +765,6 @@ void els_convex_ext_r_set_radius(void) {
         els_convex_ext_r.encoder_pos = encoder_curr;
         if (els_convex_ext_r.depth > els_convex_ext_r.radius)
           els_convex_ext_r.depth = els_convex_ext_r.radius;
-        els_convex_ext_r.length = sqrt(SQR(els_convex_ext_r.radius) - SQR(els_convex_ext_r.radius - els_convex_ext_r.depth));
         els_convex_ext_r_display_setting();
       }
       break;
@@ -749,15 +778,16 @@ void els_convex_ext_r_set_depth(void) {
     case ELS_KEY_EXIT:
       els_convex_ext_r.state = ELS_CONVEX_EXT_IDLE;
       els_convex_ext_r_display_setting();
+      els_convex_ext_r_calculate_arc();
       break;
     case ELS_KEY_FUN_F1:
-      els_convex_ext_r.state = ELS_CONVEX_EXT_SET_RAD;
+      els_convex_ext_r.state = ELS_CONVEX_EXT_SET_LENGTH;
       els_convex_ext_r_display_setting();
       break;
     default:
       encoder_curr = els_encoder_read();
       if (els_convex_ext_r.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_convex_ext_r.encoder_pos) * 0.01;
+        double delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
         if (els_convex_ext_r.depth + delta <= 0)
           els_convex_ext_r.depth = 0;
         else if (els_convex_ext_r.depth + delta >= els_convex_ext_r.radius)
@@ -765,7 +795,36 @@ void els_convex_ext_r_set_depth(void) {
         else
           els_convex_ext_r.depth += delta;
         els_convex_ext_r.encoder_pos = encoder_curr;
-        els_convex_ext_r.length = sqrt(SQR(els_convex_ext_r.radius) - SQR(els_convex_ext_r.radius - els_convex_ext_r.depth));
+        els_convex_ext_r_display_setting();
+      }
+      break;
+  }
+}
+
+void els_convex_ext_r_set_length(void) {
+  int32_t encoder_curr;
+  switch(els_keypad_read()) {
+    case ELS_KEY_OK:
+    case ELS_KEY_EXIT:
+      els_convex_ext_r.state = ELS_CONVEX_EXT_IDLE;
+      els_convex_ext_r_display_setting();
+      els_convex_ext_r_calculate_arc();
+      break;
+    case ELS_KEY_FUN_F1:
+      els_convex_ext_r.state = ELS_CONVEX_EXT_SET_RADIUS;
+      els_convex_ext_r_display_setting();
+      break;
+    default:
+      encoder_curr = els_encoder_read();
+      if (els_convex_ext_r.encoder_pos != encoder_curr) {
+        double delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
+        if (els_convex_ext_r.length + delta <= 0)
+          els_convex_ext_r.length = 0;
+        else if (els_convex_ext_r.length + delta >= els_convex_ext_r.radius)
+          els_convex_ext_r.length = els_convex_ext_r.radius;
+        else
+          els_convex_ext_r.length += delta;
+        els_convex_ext_r.encoder_pos = encoder_curr;
         els_convex_ext_r_display_setting();
       }
       break;
@@ -827,59 +886,49 @@ static void els_convex_ext_r_set_xaxes(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_convex_ext_r_zjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_convex_ext_r.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Acceleration
-    // ----------------------------------------------------------------------------------
-    uint64_t now;
-    static uint16_t accel = 0;
-    static uint16_t velocity = 1;
-    static uint64_t last_updated_at = 0;
-
-    now = els_timer_elapsed_microseconds();
-    if ((now - last_updated_at) < 1e5)
-      accel++;
-    else
-      accel = 0;
-    velocity = (accel > 10 ? 10 : 1);
-    last_updated_at = now;
-
-    delta = (encoder_curr - els_convex_ext_r.encoder_pos);
+    delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
     els_convex_ext_r.encoder_pos = encoder_curr;
-    els_stepper_move_z(delta * velocity * 0.1, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
   }
 }
 
 static void els_convex_ext_r_xjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_convex_ext_r.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Acceleration
-    // ----------------------------------------------------------------------------------
-    uint64_t now;
-    static uint16_t accel = 0;
-    static uint16_t velocity = 1;
-    static uint64_t last_updated_at = 0;
-
-    now = els_timer_elapsed_microseconds();
-    if ((now - last_updated_at) < 1e5)
-      accel++;
-    else
-      accel = 0;
-    velocity = (accel > 10 ? 10 : 1);
-    last_updated_at = now;
-    // ----------------------------------------------------------------------------------
-    // Jog pulse calculation
-    // ----------------------------------------------------------------------------------
-    delta = (encoder_curr - els_convex_ext_r.encoder_pos);
+    delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
     els_convex_ext_r.encoder_pos = encoder_curr;
-    els_stepper_move_x(delta * velocity * 0.01, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
   }
+}
+
+// ----------------------------------------------------------------------------------
+// Calculate arc center (z, x)
+// ----------------------------------------------------------------------------------
+void els_convex_ext_r_calculate_arc(void) {
+  // midpoint distance.
+  double dz = els_convex_ext_r.length / 2.0;
+  double dx = els_convex_ext_r.depth / 2.0;
+
+  // midpoint z,x coordinates.
+  double mz = -dz;
+  double mx = -dx;
+
+  // rhombus diagonal 1
+  double d1 = sqrt(SQR(dz) + SQR(dx));
+  // rhombus diagonal 2
+  double d2 = sqrt(SQR(els_convex_ext_r.radius) - SQR(d1));
+
+  // circle origin
+  els_convex_ext_r.arc_center_z = mz - (d2 * dx) / d1;
+  els_convex_ext_r.arc_center_x = mx - (d2 * dz) / d1;
+
+  printf("Cz = %.2f Cx = %.2f\n", els_convex_ext_r.arc_center_z, els_convex_ext_r.arc_center_x);
 }

@@ -73,9 +73,9 @@ extern "C" {
 // ----------------------------------------------------------------------------
 // Settings for threading module that uses interrupts to keep track of spindle.
 // ----------------------------------------------------------------------------
-// Interrupt counts on rise & fall, increasing resolution.
+// Interrupt counts on rise
 //
-#define ELS_S_ENCODER2_PPR    (ELS_S_ENCODER_PPR * 2)
+#define ELS_S_ENCODER2_PPR    (ELS_S_ENCODER_PPR)
 #define ELS_S_ENCODER2_PORTA  GPIOB
 #define ELS_S_ENCODER2_PINA   GPIO3
 #define ELS_S_ENCODER2_PORTB  GPIOB
@@ -145,7 +145,7 @@ extern "C" {
 #define ELS_KEY_JOG_ZX_MAX    0x36
 
 #define ELS_KEY_LOCK          0x16
-#define ELS_KEY_UNLOCK        0x1e
+#define ELS_KEY_ENC_MULT      0x1e
 
 
 //-----------------------------------------------------------------------------

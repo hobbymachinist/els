@@ -120,6 +120,9 @@ static struct {
   // input read for jogging
   int32_t  encoder_pos;
 
+  // encoder multiplier
+  int16_t encoder_multiplier;
+
   // jogging
   int32_t  stepper_pulse_pos;
   int32_t  stepper_pulse_curr;
@@ -137,7 +140,8 @@ static struct {
   .zstop = false,
   .zpos = 0,
   .zmin = 0,
-  .zmax = 0
+  .zmax = 0,
+  .encoder_multiplier = 1
 };
 
 //==============================================================================
@@ -148,6 +152,7 @@ static void els_turning_display_refresh(void);
 static void els_turning_display_feed(void);
 static void els_turning_display_axes(void);
 static void els_turning_display_header(void);
+static void els_turning_display_encoder_pips(void);
 
 static void els_turning_set_feed(void);
 
@@ -280,6 +285,12 @@ void els_turning_update(void) {
     last_refreshed_at = elapsed;
     els_turning_display_refresh();
   }
+
+  int16_t em = els_encoder_get_multiplier();
+  if (em != els_turning.encoder_multiplier) {
+    els_turning.encoder_multiplier = em;
+    els_turning_display_encoder_pips();
+  }
 }
 
 //==============================================================================
@@ -332,35 +343,34 @@ static void els_turning_timer_isr(void) {
 // ----------------------------------------------------------------------------------
 static void els_turning_display_feed(void) {
   char text[32];
+  tft_rgb_t color = (els_turning.state == ELS_TURNING_SET_FEED ? ILI9481_YELLOW : ILI9481_WHITE);
   if (els_turning.feed_reverse) {
     tft_filled_rectangle(&tft, 270, 228, 84, 25, ILI9481_BLACK);
     els_sprint_double2(text, sizeof(text), els_turning.feed_um / 1000.0, "REV ");
-    tft_font_write_bg(&tft, 270, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 270, 228, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
   }
   else {
     tft_filled_rectangle(&tft, 270, 228, 84, 25, ILI9481_BLACK);
     els_sprint_double2(text, sizeof(text), els_turning.feed_um / 1000.0, "FEED");
-    tft_font_write_bg(&tft, 270, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 270, 228, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
   }
 }
 
 static void els_turning_display_axes(void) {
   char text[32];
+  tft_rgb_t color;
 
   els_sprint_double3(text, sizeof(text), els_turning.zpos, "Z");
-  tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  color = (els_turning.state == ELS_TURNING_SET_ZAXES ? ILI9481_YELLOW : ILI9481_WHITE);
+  tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_turning.zmin, "MIN");
-  if (els_turning.state == ELS_TURNING_SET_MIN)
-    tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
-  else
-    tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  color = (els_turning.state == ELS_TURNING_SET_MIN ? ILI9481_YELLOW : ILI9481_WHITE);
+  tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_turning.zmax, "MAX");
-  if (els_turning.state == ELS_TURNING_SET_MAX)
-    tft_font_write_bg(&tft, 270, 142, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
-  else
-    tft_font_write_bg(&tft, 270, 142, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  color = (els_turning.state == ELS_TURNING_SET_MAX ? ILI9481_YELLOW : ILI9481_WHITE);
+  tft_font_write_bg(&tft, 270, 142, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
 
   if (els_turning.zstop)
     tft_font_write_bg(&tft, 8, 142, "LIMITS ON ", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
@@ -369,16 +379,24 @@ static void els_turning_display_axes(void) {
 }
 
 static void els_turning_display_header(void) {
-  if (els_turning.locked) {
-    tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
-    tft_font_write_bg(&tft, 8, 0, "MANUAL TURNING", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
-  }
-  else {
-    tft_filled_rectangle(&tft, 0,   0, 480,  50, ILI9481_CERULEAN);
-    tft_font_write_bg(&tft, 8, 0, "MANUAL TURNING", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_CERULEAN);
-    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_CERULEAN);
-  }
+  tft_rgb_t color = els_turning.locked ? ILI9481_RED : ILI9481_CERULEAN;
+
+  tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+  tft_font_write_bg(&tft, 8, 0, "MANUAL TURNING", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  els_turning_display_encoder_pips();
+}
+
+static void els_turning_display_encoder_pips(void) {
+  // multiplier is 100, 10 or 1
+  size_t pips = els_turning.encoder_multiplier;
+  pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
+
+  for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
+    tft_filled_rectangle(&tft,
+      440, 32 - (n * 10 + spacing * 2),
+      15 + n * 10, 10,
+      (n < pips ? ILI9481_WHITE : els_turning.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR1));
+
 }
 
 static void els_turning_display_refresh(void) {
@@ -456,7 +474,8 @@ static void els_turning_display_refresh(void) {
   tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_turning.zpos, "Z");
-  tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_rgb_t color = (els_turning.state == ELS_TURNING_SET_ZAXES ? ILI9481_YELLOW : ILI9481_WHITE);
+  tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
 
   els_sprint_double33(text, sizeof(text), (els_dro.zpos_um / 1000.0), "Z");
   tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
@@ -481,6 +500,7 @@ static void els_turning_keypad_process(void) {
     case ELS_KEY_SET_FEED:
       els_turning.state = ELS_TURNING_SET_FEED;
       els_turning.encoder_pos = 0;
+      els_turning_display_feed();
       els_encoder_reset();
       break;
     case ELS_KEY_SET_ZX:
@@ -554,6 +574,7 @@ static void els_turning_set_feed(void) {
     case ELS_KEY_EXIT:
       ELS_TURNING_TIMER_CHANGE(els_turning.feed_um);
       els_turning.state = ELS_TURNING_IDLE;
+      els_turning_display_feed();
       break;
     case ELS_KEY_REV_FEED:
       els_turning.feed_reverse = !els_turning.feed_reverse;
@@ -562,7 +583,7 @@ static void els_turning_set_feed(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_turning.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_turning.encoder_pos) * 100;
+        int32_t delta = (encoder_curr - els_turning.encoder_pos) * 10 * els_turning.encoder_multiplier;
         if (els_turning.feed_um + delta <= ELS_TURNING_FEED_MIN)
           els_turning.feed_um = ELS_TURNING_FEED_MIN;
         else if (els_turning.feed_um + delta >= ELS_TURNING_FEED_MAX)
@@ -662,7 +683,7 @@ static void els_turning_set_min(void) {
       encoder_curr = els_encoder_read();
       if (els_turning.encoder_pos != encoder_curr) {
         int32_t delta = (encoder_curr - els_turning.encoder_pos);
-        els_turning.zmin += (delta * 0.1);
+        els_turning.zmin += (delta * 0.01 * els_turning.encoder_multiplier);
         els_turning.encoder_pos = encoder_curr;
         els_turning_display_axes();
       }
@@ -686,7 +707,7 @@ static void els_turning_set_max(void) {
       encoder_curr = els_encoder_read();
       if (els_turning.encoder_pos != encoder_curr) {
         int32_t delta = (encoder_curr - els_turning.encoder_pos);
-        els_turning.zmax += (delta * 0.1);
+        els_turning.zmax += (delta * 0.01 * els_turning.encoder_multiplier);
         els_turning.encoder_pos = encoder_curr;
         els_turning_display_axes();
       }
@@ -698,17 +719,13 @@ static void els_turning_set_max(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_turning_zjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_turning.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Jog pulse calculation
-    // ----------------------------------------------------------------------------------
-    delta = (encoder_curr - els_turning.encoder_pos);
-    els_printf("jog: pulses %ld\n", (int32_t)(delta * ELS_TURNING_ZJOG_PULSES));
-    els_turning.stepper_pulse_curr += (delta * ELS_TURNING_ZJOG_PULSES);
+    delta = (encoder_curr - els_turning.encoder_pos) * 0.01 * els_turning.encoder_multiplier;
+    els_turning.stepper_pulse_curr += (delta * els_config->z_pulses_per_mm);
     els_turning.encoder_pos = encoder_curr;
     els_turning_display_axes();
   }
@@ -768,14 +785,14 @@ static void els_turning_zjog_auto(double travel) {
     ELS_TURNING_SET_ZDIR_LR;
     backlash = (els_turning.zdir != 1);
     els_turning.zdir = 1;
-    els_turning.zjog_steps = (int32_t)(travel * els_config->z_pulses_per_mm);
+    els_turning.zjog_steps = (int32_t)round(travel * els_config->z_pulses_per_mm);
     els_turning.state |= ELS_TURNING_ZJOG;
   }
   else if (travel < 0) {
     ELS_TURNING_SET_ZDIR_RL;
     backlash = (els_turning.zdir != -1);
     els_turning.zdir = -1;
-    els_turning.zjog_steps = (int32_t)(-travel * els_config->z_pulses_per_mm);
+    els_turning.zjog_steps = (int32_t)round(-travel * els_config->z_pulses_per_mm);
     els_turning.state |= ELS_TURNING_ZJOG;
   }
 

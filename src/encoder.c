@@ -22,8 +22,9 @@
 //==============================================================================
 static volatile int32_t encoder_ticks, encoder_dir;
 static volatile uint64_t t1 = 0, t2 = 0;
-static uint32_t direction_debounce_us, rotation_debounce_us;
 
+static uint32_t direction_debounce_us, rotation_debounce_us;
+static int16_t  encoder_multiplier = 1;
 //==============================================================================
 // ISR
 //==============================================================================
@@ -78,7 +79,7 @@ void els_encoder_setup(void) {
 void els_encoder_start(void) {
   encoder_ticks = 0;
   direction_debounce_us = 100e3;
-  rotation_debounce_us = direction_debounce_us / 10;
+  rotation_debounce_us = 25e3 / 10;
 
   nvic_set_priority(ELS_I_ENCODER_IRQ, 4);
   nvic_enable_irq(ELS_I_ENCODER_IRQ);
@@ -107,4 +108,20 @@ int32_t els_encoder_read(void) {
 
 void els_encoder_write(int32_t ticks) {
   encoder_ticks = ticks;
+}
+
+void els_encoder_incr(uint16_t delta) {
+  encoder_ticks += delta;
+}
+
+void els_encoder_decr(uint16_t delta) {
+  encoder_ticks -= delta;
+}
+
+int16_t els_encoder_get_multiplier(void) {
+  return encoder_multiplier;
+}
+
+void els_encoder_inc_multiplier(void) {
+  encoder_multiplier = encoder_multiplier > 10 ? 1 : encoder_multiplier * 10;
 }

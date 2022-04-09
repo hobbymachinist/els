@@ -12,8 +12,8 @@ extern "C" {
 #include <sys/types.h>
 
 typedef struct {
-  int32_t xpos_um;
-  int32_t zpos_um;
+  volatile int32_t xpos_um;
+  volatile int32_t zpos_um;
 } els_dro_t;
 
 extern els_dro_t els_dro;

@@ -37,10 +37,22 @@ const els_config_t *els_config = &_els_config;
 //==============================================================================
 // Internal State
 //==============================================================================
+typedef enum {
+  ELS_CONFIG_X_PULSES_PER_MM      = 0,
+  ELS_CONFIG_Z_PULSES_PER_MM      = 1,
+  ELS_CONFIG_X_BACKLASH_UM        = 2,
+  ELS_CONFIG_Z_BACKLASH_UM        = 3,
+  ELS_CONFIG_SPINDLE_ENCODER_PPR  = 4,
+  ELS_CONFIG_X_RETRACT_JOG_MM_S   = 5,
+  ELS_CONFIG_Z_RETRACT_JOG_MM_S   = 6,
+  ELS_CONFIG_X_CLOSED_LOOP        = 7,
+  ELS_CONFIG_Z_CLOSED_LOOP        = 8
+} els_config_setting_t;
+
 static struct {
   bool locked;
   int32_t encoder_curr;
-  size_t setting;
+  els_config_setting_t setting;
   bool edit;
   uint32_t value;
 } config;
@@ -50,7 +62,11 @@ const char *settings[] = {
   "Z PULSES PER MM",
   "X BACKLASH uM",
   "Z BACKLASH uM",
-  "SPINDLE ENCODER PPR"
+  "SPINDLE ENCODER PPR",
+  "X RETRACT JOG MM/S",
+  "Z RETRACT JOG MM/S",
+  "X CLOSED LOOP",
+  "Z CLOSED LOOP",
 };
 
 #define ELS_CONFIG_SETTING_MAX (sizeof(settings) / sizeof(settings[0]))
@@ -108,11 +124,32 @@ void els_config_setup(void) {
     els_kv_write(ELS_KV_SPINDLE_ENCODER_PPR, &_els_config.spindle_encoder_ppr, sizeof(_els_config.spindle_encoder_ppr));
   }
 
+  els_kv_read(ELS_KV_X_RETRACT_JOG_MM_S, &_els_config.x_retract_jog_mm_s, sizeof(_els_config.x_retract_jog_mm_s));
+  if (_els_config.x_retract_jog_mm_s == 0) {
+    _els_config.x_retract_jog_mm_s = 1;
+    printf("set default x min jog mm/s = %lu\n", _els_config.x_retract_jog_mm_s);
+    els_kv_write(ELS_KV_X_RETRACT_JOG_MM_S, &_els_config.x_retract_jog_mm_s, sizeof(_els_config.x_retract_jog_mm_s));
+  }
+
+  els_kv_read(ELS_KV_Z_RETRACT_JOG_MM_S, &_els_config.z_retract_jog_mm_s, sizeof(_els_config.z_retract_jog_mm_s));
+  if (_els_config.z_retract_jog_mm_s == 0) {
+    _els_config.z_retract_jog_mm_s = 2;
+    printf("set default z min jog mm/s = %lu\n", _els_config.z_retract_jog_mm_s);
+    els_kv_write(ELS_KV_Z_RETRACT_JOG_MM_S, &_els_config.z_retract_jog_mm_s, sizeof(_els_config.z_retract_jog_mm_s));
+  }
+
+  els_kv_read(ELS_KV_X_CLOSED_LOOP, &_els_config.x_closed_loop, sizeof(_els_config.x_closed_loop));
+  els_kv_read(ELS_KV_Z_CLOSED_LOOP, &_els_config.z_closed_loop, sizeof(_els_config.z_closed_loop));
+
   printf("x pulses per mm = %lu\n", _els_config.x_pulses_per_mm);
   printf("z pulses per mm = %lu\n", _els_config.z_pulses_per_mm);
   printf("x backlash um = %lu\n", _els_config.x_backlash_um);
   printf("z backlash um = %lu\n", _els_config.z_backlash_um);
   printf("spindle encoder ppr = %lu\n", _els_config.spindle_encoder_ppr);
+  printf("x min jog mm/s = %lu\n", _els_config.x_retract_jog_mm_s);
+  printf("z min jog mm/s = %lu\n", _els_config.z_retract_jog_mm_s);
+  printf("x closed loop = %d\n", _els_config.x_closed_loop);
+  printf("z closed loop = %d\n", _els_config.z_closed_loop);
 }
 
 void els_config_start(void) {
@@ -144,7 +181,15 @@ void els_config_update(void) {
       els_config_menu_display_refresh();
     }
     else if (enc > config.encoder_curr) {
-      config.value++;
+      switch (config.setting) {
+        case ELS_CONFIG_X_CLOSED_LOOP:
+        case ELS_CONFIG_Z_CLOSED_LOOP:
+          config.value = 1;
+          break;
+        default:
+          config.value++;
+          break;
+      }
       els_config_menu_display_refresh();
     }
   }
@@ -188,7 +233,7 @@ void els_config_update(void) {
 }
 
 void els_config_stop(void) {
-  els_encoder_set_rotation_debounce(10e3);
+  els_encoder_set_rotation_debounce(25e3);
   els_encoder_set_direction_debounce(100e3);
 }
 
@@ -197,16 +242,24 @@ void els_config_stop(void) {
 //------------------------------------------------------------------------------
 static uint32_t els_config_get(size_t setting) {
   switch (setting) {
-    case 0:
+    case ELS_CONFIG_X_PULSES_PER_MM:
       return _els_config.x_pulses_per_mm;
-    case 1:
+    case ELS_CONFIG_Z_PULSES_PER_MM:
       return _els_config.z_pulses_per_mm;
-    case 2:
+    case ELS_CONFIG_X_BACKLASH_UM:
       return _els_config.x_backlash_um;
-    case 3:
+    case ELS_CONFIG_Z_BACKLASH_UM:
       return _els_config.z_backlash_um;
-    case 4:
+    case ELS_CONFIG_SPINDLE_ENCODER_PPR:
       return _els_config.spindle_encoder_ppr;
+    case ELS_CONFIG_X_RETRACT_JOG_MM_S:
+      return _els_config.x_retract_jog_mm_s;
+    case ELS_CONFIG_Z_RETRACT_JOG_MM_S:
+      return _els_config.z_retract_jog_mm_s;
+    case ELS_CONFIG_X_CLOSED_LOOP:
+      return _els_config.x_closed_loop;
+    case ELS_CONFIG_Z_CLOSED_LOOP:
+      return _els_config.z_closed_loop;
     default:
       return 0;
   }
@@ -214,25 +267,41 @@ static uint32_t els_config_get(size_t setting) {
 
 static void els_config_set(size_t setting, uint32_t value) {
   switch (setting) {
-    case 0:
+    case ELS_CONFIG_X_PULSES_PER_MM:
       _els_config.x_pulses_per_mm = value;
       els_kv_write(ELS_KV_X_PULSES_PER_MM, &value, sizeof(value));
       break;
-    case 1:
+    case ELS_CONFIG_Z_PULSES_PER_MM:
       _els_config.z_pulses_per_mm = value;
       els_kv_write(ELS_KV_Z_PULSES_PER_MM, &value, sizeof(value));
       break;
-    case 2:
+    case ELS_CONFIG_X_BACKLASH_UM:
       _els_config.x_backlash_um = value;
       els_kv_write(ELS_KV_X_BACKLASH_UM, &value, sizeof(value));
       break;
-    case 3:
+    case ELS_CONFIG_Z_BACKLASH_UM:
       _els_config.z_backlash_um = value;
       els_kv_write(ELS_KV_Z_BACKLASH_UM, &value, sizeof(value));
       break;
-    case 4:
+    case ELS_CONFIG_SPINDLE_ENCODER_PPR:
       _els_config.spindle_encoder_ppr = value;
       els_kv_write(ELS_KV_SPINDLE_ENCODER_PPR, &value, sizeof(value));
+      break;
+    case ELS_CONFIG_X_RETRACT_JOG_MM_S:
+      _els_config.x_retract_jog_mm_s = value;
+      els_kv_write(ELS_KV_X_RETRACT_JOG_MM_S, &value, sizeof(value));
+      break;
+    case ELS_CONFIG_Z_RETRACT_JOG_MM_S:
+      _els_config.z_retract_jog_mm_s = value;
+      els_kv_write(ELS_KV_Z_RETRACT_JOG_MM_S, &value, sizeof(value));
+      break;
+    case ELS_CONFIG_X_CLOSED_LOOP:
+      _els_config.x_closed_loop = value > 0 ? true : false;
+      els_kv_write(ELS_KV_X_CLOSED_LOOP, &_els_config.x_closed_loop, sizeof(_els_config.x_closed_loop));
+      break;
+    case ELS_CONFIG_Z_CLOSED_LOOP:
+      _els_config.z_closed_loop = value > 0 ? true : false;
+      els_kv_write(ELS_KV_Z_CLOSED_LOOP, &_els_config.z_closed_loop, sizeof(_els_config.z_closed_loop));
       break;
     default:
       break;
@@ -268,10 +337,20 @@ static void els_config_menu_display_refresh(void) {
   size_t row = 0, y_start = 52, y, id;
   size_t height = 40;
 
-  for (size_t n = config.setting; n < ELS_CONFIG_SETTING_MAX; n++) {
+  for (size_t n = config.setting; n < ELS_CONFIG_SETTING_MAX && row < 6; n++) {
     y = y_start + row * height;
     snprintf(row_text, sizeof(row_text), "%d", n + 1);
-    snprintf(value_text, sizeof(value_text), "%lu", config.edit && row == 0 ? config.value : els_config_get(n));
+
+    switch (n) {
+      case ELS_CONFIG_X_CLOSED_LOOP:
+      case ELS_CONFIG_Z_CLOSED_LOOP:
+        snprintf(value_text, sizeof(value_text), "%s",
+          (config.edit && row == 0 ? config.value : els_config_get(n)) ? "ON" : "OFF");
+        break;
+      default:
+        snprintf(value_text, sizeof(value_text), "%lu", config.edit && row == 0 ? config.value : els_config_get(n));
+        break;
+    }
 
     if (row == 0) {
       tft_rgb_t bg_color = config.edit ? ILI9481_YELLOW : ILI9481_WHITE;
@@ -290,6 +369,6 @@ static void els_config_menu_display_refresh(void) {
     row++;
   }
 
-  for (size_t n = row; n < ELS_CONFIG_SETTING_MAX; n++)
+  for (size_t n = row; n < 6; n++)
     tft_filled_rectangle(&tft, 0, y_start + n * height, 480, height, ILI9481_BLACK);
 }

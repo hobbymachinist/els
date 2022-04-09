@@ -122,13 +122,18 @@ int main(void) {
         els_keypad_flush();
         break;
       case ELS_KEY_LOCK:
-        printf("keypad: lock\n");
-        els_keypad_lock();
+        if (els_keypad_locked()) {
+          printf("keypad: unlock\n");
+          els_keypad_unlock();
+        }
+        else {
+          printf("keypad: lock\n");
+          els_keypad_lock();
+        }
         els_keypad_flush();
         break;
-      case ELS_KEY_UNLOCK:
-        printf("keypad: unlock\n");
-        els_keypad_unlock();
+      case ELS_KEY_ENC_MULT:
+        els_encoder_inc_multiplier();
         els_keypad_flush();
         break;
       default:

@@ -24,7 +24,11 @@ typedef enum {
   ELS_KV_Z_BACKLASH_UM        = 4,
   ELS_KV_X_BACKLASH_MM_S      = 5,
   ELS_KV_Z_BACKLASH_MM_S      = 6,
-  ELS_KV_SPINDLE_ENCODER_PPR  = 7
+  ELS_KV_SPINDLE_ENCODER_PPR  = 7,
+  ELS_KV_X_RETRACT_JOG_MM_S   = 8,
+  ELS_KV_Z_RETRACT_JOG_MM_S   = 9,
+  ELS_KV_X_CLOSED_LOOP        = 10,
+  ELS_KV_Z_CLOSED_LOOP        = 11
 } els_kv_t;
 
 void els_kv_setup(void);

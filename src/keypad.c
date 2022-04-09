@@ -11,12 +11,12 @@
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/exti.h>
 
-#include "delay.h"
 #include "keypad.h"
-#include "ringbuffer.h"
-#include "gpio.h"
 
 #include "constants.h"
+#include "delay.h"
+#include "gpio.h"
+#include "ringbuffer.h"
 
 //==============================================================================
 // Internal State
@@ -24,47 +24,6 @@
 uint8_t buffer[64];
 bool    locked;
 ringbuffer_t ringbuffer;
-
-//==============================================================================
-// ISR
-//==============================================================================
-static uint8_t usart_scancode_table[] = {
-  0x1c, // A
-  0x32, // B
-  0x21, // C
-  0x23, // D
-  0x24, // E
-  0x2b, // F
-  0x34, // G
-  0x33, // H
-  0x43, // I
-  0x3b, // J
-  0x42, // K
-  0x4b, // L
-  0x16, // M
-  0x1e, // N
-  0x26, // O
-  0x25, // P
-  0x2e, // Q
-  0x36  // R
-};
-
-void usart1_isr(void) {
-  uint8_t byte;
-  uint32_t reg;
-  do {
-    reg = USART_SR(USART1);
-    if (reg & USART_SR_RXNE) {
-      byte = USART_DR(USART1);
-      if (byte == '0')
-        ringbuffer_putc(&ringbuffer, 0x00);
-      else if (byte >= 'a' && byte <= 'r')
-        ringbuffer_putc(&ringbuffer, usart_scancode_table[byte - 'a']);
-      else if (byte >= 'A' && byte <= 'R')
-        ringbuffer_putc(&ringbuffer, usart_scancode_table[byte - 'A']);
-    }
-  } while ((reg & USART_SR_RXNE) != 0);
-}
 
 volatile uint8_t byte = 0;
 volatile uint8_t bits = 0;
@@ -126,19 +85,11 @@ void ELS_KEYPAD_ISR(void) {
 #endif
 }
 
-#define ELS_KEYPAD_ENABLE_USART_INPUT 0
-
 //==============================================================================
 // API
 //==============================================================================
 void els_keypad_setup(void) {
   ringbuffer_init(&ringbuffer, sizeof(buffer), buffer);
-
-  // NOTE: key input via UART disabled by default.
-  #if ELS_KEYPAD_ENABLE_USART_INPUT
-    nvic_enable_irq(NVIC_USART1_IRQ);
-    usart_enable_rx_interrupt(USART1);
-  #endif
 
   // PS/2 keypad.
   gpio_mode_setup(ELS_KEYPAD_CLK_PORT, GPIO_MODE_INPUT, GPIO_PUPD_NONE, ELS_KEYPAD_CLK_PIN);
@@ -173,11 +124,11 @@ int els_keypad_read(void) {
     switch (data) {
       // top level function keys.
       case ELS_KEY_LOCK:
-      case ELS_KEY_UNLOCK:
+      case ELS_KEY_ENC_MULT:
       case ELS_KEY_FUN_TURN:
       case ELS_KEY_FUN_THREAD:
       case ELS_KEY_FUN_SELECT:
-        els_keypad_unread(data);
+        els_keypad_write(data);
         return ELS_KEY_EOF;
       default:
         return data;
@@ -199,6 +150,6 @@ void els_keypad_flush(void) {
   ringbuffer.read_ptr = ringbuffer.write_ptr;
 }
 
-void els_keypad_unread(uint8_t c) {
+void els_keypad_write(uint8_t c) {
   ringbuffer_putc(&ringbuffer, c);
 }

@@ -36,6 +36,9 @@ extern "C" {
 #define ILI9481_BLUE1     (tft_rgb_t){.r = 0,  .g = 4,  .b = 5}
 #define ILI9481_BLUE2     (tft_rgb_t){.r = 0,  .g = 16, .b = 8}
 
+#define ILI9481_BGCOLOR1  (tft_rgb_t){.r = 10, .g = 40, .b = 30}
+#define ILI9481_BGCOLOR2  (tft_rgb_t){.r = 4,  .g = 30, .b = 8}
+
 typedef struct {
   uint32_t port;
   uint32_t pin;
@@ -92,6 +95,12 @@ void tft_filled_triangle(const tft_device_t*,
   uint16_t x1, uint16_t y1,
   uint16_t x2, uint16_t y2,
   uint16_t x3, uint16_t y3,
+  tft_rgb_t color);
+
+// draws 3° arc segments.
+void tft_filled_arc(const tft_device_t *tft,
+  uint16_t x, uint16_t y, uint16_t rx, uint16_t ry,
+  uint16_t start_angle, uint16_t segments, uint16_t width,
   tft_rgb_t color);
 
 // ------------------------------------------------------------------------------------------------------------------

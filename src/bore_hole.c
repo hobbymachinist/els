@@ -26,6 +26,7 @@
 
 #include "constants.h"
 
+#include "config.h"
 #include "dro.h"
 #include "encoder.h"
 #include "keypad.h"
@@ -38,9 +39,7 @@
 #define ELS_Z_JOG_MM_S  8
 #define ELS_X_JOG_MM_S  4
 
-#define ELS_Z_SLO_MM_S  2
-#define ELS_X_SLO_MM_S  1
-
+#define PRECISION       (1e-2)
 //==============================================================================
 // Externs
 //==============================================================================
@@ -126,6 +125,9 @@ static struct {
   // input read for jogging
   int32_t  encoder_pos;
 
+  // encoder multiplier
+  int16_t encoder_multiplier;
+
   // module state
   els_bore_hole_state_t state;
 
@@ -143,7 +145,8 @@ static struct {
   .depth_of_cut_um = 100,
   .feed_um = 1000,
   .depth = 2,
-  .width = 0.5
+  .width = 0.5,
+  .encoder_multiplier = 1
 };
 
 //==============================================================================
@@ -157,6 +160,7 @@ static void els_bore_hole_display_setting(void);
 static void els_bore_hole_display_axes(void);
 static void els_bore_hole_display_header(void);
 static void els_bore_hole_display_diagram(void);
+static void els_bore_hole_display_encoder_pips(void);
 
 static void els_bore_hole_set_feed(void);
 static void els_bore_hole_set_depth_of_cut(void);
@@ -269,6 +273,12 @@ void els_bore_hole_update(void) {
     last_refreshed_at = elapsed;
     els_bore_hole_display_refresh();
   }
+
+  int16_t em = els_encoder_get_multiplier();
+  if (em != els_bore_hole.encoder_multiplier) {
+    els_bore_hole.encoder_multiplier = em;
+    els_bore_hole_display_encoder_pips();
+  }
 }
 
 //==============================================================================
@@ -360,16 +370,23 @@ static void els_bore_hole_display_diagram(void) {
 }
 
 static void els_bore_hole_display_header(void) {
-  if (els_bore_hole.locked) {
-    tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
-    tft_font_write_bg(&tft, 8, 0, "BORING - HOLE", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
-  }
-  else {
-    tft_filled_rectangle(&tft, 0,   0, 480,  50, ILI9481_DIANNE);
-    tft_font_write_bg(&tft, 8, 0, "BORING - HOLE", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_DIANNE);
-    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_DIANNE);
-  }
+  tft_rgb_t color = (els_bore_hole.locked ? ILI9481_RED : ILI9481_DIANNE);
+
+  tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+  tft_font_write_bg(&tft, 8, 0, "BORING - HOLE", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  els_bore_hole_display_encoder_pips();
+}
+
+static void els_bore_hole_display_encoder_pips(void) {
+  // multiplier is 100, 10 or 1
+  size_t pips = els_bore_hole.encoder_multiplier;
+  pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
+
+  for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
+    tft_filled_rectangle(&tft,
+      440, 32 - (n * 10 + spacing * 2),
+      15 + n * 10, 10,
+      (n < pips ? ILI9481_WHITE : els_bore_hole.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR1));
 }
 
 static void els_bore_hole_display_refresh(void) {
@@ -499,7 +516,6 @@ static void els_bore_hole_run(void) {
     els_bore_hole_turn();
 }
 
-#define TURN_PRECISION (1e-2)
 static void els_bore_hole_turn(void) {
   switch (els_bore_hole.op_state) {
     case ELS_BORE_HOLE_OP_NA:
@@ -513,8 +529,8 @@ static void els_bore_hole_turn(void) {
       if (els_stepper->zbusy)
         break;
       // move to Z=0
-      if (fabs(els_stepper->zpos) > TURN_PRECISION)
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_SLO_MM_S);
+      if (fabs(els_stepper->zpos) > PRECISION)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
       else
         els_bore_hole.op_state = ELS_BORE_HOLE_OP_MOVEX0;
       break;
@@ -523,8 +539,8 @@ static void els_bore_hole_turn(void) {
         break;
 
       // move to X=0
-      if (fabs(els_stepper->xpos) > TURN_PRECISION)
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_SLO_MM_S);
+      if (fabs(els_stepper->xpos) > PRECISION)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
       else
         els_bore_hole.op_state = ELS_BORE_HOLE_OP_START;
       break;
@@ -538,35 +554,35 @@ static void els_bore_hole_turn(void) {
         break;
 
       // backoff
-      els_stepper_move_x(-1, ELS_X_SLO_MM_S);
+      els_stepper_move_x(-1, els_config->x_retract_jog_mm_s);
       els_bore_hole.op_state = ELS_BORE_HOLE_OP_ATZL;
       break;
     case ELS_BORE_HOLE_OP_ATZL:
       if (els_stepper->xbusy)
         break;
       // back to Z=0
-      els_stepper_move_z(els_bore_hole.depth, ELS_Z_SLO_MM_S);
+      els_stepper_move_z(els_bore_hole.depth, els_config->z_retract_jog_mm_s);
       els_bore_hole.op_state = ELS_BORE_HOLE_OP_ATZLXM;
       break;
     case ELS_BORE_HOLE_OP_ATZLXM:
       if (els_stepper->zbusy)
         break;
 
-      els_stepper_move_x(1, ELS_X_SLO_MM_S);
+      els_stepper_move_x(1, els_config->x_retract_jog_mm_s);
       els_bore_hole.op_state = ELS_BORE_HOLE_OP_ATZ0XM;
       break;
     case ELS_BORE_HOLE_OP_ATZ0XM:
       if (els_stepper->xbusy)
         break;
 
-      if (fabs(els_bore_hole.width - els_stepper->xpos) > TURN_PRECISION) {
+      if (fabs(els_bore_hole.width - els_stepper->xpos) > PRECISION) {
         double xd;
         xd = MIN(
           els_bore_hole.width - els_stepper->xpos,
           els_bore_hole.depth_of_cut_um / 1000.0
         );
 
-        els_stepper_move_x(xd, ELS_X_SLO_MM_S);
+        els_stepper_move_x(xd, els_config->x_retract_jog_mm_s);
         els_bore_hole.op_state = ELS_BORE_HOLE_OP_FEED_IN;
       }
       else {
@@ -587,7 +603,7 @@ static void els_bore_hole_turn(void) {
         break;
 
       els_bore_hole.op_state = ELS_BORE_HOLE_OP_DONE;
-      els_stepper_move_x(0 - els_stepper->xpos, ELS_X_SLO_MM_S);
+      els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
       break;
     case ELS_BORE_HOLE_OP_DONE:
       // beer time
@@ -617,7 +633,7 @@ static void els_bore_hole_set_feed(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_bore_hole.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_bore_hole.encoder_pos) * 100;
+        int32_t delta = (encoder_curr - els_bore_hole.encoder_pos) * 10 * els_bore_hole.encoder_multiplier;
         if (els_bore_hole.feed_um + delta <= ELS_BORE_HOLE_FEED_MIN)
           els_bore_hole.feed_um = ELS_BORE_HOLE_FEED_MIN;
         else if (els_bore_hole.feed_um + delta >= ELS_BORE_HOLE_FEED_MAX)
@@ -650,7 +666,7 @@ static void els_bore_hole_set_depth_of_cut(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_bore_hole.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_bore_hole.encoder_pos) * 50;
+        int32_t delta = (encoder_curr - els_bore_hole.encoder_pos) * 10 * els_bore_hole.encoder_multiplier;
         if (els_bore_hole.depth_of_cut_um + delta <= ELS_BORE_HOLE_DOC_MIN)
           els_bore_hole.depth_of_cut_um = ELS_BORE_HOLE_DOC_MIN;
         else if (els_bore_hole.depth_of_cut_um + delta >= ELS_BORE_HOLE_DOC_MAX)
@@ -679,7 +695,7 @@ void els_bore_hole_set_depth(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_bore_hole.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_bore_hole.encoder_pos) * 0.1;
+        double delta = (encoder_curr - els_bore_hole.encoder_pos) * 0.01 * els_bore_hole.encoder_multiplier;
         if (els_bore_hole.depth + delta <= 0)
           els_bore_hole.depth = 0;
         else if (els_bore_hole.depth + delta >= ELS_Z_MAX_MM)
@@ -708,7 +724,7 @@ void els_bore_hole_set_width(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_bore_hole.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_bore_hole.encoder_pos) * 0.01;
+        double delta = (encoder_curr - els_bore_hole.encoder_pos) * 0.01 * els_bore_hole.encoder_multiplier;
         if (els_bore_hole.width + delta <= 0)
           els_bore_hole.width = 0;
         else if (els_bore_hole.width + delta >= ELS_X_MAX_MM)
@@ -778,57 +794,25 @@ static void els_bore_hole_set_xaxes(void) {
 // ----------------------------------------------------------------------------------
 
 static void els_bore_hole_zjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_bore_hole.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Acceleration
-    // ----------------------------------------------------------------------------------
-    uint64_t now;
-    static uint16_t accel = 0;
-    static uint16_t velocity = 1;
-    static uint64_t last_updated_at = 0;
-
-    now = els_timer_elapsed_microseconds();
-    if ((now - last_updated_at) < 1e5)
-      accel++;
-    else
-      accel = 0;
-    velocity = (accel > 10 ? 10 : 1);
-    last_updated_at = now;
-
-    delta = (encoder_curr - els_bore_hole.encoder_pos);
+    delta = (encoder_curr - els_bore_hole.encoder_pos) * (0.01 * els_bore_hole.encoder_multiplier);
     els_bore_hole.encoder_pos = encoder_curr;
-    els_stepper_move_z(delta * velocity * 0.1, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
   }
 }
 
 static void els_bore_hole_xjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_bore_hole.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Acceleration
-    // ----------------------------------------------------------------------------------
-    uint64_t now;
-    static uint16_t accel = 0;
-    static uint16_t velocity = 1;
-    static uint64_t last_updated_at = 0;
-
-    now = els_timer_elapsed_microseconds();
-    if ((now - last_updated_at) < 1e5)
-      accel++;
-    else
-      accel = 0;
-    velocity = (accel > 10 ? 10 : 1);
-    last_updated_at = now;
-
-    delta = (encoder_curr - els_bore_hole.encoder_pos);
+    delta = (encoder_curr - els_bore_hole.encoder_pos) * (0.01 * els_bore_hole.encoder_multiplier);
     els_bore_hole.encoder_pos = encoder_curr;
-    els_stepper_move_x(delta * velocity * 0.01, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
   }
 }

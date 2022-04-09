@@ -21,6 +21,34 @@
      id="defs2806">
     <marker
        style="overflow:visible"
+       id="marker1118"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="TriangleInM"
+       inkscape:isstock="true">
+      <path
+         transform="scale(-0.4)"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         d="M 5.77,0 -2.88,5 V -5 Z"
+         id="path1116" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="marker1054"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="TriangleInM"
+       inkscape:isstock="true">
+      <path
+         transform="scale(-0.4)"
+         style="fill:#24221c;fill-opacity:1;fill-rule:evenodd;stroke:#24221c;stroke-width:1pt;stroke-opacity:1"
+         d="M 5.77,0 -2.88,5 V -5 Z"
+         id="path1052" />
+    </marker>
+    <marker
+       style="overflow:visible"
        id="TriangleInS"
        refX="0"
        refY="0"
@@ -68,7 +96,8 @@
        refY="0"
        orient="auto"
        inkscape:stockid="TriangleInM"
-       inkscape:isstock="true">
+       inkscape:isstock="true"
+       inkscape:collect="always">
       <path
          transform="scale(-0.4)"
          style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
@@ -111,9 +140,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.8239881"
-     inkscape:cx="519.68504"
-     inkscape:cy="355.27559"
+     inkscape:zoom="0.80053411"
+     inkscape:cx="446.90432"
+     inkscape:cy="50.489384"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -141,7 +170,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -590,39 +619,6 @@
          ry="2.6442626" />
     </g>
     <g
-       id="g4134"
-       transform="translate(33.049999,-105.35667)">
-      <path
-         id="rect1426"
-         style="fill:#000000;stroke:#000000;stroke-width:0.866278;stroke-linecap:round"
-         d="m 118.43453,124.35417 h 5.84472 c 0.58247,0 1.05139,0.46892 1.05139,1.05138 v 3.46048 c 0,0.58247 -0.46892,1.05139 -1.05139,1.05139 h -5.84472 c -0.58247,0 -1.05139,-0.46892 -1.05139,-1.05139 v -3.46048 c 0,-0.58246 0.46892,-1.05138 1.05139,-1.05138 z" />
-      <g
-         id="g1434"
-         style="fill:#ffffff;stroke:#ffffff"
-         transform="matrix(0.79474986,0,0,0.79474986,83.937417,95.334337)">
-        <path
-           id="path1428"
-           style="fill:#ffffff;stroke:#ffffff;stroke-width:1.09;stroke-linecap:round"
-           d="m 47.867917,39.026043 a 0.66145831,0.66145831 0 0 1 -0.661458,0.661458 0.66145831,0.66145831 0 0 1 -0.661458,-0.661458 0.66145831,0.66145831 0 0 1 0.661458,-0.661458 0.66145831,0.66145831 0 0 1 0.661458,0.661458 z" />
-        <path
-           style="fill:#ffffff;stroke:#ffffff;stroke-width:1;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-           d="m 47.2,39.188 v 2.646"
-           id="path1430" />
-      </g>
-      <path
-         id="path1446-6"
-         style="fill:none;stroke:#000000;stroke-width:1.19212;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 119.50562,121.93924 a 1.9868746,1.9868746 0 0 1 0.99344,-1.72068 1.9868746,1.9868746 0 0 1 1.98687,0 1.9868746,1.9868746 0 0 1 0.99344,1.72068" />
-      <path
-         style="fill:#000000;stroke:#000000;stroke-width:1.19212;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-         d="M 119.50247,121.91667 V 124.44"
-         id="path1451-7" />
-      <path
-         style="fill:#008000;stroke:#000000;stroke-width:1.19212;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-         d="m 123.48417,121.91667 v 1.05138"
-         id="path1466-5" />
-    </g>
-    <g
        id="g4125"
        transform="translate(17.750011,-105.35667)">
       <rect
@@ -811,5 +807,17 @@
          d="m 38.518749,8.5416715 h 12"
          id="path1796-6" />
     </g>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 148,22 h 5"
+       id="path199" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 148,19 h 10"
+       id="path199-3" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 148,16 h 15"
+       id="path199-3-6" />
   </g>
 </svg>

@@ -26,6 +26,7 @@
 
 #include "constants.h"
 
+#include "config.h"
 #include "dro.h"
 #include "encoder.h"
 #include "keypad.h"
@@ -38,9 +39,7 @@
 #define ELS_Z_JOG_MM_S  8
 #define ELS_X_JOG_MM_S  4
 
-#define ELS_Z_SLO_MM_S  2
-#define ELS_X_SLO_MM_S  1
-
+#define PRECISION       (1e-2)
 //==============================================================================
 // Externs
 //==============================================================================
@@ -131,6 +130,9 @@ static struct {
   // input read for jogging
   int32_t  encoder_pos;
 
+  // encoder multiplier
+  int16_t encoder_multiplier;
+
   // module state
   els_taper_int_state_t state;
 
@@ -151,7 +153,8 @@ static struct {
   .depth_of_cut_um = 200,
   .feed_um = 4000,
   .length = 10,
-  .depth = 2
+  .depth = 2,
+  .encoder_multiplier = 1
 };
 
 //==============================================================================
@@ -165,6 +168,7 @@ static void els_taper_int_display_setting(void);
 static void els_taper_int_display_axes(void);
 static void els_taper_int_display_header(void);
 static void els_taper_int_display_diagram(void);
+static void els_taper_int_display_encoder_pips(void);
 
 static void els_taper_int_set_feed(void);
 static void els_taper_int_set_depth_of_cut(void);
@@ -279,6 +283,12 @@ void els_taper_int_update(void) {
     last_refreshed_at = elapsed;
     els_taper_int_display_refresh();
   }
+
+  int16_t em = els_encoder_get_multiplier();
+  if (em != els_taper_int.encoder_multiplier) {
+    els_taper_int.encoder_multiplier = em;
+    els_taper_int_display_encoder_pips();
+  }
 }
 
 //==============================================================================
@@ -381,16 +391,23 @@ static void els_taper_int_display_diagram(void) {
 }
 
 static void els_taper_int_display_header(void) {
-  if (els_taper_int.locked) {
-    tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
-    tft_font_write_bg(&tft, 8, 0, "TAPER INTERNAL", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
-  }
-  else {
-    tft_filled_rectangle(&tft, 0,   0, 480,  50, ILI9481_DIANNE);
-    tft_font_write_bg(&tft, 8, 0, "TAPER INTERNAL", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_DIANNE);
-    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_DIANNE);
-  }
+  tft_rgb_t color = (els_taper_int.locked ? ILI9481_RED : ILI9481_DIANNE);
+
+  tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+  tft_font_write_bg(&tft, 8, 0, "TAPER INTERNAL", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  els_taper_int_display_encoder_pips();
+}
+
+static void els_taper_int_display_encoder_pips(void) {
+  // multiplier is 100, 10 or 1
+  size_t pips = els_taper_int.encoder_multiplier;
+  pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
+
+  for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
+    tft_filled_rectangle(&tft,
+      440, 32 - (n * 10 + spacing * 2),
+      15 + n * 10, 10,
+      (n < pips ? ILI9481_WHITE : els_taper_int.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR1));
 }
 
 static void els_taper_int_display_refresh(void) {
@@ -526,7 +543,6 @@ static void els_taper_int_run(void) {
     els_taper_int_turn();
 }
 
-#define TURN_PRECISION (5e-3)
 static void els_taper_int_turn(void) {
   double xd, remaining;
 
@@ -541,8 +557,8 @@ static void els_taper_int_turn(void) {
       if (els_stepper->zbusy)
         break;
 
-      if (fabs(els_stepper->zpos) > TURN_PRECISION)
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_SLO_MM_S);
+      if (fabs(els_stepper->zpos) > PRECISION)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
       else
         els_taper_int.op_state = ELS_TAPER_EXT_OP_MOVEX0;
       break;
@@ -550,8 +566,8 @@ static void els_taper_int_turn(void) {
       if (els_stepper->xbusy)
         break;
 
-      if (fabs(els_stepper->xpos) > TURN_PRECISION)
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_SLO_MM_S);
+      if (fabs(els_stepper->xpos) > PRECISION)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
       else
         els_taper_int.op_state = ELS_TAPER_EXT_OP_START;
       break;
@@ -564,7 +580,7 @@ static void els_taper_int_turn(void) {
       els_taper_int.spring_pass_count = 0;
 
       if (els_taper_int.only_spring_pass)
-        els_stepper_move_x(els_taper_int.depth - els_stepper->xpos - 0.1, ELS_X_SLO_MM_S);
+        els_stepper_move_x(els_taper_int.depth - els_stepper->xpos - 0.1, els_config->x_retract_jog_mm_s);
       break;
     case ELS_TAPER_EXT_OP_FEED:
       if (els_stepper->xbusy)
@@ -572,9 +588,9 @@ static void els_taper_int_turn(void) {
 
       els_taper_int.xcurr = els_stepper->xpos;
       remaining = fabs(-els_taper_int.xcurr + els_taper_int.depth);
-      if (remaining <= TURN_PRECISION) {
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_SLO_MM_S);
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_SLO_MM_S);
+      if (remaining <= PRECISION) {
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
         els_taper_int.op_state = ELS_TAPER_EXT_OP_DONE;
       }
       else {
@@ -588,7 +604,7 @@ static void els_taper_int_turn(void) {
           els_delay_reset();
         }
 
-        els_stepper_move_x(xd, ELS_X_SLO_MM_S);
+        els_stepper_move_x(xd, els_config->x_retract_jog_mm_s);
         els_taper_int.op_state = ELS_TAPER_EXT_OP_PLAN;
       }
       break;
@@ -601,7 +617,7 @@ static void els_taper_int_turn(void) {
       els_stepper_move_xz(
         0 - els_stepper->xpos,
         -els_stepper->xpos * els_taper_int.slope,
-        (els_taper_int.spring_pass_count > 0 ? els_taper_int.feed_mm_s / 2 : els_taper_int.feed_mm_s)
+        (els_taper_int.spring_pass_count > 0 ? els_taper_int.feed_mm_s / 4 : els_taper_int.feed_mm_s)
       );
       break;
     case ELS_TAPER_EXT_OP_TURNING:
@@ -609,14 +625,14 @@ static void els_taper_int_turn(void) {
         break;
 
       els_taper_int.op_state = ELS_TAPER_EXT_OP_RESETZ;
-      els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_SLO_MM_S);
+      els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
       break;
     case ELS_TAPER_EXT_OP_RESETZ:
       if (els_stepper->zbusy)
         break;
 
-      if (fabs(-els_taper_int.xcurr + els_taper_int.depth) > TURN_PRECISION) {
-        els_stepper_move_x(els_taper_int.xcurr - els_stepper->xpos, ELS_X_SLO_MM_S);
+      if (fabs(-els_taper_int.xcurr + els_taper_int.depth) > PRECISION) {
+        els_stepper_move_x(els_taper_int.xcurr - els_stepper->xpos, els_config->x_retract_jog_mm_s);
         els_taper_int.op_state = ELS_TAPER_EXT_OP_RESETX;
       }
       else {
@@ -662,7 +678,7 @@ static void els_taper_int_set_feed(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_taper_int.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_taper_int.encoder_pos) * 100;
+        int32_t delta = (encoder_curr - els_taper_int.encoder_pos) * 10 * els_taper_int.encoder_multiplier;
         if (els_taper_int.feed_um + delta <= ELS_TAPER_EXT_FEED_MIN)
           els_taper_int.feed_um = ELS_TAPER_EXT_FEED_MIN;
         else if (els_taper_int.feed_um + delta >= ELS_TAPER_EXT_FEED_MAX)
@@ -695,7 +711,7 @@ static void els_taper_int_set_depth_of_cut(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_taper_int.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_taper_int.encoder_pos) * 50;
+        int32_t delta = (encoder_curr - els_taper_int.encoder_pos) * 10 * els_taper_int.encoder_multiplier;
         if (els_taper_int.depth_of_cut_um + delta <= ELS_TAPER_EXT_DOC_MIN)
           els_taper_int.depth_of_cut_um = ELS_TAPER_EXT_DOC_MIN;
         else if (els_taper_int.depth_of_cut_um + delta >= ELS_TAPER_EXT_DOC_MAX)
@@ -724,7 +740,7 @@ void els_taper_int_set_length(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_taper_int.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_taper_int.encoder_pos) * 0.1;
+        double delta = (encoder_curr - els_taper_int.encoder_pos) * 0.01 * els_taper_int.encoder_multiplier;
         if (els_taper_int.length + delta <= 0)
           els_taper_int.length = 0;
         else if (els_taper_int.length + delta >= ELS_Z_MAX_MM)
@@ -753,7 +769,7 @@ void els_taper_int_set_depth(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_taper_int.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_taper_int.encoder_pos) * 0.01;
+        double delta = (encoder_curr - els_taper_int.encoder_pos) * 0.01 * els_taper_int.encoder_multiplier;
         if (els_taper_int.depth + delta <= 0)
           els_taper_int.depth = 0;
         else if (els_taper_int.depth + delta >= ELS_X_MAX_MM)
@@ -822,59 +838,28 @@ static void els_taper_int_set_xaxes(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_taper_int_zjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_taper_int.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Acceleration
-    // ----------------------------------------------------------------------------------
-    uint64_t now;
-    static uint16_t accel = 0;
-    static uint16_t velocity = 1;
-    static uint64_t last_updated_at = 0;
-
-    now = els_timer_elapsed_microseconds();
-    if ((now - last_updated_at) < 1e5)
-      accel++;
-    else
-      accel = 0;
-    velocity = (accel > 10 ? 10 : 1);
-    last_updated_at = now;
-
-    delta = (encoder_curr - els_taper_int.encoder_pos);
+    delta = (encoder_curr - els_taper_int.encoder_pos) * 0.01 * els_taper_int.encoder_multiplier;
     els_taper_int.encoder_pos = encoder_curr;
-    els_stepper_move_z(delta * velocity * 0.1, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
   }
 }
 
 static void els_taper_int_xjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_taper_int.encoder_pos != encoder_curr) {
     // ----------------------------------------------------------------------------------
-    // Acceleration
-    // ----------------------------------------------------------------------------------
-    uint64_t now;
-    static uint16_t accel = 0;
-    static uint16_t velocity = 1;
-    static uint64_t last_updated_at = 0;
-
-    now = els_timer_elapsed_microseconds();
-    if ((now - last_updated_at) < 1e5)
-      accel++;
-    else
-      accel = 0;
-    velocity = (accel > 10 ? 10 : 1);
-    last_updated_at = now;
-    // ----------------------------------------------------------------------------------
     // Jog pulse calculation
     // ----------------------------------------------------------------------------------
-    delta = (encoder_curr - els_taper_int.encoder_pos);
+    delta = (encoder_curr - els_taper_int.encoder_pos) * 0.01 * els_taper_int.encoder_multiplier;
     els_taper_int.encoder_pos = encoder_curr;
-    els_stepper_move_x(delta * velocity * 0.01, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
   }
 }

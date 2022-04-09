@@ -1,0 +1,7 @@
+2022-04-09
+
+* replaced encoder acceleration with manual multiplier selection (1, 10, 100)
+* added support for closed loop linear moves on Z & X axes
+* updated convex turning to specify arbitrary convex arcs
+* implementation for right handed concave arc
+* reduced spindle encoder resolution for threading, improves responsiveness

@@ -179,7 +179,7 @@
         {
             "height": 19,
             "id": 48,
-            "width": 13,
+            "width": 14,
             "x": 163,
             "xadvance": 16,
             "xoffset": 1,
@@ -189,30 +189,30 @@
         {
             "height": 19,
             "id": 49,
-            "width": 12,
-            "x": 177,
+            "width": 14,
+            "x": 176,
             "xadvance": 16,
-            "xoffset": 2,
+            "xoffset": 1,
             "y": 3,
             "yoffset": 10
         },
         {
             "height": 19,
             "id": 50,
-            "width": 13,
-            "x": 190,
+            "width": 14,
+            "x": 189,
             "xadvance": 16,
-            "xoffset": 2,
+            "xoffset": 1,
             "y": 3,
             "yoffset": 10
         },
         {
             "height": 19,
             "id": 51,
-            "width": 12,
-            "x": 204,
+            "width": 14,
+            "x": 203,
             "xadvance": 16,
-            "xoffset": 2,
+            "xoffset": 1,
             "y": 3,
             "yoffset": 10
         },
@@ -229,17 +229,17 @@
         {
             "height": 19,
             "id": 53,
-            "width": 12,
+            "width": 14,
             "x": 232,
             "xadvance": 16,
-            "xoffset": 2,
+            "xoffset": 1,
             "y": 3,
             "yoffset": 10
         },
         {
             "height": 19,
             "id": 54,
-            "width": 13,
+            "width": 14,
             "x": 1,
             "xadvance": 16,
             "xoffset": 1,
@@ -249,7 +249,7 @@
         {
             "height": 19,
             "id": 55,
-            "width": 13,
+            "width": 14,
             "x": 15,
             "xadvance": 16,
             "xoffset": 1,
@@ -259,10 +259,10 @@
         {
             "height": 19,
             "id": 56,
-            "width": 13,
+            "width": 14,
             "x": 29,
             "xadvance": 16,
-            "xoffset": 2,
+            "xoffset": 1,
             "y": 27,
             "yoffset": 10
         },

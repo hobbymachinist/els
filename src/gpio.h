@@ -45,10 +45,10 @@ typedef struct {
 //
 // PB0  - TFT RD
 // PB1  - DRO Z-A (Int)
-// PB2  - DRO Z-B
+// PB2  -
 // PB3  - Spindle Enc A (Int)
 // PB4  - Spindle Enc B
-// PB5  -
+// PB5  - DRO Z-B (Int)
 // PB6  - TFT WR
 // PB7  - TFT RS
 // PB8  - TFT CS

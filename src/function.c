@@ -23,6 +23,7 @@
 #include "taper_int.h"
 #include "convex_ext_r.h"
 #include "convex_ext_l.h"
+#include "concave_ext_r.h"
 
 #include "tft/tft.h"
 #include "tft/fonts/fonts.h"
@@ -70,13 +71,16 @@ typedef enum {
   ELS_FUNCTION_CONKAV_EXT_1 = 14,
   ELS_FUNCTION_CONKAV_EXT_2 = 15,
 
+  // internal concave pockets
+  ELS_FUNCTION_CONKAV_INT   = 16,
+
   // rounded groove
-  ELS_FUNCTION_GROOVE_RND   = 16,
+  ELS_FUNCTION_GROOVE_RND   = 17,
   // straight groove
-  ELS_FUNCTION_GROOVE_STD   = 17,
+  ELS_FUNCTION_GROOVE_STD   = 18,
 
   // max
-  ELS_FUNCTION_MAX          = 18,
+  ELS_FUNCTION_MAX          = 19,
 } els_function_type_t;
 
 static char *function_type_labels[] = {
@@ -96,6 +100,7 @@ static char *function_type_labels[] = {
   "CONVEX EXTERNAL - L",
   "CONCAVE EXTERNAL - R",
   "CONCAVE EXTERNAL - L",
+  "CONCAVE INTERNAL",
   "GROOVE ROUNDED",
   "GROOVE STANDARD"
 };
@@ -249,6 +254,13 @@ static const struct {
     .update_cb = els_convex_ext_l_update,
     .stop_cb = els_convex_ext_l_stop,
     .busy_cb = els_convex_ext_l_busy
+  },
+  {
+    .setup_cb = els_concave_ext_r_setup,
+    .start_cb = els_concave_ext_r_start,
+    .update_cb = els_concave_ext_r_update,
+    .stop_cb = els_concave_ext_r_stop,
+    .busy_cb = els_concave_ext_r_busy
   }
 };
 
@@ -262,17 +274,19 @@ void els_function_init(void) {
       els_function_registry[i].setup_cb();
   }
 
-  els_function.function_sel = ELS_FUNCTION_CONVEX_EXT_1;
-  els_function_start(ELS_FUNCTION_CONVEX_EXT_1);
+  els_function.function_sel = ELS_FUNCTION_TURN_DIM;
+  els_function_start(ELS_FUNCTION_TURN_DIM);
 }
 
 void els_function_update(void) {
   switch (els_keypad_peek()) {
     case ELS_KEY_FUN_TURN:
+      els_function.function_sel = ELS_FUNCTION_TURN_DIM;
       els_function_change(ELS_FUNCTION_TURN_DIM);
       els_keypad_flush();
       break;
     case ELS_KEY_FUN_THREAD:
+      els_function.function_sel = ELS_FUNCTION_THREAD_EXT;
       els_function_change(ELS_FUNCTION_THREAD_EXT);
       els_keypad_flush();
       break;
@@ -350,7 +364,7 @@ static void els_function_menu_start(void) {
 }
 
 static void els_function_menu_stop(void) {
-  els_encoder_set_rotation_debounce(10e3);
+  els_encoder_set_rotation_debounce(25e3);
   els_encoder_set_direction_debounce(100e3);
 }
 

@@ -26,6 +26,7 @@
 
 #include "constants.h"
 
+#include "config.h"
 #include "dro.h"
 #include "encoder.h"
 #include "keypad.h"
@@ -34,12 +35,11 @@
 #include "turn_dimension.h"
 #include "utils.h"
 
-#define ELS_Z_JOG_MM_S  8
+#define ELS_Z_JOG_MM_S  6
 #define ELS_X_JOG_MM_S  4
 
-#define ELS_Z_SLO_MM_S  2
-#define ELS_X_SLO_MM_S  1
-
+#define PRECISION       (1e-2)
+#define BACKOFF_DEPTH   1
 //==============================================================================
 // Externs
 //==============================================================================
@@ -130,6 +130,9 @@ static struct {
   // jogging state
   int32_t  encoder_pos;
 
+  // encoder multiplier
+  int16_t encoder_multiplier;
+
   // module state
   els_turn_dimension_state_t state;
 
@@ -150,7 +153,8 @@ static struct {
   .length = 15,
   .depth = 0.50,
   .spring_pass_count = 0,
-  .spring_passes = 1
+  .spring_passes = 1,
+  .encoder_multiplier = 1
 };
 
 //==============================================================================
@@ -164,6 +168,7 @@ static void els_turn_dimension_display_setting(void);
 static void els_turn_dimension_display_axes(void);
 static void els_turn_dimension_display_header(void);
 static void els_turn_dimension_display_diagram(void);
+static void els_turn_dimension_display_encoder_pips(void);
 
 static void els_turn_dimension_set_feed(void);
 static void els_turn_dimension_set_depth_of_cut(void);
@@ -288,6 +293,12 @@ void els_turn_dimension_update(void) {
     last_refreshed_at = elapsed;
     els_turn_dimension_display_refresh();
   }
+
+  int16_t em = els_encoder_get_multiplier();
+  if (em != els_turn_dimension.encoder_multiplier) {
+    els_turn_dimension.encoder_multiplier = em;
+    els_turn_dimension_display_encoder_pips();
+  }
 }
 
 //==============================================================================
@@ -385,16 +396,23 @@ static void els_turn_dimension_display_diagram(void) {
 }
 
 static void els_turn_dimension_display_header(void) {
-  if (els_turn_dimension.locked) {
-    tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
-    tft_font_write_bg(&tft, 8, 0, "TURNING", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
-  }
-  else {
-    tft_filled_rectangle(&tft, 0,   0, 480,  50, ILI9481_CERULEAN);
-    tft_font_write_bg(&tft, 8, 0, "TURNING", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_CERULEAN);
-    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_CERULEAN);
-  }
+  tft_rgb_t color = (els_turn_dimension.locked ? ILI9481_RED : ILI9481_CERULEAN);
+
+  tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+  tft_font_write_bg(&tft, 8, 0, "TURNING", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  els_turn_dimension_display_encoder_pips();
+}
+
+static void els_turn_dimension_display_encoder_pips(void) {
+  // multiplier is 100, 10 or 1
+  size_t pips = els_turn_dimension.encoder_multiplier;
+  pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
+
+  for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
+    tft_filled_rectangle(&tft,
+      440, 32 - (n * 10 + spacing * 2),
+      15 + n * 10, 10,
+      (n < pips ? ILI9481_WHITE : els_turn_dimension.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR1));
 }
 
 static void els_turn_dimension_display_refresh(void) {
@@ -533,9 +551,6 @@ static void els_turn_dimension_run(void) {
     els_turn_dimension_turn();
 }
 
-#define TURN_PRECISION      (1e-2)
-#define TURN_BACKOFF_DEPTH  1
-
 static void els_turn_dimension_turn(void) {
   double xd, remaining;
 
@@ -549,16 +564,17 @@ static void els_turn_dimension_turn(void) {
     case ELS_TURN_DIM_OP_MOVEZ0:
       if (els_stepper->zbusy)
         break;
-      if (fabs(els_stepper->zpos) > TURN_PRECISION)
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_SLO_MM_S);
+      if (fabs(els_stepper->zpos) > PRECISION) {
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
+      }
       else
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_MOVEX0;
       break;
     case ELS_TURN_DIM_OP_MOVEX0:
       if (els_stepper->xbusy)
         break;
-      if (fabs(els_stepper->xpos) > TURN_PRECISION)
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_SLO_MM_S);
+      if (fabs(els_stepper->xpos) > PRECISION)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
       else
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_START;
       break;
@@ -572,15 +588,15 @@ static void els_turn_dimension_turn(void) {
         break;
 
       // backoff
-      #if TURN_BACKOFF_DEPTH > 0
-        els_stepper_move_x(TURN_BACKOFF_DEPTH, ELS_X_SLO_MM_S);
+      #if BACKOFF_DEPTH > 0
+        els_stepper_move_x(BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
       #endif
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZLB;
       break;
     case ELS_TURN_DIM_OP_ATZLB:
       // no need to wait for back off
       // move to Z=0
-      els_stepper_move_z(els_turn_dimension.length, ELS_Z_SLO_MM_S);
+      els_stepper_move_z(els_turn_dimension.length, els_config->z_retract_jog_mm_s);
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZ0B;
       break;
     case ELS_TURN_DIM_OP_ATZ0B:
@@ -592,19 +608,19 @@ static void els_turn_dimension_turn(void) {
       if (els_stepper->xbusy)
         break;
 
-      remaining = fabs(els_turn_dimension.depth + els_stepper->xpos - TURN_BACKOFF_DEPTH);
+      remaining = fabs(els_turn_dimension.depth + els_stepper->xpos - BACKOFF_DEPTH);
       if (remaining >= (els_turn_dimension.depth_of_cut_um + els_turn_dimension.finish_depth_um) / 1000.0) {
         xd = els_turn_dimension.depth_of_cut_um / 1000.0;
-        els_stepper_move_x(-xd - TURN_BACKOFF_DEPTH, ELS_X_SLO_MM_S);
+        els_stepper_move_x(-xd - BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FEED_IN;
       }
-      else if (remaining > (els_turn_dimension.finish_depth_um / 1000.0) + TURN_PRECISION) {
+      else if (remaining > (els_turn_dimension.finish_depth_um / 1000.0) + PRECISION) {
         xd = remaining - (els_turn_dimension.finish_depth_um / 1000.0);
-        els_stepper_move_x(-xd - TURN_BACKOFF_DEPTH, ELS_X_SLO_MM_S);
+        els_stepper_move_x(-xd - BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FEED_IN;
       }
-      else if (remaining > TURN_PRECISION) {
-        els_stepper_move_x(-remaining - TURN_BACKOFF_DEPTH, ELS_X_SLO_MM_S);
+      else if (remaining > PRECISION) {
+        els_stepper_move_x(-remaining - BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_SPRING;
       }
       else {
@@ -615,7 +631,7 @@ static void els_turn_dimension_turn(void) {
       if (els_stepper->xbusy)
         break;
 
-      if (fabs(els_turn_dimension.depth + els_stepper->xpos) <= TURN_PRECISION) {
+      if (fabs(els_turn_dimension.depth + els_stepper->xpos) <= PRECISION) {
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_SPRING;
       }
       else {
@@ -628,7 +644,7 @@ static void els_turn_dimension_turn(void) {
         break;
 
       if (els_turn_dimension.spring_pass_count >= els_turn_dimension.spring_passes) {
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_SLO_MM_S);
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_DONE;
       }
       else {
@@ -670,7 +686,7 @@ static void els_turn_dimension_set_feed(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_turn_dimension.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_turn_dimension.encoder_pos) * 100;
+        int32_t delta = (encoder_curr - els_turn_dimension.encoder_pos) * 10 * els_turn_dimension.encoder_multiplier;
         if (els_turn_dimension.feed_um + delta <= ELS_TURN_DIM_FEED_MIN)
           els_turn_dimension.feed_um = ELS_TURN_DIM_FEED_MIN;
         else if (els_turn_dimension.feed_um + delta >= ELS_TURN_DIM_FEED_MAX)
@@ -704,7 +720,7 @@ static void els_turn_dimension_set_depth_of_cut(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_turn_dimension.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_turn_dimension.encoder_pos) * 50;
+        int32_t delta = (encoder_curr - els_turn_dimension.encoder_pos) * 10 * els_turn_dimension.encoder_multiplier;
         if (els_turn_dimension.depth_of_cut_um + delta <= ELS_TURN_DIM_DOC_MIN)
           els_turn_dimension.depth_of_cut_um = ELS_TURN_DIM_DOC_MIN;
         else if (els_turn_dimension.depth_of_cut_um + delta >= ELS_TURN_DIM_DOC_MAX)
@@ -733,7 +749,7 @@ static void els_turn_dimension_set_finish_depth(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_turn_dimension.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_turn_dimension.encoder_pos) * 50;
+        int32_t delta = (encoder_curr - els_turn_dimension.encoder_pos) * 10 * els_turn_dimension.encoder_multiplier;
         if (els_turn_dimension.finish_depth_um + delta <= ELS_TURN_DIM_DOC_MIN)
           els_turn_dimension.finish_depth_um = ELS_TURN_DIM_DOC_MIN;
         else if (els_turn_dimension.finish_depth_um + delta >= ELS_TURN_DIM_DOC_MAX)
@@ -762,7 +778,7 @@ void els_turn_dimension_set_length(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_turn_dimension.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_turn_dimension.encoder_pos) * 0.1;
+        double delta = (encoder_curr - els_turn_dimension.encoder_pos) * 0.01 * els_turn_dimension.encoder_multiplier;
         if (els_turn_dimension.length + delta <= 0)
           els_turn_dimension.length = 0;
         else if (els_turn_dimension.length + delta >= ELS_Z_MAX_MM)
@@ -791,7 +807,7 @@ void els_turn_dimension_set_depth(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_turn_dimension.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_turn_dimension.encoder_pos) * 0.01;
+        double delta = (encoder_curr - els_turn_dimension.encoder_pos) * 0.01 * els_turn_dimension.encoder_multiplier;
         if (els_turn_dimension.depth + delta <= 0)
           els_turn_dimension.depth = 0;
         else if (els_turn_dimension.depth + delta >= ELS_X_MAX_MM)
@@ -860,59 +876,25 @@ static void els_turn_dimension_set_xaxes(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_turn_dimension_zjog(void) {
-  int32_t  delta;
+  double  delta;
   int32_t  encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_turn_dimension.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Acceleration
-    // ----------------------------------------------------------------------------------
-    uint64_t now;
-    static uint16_t accel = 0;
-    static uint16_t velocity = 1;
-    static uint64_t last_updated_at = 0;
-
-    now = els_timer_elapsed_microseconds();
-    if ((now - last_updated_at) < 1e5)
-      accel++;
-    else
-      accel = 0;
-    velocity = (accel > 10 ? 10 : 1);
-    last_updated_at = now;
-
-    delta = (encoder_curr - els_turn_dimension.encoder_pos);
+    delta = (encoder_curr - els_turn_dimension.encoder_pos) * (0.01 * els_turn_dimension.encoder_multiplier);
     els_turn_dimension.encoder_pos = encoder_curr;
-    els_stepper_move_z(delta * velocity * 0.1, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
   }
 }
 
 static void els_turn_dimension_xjog(void) {
-  int32_t delta;
+  double delta;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_turn_dimension.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Acceleration
-    // ----------------------------------------------------------------------------------
-    uint64_t now;
-    static uint16_t accel = 0;
-    static uint16_t velocity = 1;
-    static uint64_t last_updated_at = 0;
-
-    now = els_timer_elapsed_microseconds();
-    if ((now - last_updated_at) < 1e5)
-      accel++;
-    else
-      accel = 0;
-    velocity = (accel > 10 ? 10 : 1);
-    last_updated_at = now;
-    // ----------------------------------------------------------------------------------
-    // Jog pulse calculation
-    // ----------------------------------------------------------------------------------
-    delta = (encoder_curr - els_turn_dimension.encoder_pos);
+    delta = (encoder_curr - els_turn_dimension.encoder_pos) * (0.01 * els_turn_dimension.encoder_multiplier);
     els_turn_dimension.encoder_pos = encoder_curr;
-    els_stepper_move_x(delta * velocity * 0.01, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
   }
 }

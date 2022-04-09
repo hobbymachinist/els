@@ -25,7 +25,9 @@
 
 #include "config.h"
 #include "constants.h"
+#include "dro.h"
 #include "utils.h"
+
 
 #define ELS_Z_TIMER                   TIM4
 #define ELS_Z_TIMER_IRQ               NVIC_TIM4_IRQ
@@ -40,33 +42,8 @@
 #define ELS_SET_ZDIR_LR               els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
 #define ELS_SET_ZDIR_RL               els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
 
-#define ELS_Z_BACKLASH_FIX            do {                                                                 \
-                                        if (stepper.zdir != 0 && els_config->z_backlash_pulses) {          \
-                                          els_printf("z backlash compensation\n");                         \
-                                          for (size_t _n = 0; _n < els_config->z_backlash_pulses; _n++) {  \
-                                            els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);                   \
-                                            els_delay_microseconds(ELS_BACKLASH_DELAY_US);                 \
-                                            els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);                 \
-                                            els_delay_microseconds(ELS_BACKLASH_DELAY_US);                 \
-                                          }                                                                \
-                                        }                                                                  \
-                                      } while (0)
-
-
 #define ELS_SET_XDIR_BT               els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 #define ELS_SET_XDIR_TB               els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
-
-#define ELS_X_BACKLASH_FIX            do {                                                                 \
-                                        if (stepper.xdir != 0 && els_config->x_backlash_pulses) {          \
-                                          els_printf("x backlash compensation\n");                         \
-                                          for (size_t _n = 0; _n < els_config->x_backlash_pulses; _n++) {  \
-                                            els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);                   \
-                                            els_delay_microseconds(ELS_BACKLASH_DELAY_US);                 \
-                                            els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);                 \
-                                            els_delay_microseconds(ELS_BACKLASH_DELAY_US);                 \
-                                          }                                                                \
-                                        }                                                                  \
-                                      } while (0)
 
 #define ELS_TIMER_RELOAD_MAX          600
 #define ELS_TIMER_ACCEL_STEPS         40
@@ -89,14 +66,17 @@ typedef enum {
   STEPPER_OP_LINE_Z,
   STEPPER_OP_LINE_XZ,
   STEPPER_OP_LINE_ZX,
-  STEPPER_OP_ARC_CW,
-  STEPPER_OP_ARC_CCW
+  STEPPER_OP_ARC_Q2_CW,
+  STEPPER_OP_ARC_Q3_CCW,
+  STEPPER_OP_ARC_Q4_CCW
 } stepper_op_t;
 
 static struct {
   els_stepper_t pos;
 
-  int8_t xdir;
+  int32_t xtarget;
+  int32_t ztarget;
+
   volatile int32_t xsteps;
   double xdelta;
   uint32_t xfeed_um;
@@ -107,7 +87,6 @@ static struct {
   int32_t xz_line_d;
   int32_t xz_line_err;
 
-  int8_t zdir;
   volatile int32_t zsteps;
   double zdelta;
   uint32_t zfeed_um;
@@ -120,12 +99,14 @@ static struct {
 
   // cw arc movement
   double cw_circle_radius;
-  double cw_circle_length;
+  double cw_circle_center_z;
+  double cw_circle_center_x;
   double cw_circle_zpos;
 
   // ccw arc movement
   double ccw_circle_radius;
-  double ccw_circle_length;
+  double ccw_circle_center_z;
+  double ccw_circle_center_x;
   double ccw_circle_zpos;
 
   uint32_t xreload_target;
@@ -137,7 +118,7 @@ static struct {
 //==============================================================================
 // Exported constant
 //==============================================================================
-const els_stepper_t *els_stepper = &stepper.pos;
+els_stepper_t *els_stepper = &stepper.pos;
 
 //==============================================================================
 // Internal functions
@@ -181,6 +162,9 @@ void els_stepper_start(void) {
   timer_set_period(ELS_Z_TIMER, ELS_TIMER_RELOAD_MAX);
   timer_set_period(ELS_X_TIMER, ELS_TIMER_RELOAD_MAX);
 
+  stepper.xtarget = (int32_t)round((stepper.pos.xpos * 1e3));
+  stepper.ztarget = (int32_t)round((stepper.pos.zpos * 1e3));
+
   els_stepper_timer_start();
 }
 
@@ -196,30 +180,35 @@ void els_stepper_move_x(double mm, double speed_mm_s) {
       return;
 
     int8_t dir = (mm > 0 ? 1 : -1);
-    if (speed_mm_s * 1000 != stepper.xfeed_um || dir != stepper.xdir)
+    if (speed_mm_s * 1000 != stepper.xfeed_um || dir != stepper.pos.xdir)
       return;
   }
+  else {
+    stepper.xtarget = els_dro.xpos_um;
+  }
 
-  stepper.xop = STEPPER_OP_LINE_X;
+  stepper.pos.xbusy = true;
+  stepper.xtarget += (int32_t)round(mm * 1e3);
   els_stepper_timer_x_update(speed_mm_s * 1000, true);
   if (mm < 0) {
     ELS_SET_XDIR_BT;
-    if (stepper.xdir != -1) {
-      stepper.xdir = -1;
-      ELS_X_BACKLASH_FIX;
+    if (stepper.pos.xdir != -1) {
+      stepper.pos.xdir = -1;
+      els_stepper_x_backlash_fix();
     }
     stepper.pos.xbusy = true;
-    stepper.xsteps += (int32_t)(-mm * els_config->z_pulses_per_mm);
+    stepper.xsteps += (int32_t)round(-mm * els_config->z_pulses_per_mm);
   }
   else if (mm > 0) {
     ELS_SET_XDIR_TB;
-    if (stepper.xdir != 1) {
-      stepper.xdir = 1;
-      ELS_X_BACKLASH_FIX;
+    if (stepper.pos.xdir != 1) {
+      stepper.pos.xdir = 1;
+      els_stepper_x_backlash_fix();
     }
     stepper.pos.xbusy = true;
-    stepper.xsteps += (int32_t)(mm * els_config->x_pulses_per_mm);
+    stepper.xsteps += (int32_t)round(mm * els_config->x_pulses_per_mm);
   }
+  stepper.xop = STEPPER_OP_LINE_X;
 }
 
 void els_stepper_move_z(double mm, double speed_mm_s) {
@@ -228,32 +217,36 @@ void els_stepper_move_z(double mm, double speed_mm_s) {
       return;
 
     int8_t dir = (mm > 0 ? 1 : -1);
-    if (speed_mm_s * 1000 != stepper.zfeed_um || dir != stepper.zdir)
+    if (speed_mm_s * 1000 != stepper.zfeed_um || dir != stepper.pos.zdir)
       return;
   }
+  else {
+    stepper.ztarget = els_dro.zpos_um;
+  }
 
-  stepper.zop = STEPPER_OP_LINE_Z;
+  stepper.pos.zbusy = true;
+  stepper.ztarget += (int32_t)round(mm * 1e3);
   els_stepper_timer_z_update(speed_mm_s * 1000, true);
   if (mm < 0) {
     ELS_SET_ZDIR_RL;
-    if (stepper.zdir != -1) {
-      stepper.zdir = -1;
-      ELS_Z_BACKLASH_FIX;
+    if (stepper.pos.zdir != -1) {
+      stepper.pos.zdir = -1;
+      els_stepper_z_backlash_fix();
     }
     stepper.pos.zbusy = true;
-    stepper.zsteps += (int32_t)(-mm * els_config->z_pulses_per_mm);
+    stepper.zsteps += (int32_t)round(-mm * els_config->z_pulses_per_mm);
   }
   else if (mm > 0) {
     ELS_SET_ZDIR_LR;
-    if (stepper.zdir != 1) {
-      stepper.zdir = 1;
-      ELS_Z_BACKLASH_FIX;
+    if (stepper.pos.zdir != 1) {
+      stepper.pos.zdir = 1;
+      els_stepper_z_backlash_fix();
     }
     stepper.pos.zbusy = true;
-    stepper.zsteps += (int32_t)(mm * els_config->z_pulses_per_mm);
+    stepper.zsteps += (int32_t)round(mm * els_config->z_pulses_per_mm);
   }
+  stepper.zop = STEPPER_OP_LINE_Z;
 }
-
 
 void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
   if (stepper.pos.xbusy || stepper.pos.zbusy)
@@ -267,34 +260,34 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
   if (x_mm < 0) {
     stepper.xsteps = (-x_mm * els_config->x_pulses_per_mm);
     ELS_SET_XDIR_BT;
-    if (stepper.xdir != -1) {
-      stepper.xdir = -1;
-      ELS_X_BACKLASH_FIX;
+    if (stepper.pos.xdir != -1) {
+      stepper.pos.xdir = -1;
+      els_stepper_x_backlash_fix();
     }
   }
   else {
     stepper.xsteps = (x_mm * els_config->x_pulses_per_mm);
     ELS_SET_XDIR_TB;
-    if (stepper.xdir != 1) {
-      stepper.xdir = 1;
-      ELS_X_BACKLASH_FIX;
+    if (stepper.pos.xdir != 1) {
+      stepper.pos.xdir = 1;
+      els_stepper_x_backlash_fix();
     }
   }
 
   if (z_mm < 0) {
     stepper.zsteps = (-z_mm * els_config->z_pulses_per_mm);
     ELS_SET_ZDIR_RL;
-    if (stepper.zdir != -1) {
-      stepper.zdir = -1;
-      ELS_Z_BACKLASH_FIX;
+    if (stepper.pos.zdir != -1) {
+      stepper.pos.zdir = -1;
+      els_stepper_z_backlash_fix();
     }
   }
   else {
     stepper.zsteps = (z_mm * els_config->z_pulses_per_mm);
     ELS_SET_ZDIR_LR;
-    if (stepper.zdir != 1) {
-      stepper.zdir = 1;
-      ELS_Z_BACKLASH_FIX;
+    if (stepper.pos.zdir != 1) {
+      stepper.pos.zdir = 1;
+      els_stepper_z_backlash_fix();
     }
   }
 
@@ -303,15 +296,15 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
     stepper.zx_line_n = stepper.xsteps / gcd;
     stepper.zx_line_d = stepper.zsteps / gcd;
     stepper.zx_line_err = 0;
-    stepper.zop = STEPPER_OP_LINE_ZX;
     els_stepper_timer_z_update(speed_mm_s * 1000, false);
+    stepper.zop = STEPPER_OP_LINE_ZX;
   }
   else {
     stepper.xz_line_n = stepper.zsteps / gcd;
     stepper.xz_line_d = stepper.xsteps / gcd;
     stepper.xz_line_err = 0;
-    stepper.xop = STEPPER_OP_LINE_XZ;
     els_stepper_timer_x_update(speed_mm_s * 1000, false);
+    stepper.xop = STEPPER_OP_LINE_XZ;
   }
 }
 
@@ -319,90 +312,193 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
 //
 // Circular Arc Origin
 //
-// (z, x) = (0, -r)
+// (cz, cx)
+//
+// Circular Clockwise Arc
 //
 // Circle Equation
 //
-// z**2 + (x + r)**2 = r**2
+// (z-cz)**2 + (x-cx)**2 = r**2
 //
 // Movement
 //
-// Arc starts at x = xd and finishes at x = 0 and the motion travel is clockwise.
+// Arc starts at x = -xd and finishes at x = 0 and the motion travel is clockwise.
 //
-void els_stepper_move_cw_arc(double radius, double xd, double speed_mm_s) {
+void els_stepper_move_arc_q2_cw(double cz, double cx, double radius, double xd, double speed_mm_s) {
   if (stepper.pos.xbusy || stepper.pos.zbusy || xd <= 0)
     return;
 
   els_stepper_timer_x_update(speed_mm_s * 1000, false);
   ELS_SET_XDIR_TB;
-  if (stepper.xdir != 1) {
-    stepper.xdir = 1;
-    ELS_X_BACKLASH_FIX;
+  if (stepper.pos.xdir != 1) {
+    stepper.pos.xdir = 1;
+    els_stepper_x_backlash_fix();
   }
 
   ELS_SET_ZDIR_RL;
-  if (stepper.zdir != -1) {
-    stepper.zdir = -1;
-    ELS_Z_BACKLASH_FIX;
+  if (stepper.pos.zdir != -1) {
+    stepper.pos.zdir = -1;
+    els_stepper_z_backlash_fix();
   }
 
   stepper.pos.xbusy = true;
   stepper.pos.zbusy = true;
   stepper.cw_circle_radius = radius;
-  stepper.cw_circle_length = sqrt(SQR(radius) - SQR(radius - xd));
+  stepper.cw_circle_center_z = cz;
+  stepper.cw_circle_center_x = cx;
   stepper.cw_circle_zpos = stepper.pos.zpos;
   stepper.xsteps = xd * els_config->x_pulses_per_mm;
-  stepper.xop = STEPPER_OP_ARC_CW;
+  stepper.xop = STEPPER_OP_ARC_Q2_CW;
 }
 
 // Assumptions:
 //
 // Circular Arc Origin
 //
-// (z, x) = (0, -r)
+// (cz, cx)
 //
 // Circle Equation
 //
-// z**2 + (x + r)**2 = r**2
+// (z-cz)**2 + (x-cx)**2 = r**2
 //
 // Movement
 //
-// Arc starts at x = xd and finishes at x = 0 and the motion travel is anti-clockwise.
+// Arc starts at x = -xd and finishes at x = 0 and the motion travel is anti-clockwise.
 //
-void els_stepper_move_ccw_arc(double radius, double xd, double speed_mm_s) {
+void els_stepper_move_arc_q3_ccw(double cz, double cx, double radius, double xd, double speed_mm_s) {
   if (stepper.pos.xbusy || stepper.pos.zbusy || xd <= 0)
     return;
 
   els_stepper_timer_x_update(speed_mm_s * 1000, false);
   ELS_SET_XDIR_TB;
-  if (stepper.xdir != 1) {
-    stepper.xdir = 1;
-    ELS_X_BACKLASH_FIX;
+  if (stepper.pos.xdir != 1) {
+    stepper.pos.xdir = 1;
+    els_stepper_x_backlash_fix();
   }
 
   ELS_SET_ZDIR_LR;
-  if (stepper.zdir != 1) {
-    stepper.zdir = 1;
-    ELS_Z_BACKLASH_FIX;
+  if (stepper.pos.zdir != 1) {
+    stepper.pos.zdir = 1;
+    els_stepper_z_backlash_fix();
   }
 
   stepper.pos.xbusy = true;
   stepper.pos.zbusy = true;
   stepper.ccw_circle_radius = radius;
-  stepper.ccw_circle_length = sqrt(SQR(radius) - SQR(radius - xd));
+  stepper.ccw_circle_center_z = cz;
+  stepper.ccw_circle_center_x = cx;
   stepper.ccw_circle_zpos = stepper.pos.zpos;
   stepper.xsteps = xd * els_config->x_pulses_per_mm;
-  stepper.xop = STEPPER_OP_ARC_CCW;
+  stepper.xop = STEPPER_OP_ARC_Q3_CCW;
+}
+
+// Assumptions:
+//
+// Circular Arc Origin
+//
+// (cz, cx)
+//
+// Circle Equation
+//
+// (z-cz)**2 + (x-cx)**2 = r**2
+//
+// Movement
+//
+// Arc starts at x = -xd and finishes at x = 0 and the motion travel is anti-clockwise.
+//
+void els_stepper_move_arc_q4_ccw(double cz, double cx, double radius, double xd, double speed_mm_s) {
+  if (stepper.pos.xbusy || stepper.pos.zbusy || xd <= 0)
+    return;
+
+  els_stepper_timer_x_update(speed_mm_s * 1000, false);
+  ELS_SET_XDIR_TB;
+  if (stepper.pos.xdir != 1) {
+    stepper.pos.xdir = 1;
+    els_stepper_x_backlash_fix();
+  }
+
+  ELS_SET_ZDIR_RL;
+  if (stepper.pos.zdir != -1) {
+    stepper.pos.zdir = -1;
+    els_stepper_z_backlash_fix();
+  }
+
+  stepper.pos.xbusy = true;
+  stepper.pos.zbusy = true;
+  stepper.ccw_circle_radius = radius;
+  stepper.ccw_circle_center_z = cz;
+  stepper.ccw_circle_center_x = cx;
+  stepper.ccw_circle_zpos = stepper.pos.zpos;
+  stepper.xsteps = xd * els_config->x_pulses_per_mm;
+  stepper.xop = STEPPER_OP_ARC_Q4_CCW;
 }
 
 void els_stepper_zero_x(void) {
   stepper.pos.xpos = 0;
+  stepper.xtarget = 0;
 }
 
 void els_stepper_zero_z(void) {
   stepper.pos.zpos = 0;
 }
 
+//==============================================================================
+// X axis, backlash compensation
+//==============================================================================
+void els_stepper_x_backlash_fix(void) {
+  if (els_config->x_closed_loop && 0) {
+    size_t n = 0, max = els_config->x_pulses_per_mm >> 2;
+    int32_t dro_xpos_um = els_dro.xpos_um;
+    while (els_dro.xpos_um == dro_xpos_um && n < max) {
+      els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
+      els_delay_microseconds(1e3);
+      els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
+      els_delay_microseconds(1e3);
+      n++;
+    }
+    stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+  }
+  else {
+    if (stepper.pos.xdir != 0 && els_config->x_backlash_pulses) {
+      els_printf("x backlash compensation\n");
+      for (size_t n = 0; n < els_config->x_backlash_pulses; n++) {
+        els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
+        els_delay_microseconds(ELS_BACKLASH_DELAY_US);
+        els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
+        els_delay_microseconds(ELS_BACKLASH_DELAY_US);
+      }
+    }
+  }
+}
+
+//==============================================================================
+// Z axis, backlash compensation
+//==============================================================================
+void els_stepper_z_backlash_fix(void) {
+  if (els_config->z_closed_loop && 0) {
+    size_t n = 0, max = els_config->z_pulses_per_mm >> 2;
+    int32_t dro_zpos_um = els_dro.zpos_um;
+    while (els_dro.zpos_um == dro_zpos_um && n < max) {
+      els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
+      els_delay_microseconds(1e3);
+      els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
+      els_delay_microseconds(1e3);
+      n++;
+    }
+    stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+  }
+  else {
+    if (stepper.pos.zdir != 0 && els_config->z_backlash_pulses) {
+      els_printf("z backlash compensation\n");
+      for (size_t n = 0; n < els_config->z_backlash_pulses; n++) {
+        els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
+        els_delay_microseconds(ELS_BACKLASH_DELAY_US);
+        els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
+        els_delay_microseconds(ELS_BACKLASH_DELAY_US);
+      }
+    }
+  }
+}
 
 //==============================================================================
 // Stepper path control
@@ -410,14 +506,25 @@ void els_stepper_zero_z(void) {
 static void els_stepper_timer_z_line(void) {
   static volatile bool z_pul_state = 0;
 
-  if (stepper.zsteps > 0) {
+  bool pending = false;
+  if (els_config->z_closed_loop) {
+    pending = (stepper.pos.zdir * (stepper.ztarget - els_dro.zpos_um)) >= 5;
+    // TODO: overshot target, technically should flag this as an error.
+    if (stepper.zsteps <= -40)
+      pending = false;
+  }
+  else {
+    pending = stepper.zsteps > 0;
+  }
+
+  if (pending) {
     if (z_pul_state)
       els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
     else
       els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
 
     if (z_pul_state) {
-      stepper.pos.zpos += (stepper.zdir * stepper.zdelta);
+      stepper.pos.zpos += (stepper.pos.zdir * stepper.zdelta);
       stepper.zsteps--;
 
       uint32_t now = els_timer_elapsed_milliseconds();
@@ -438,7 +545,16 @@ static void els_stepper_timer_z_line(void) {
     z_pul_state = !z_pul_state;
   }
   else {
+    if (els_config->z_closed_loop)
+      stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+
+    stepper.zsteps = 0;
+    stepper.ztarget = els_dro.zpos_um;
+
+    z_pul_state = 0;
     stepper.pos.zbusy = false;
+
+    stepper.zop = STEPPER_OP_NA;
     TIM_ARR(ELS_Z_TIMER) = ELS_TIMER_RELOAD_MAX;
   }
 }
@@ -446,14 +562,25 @@ static void els_stepper_timer_z_line(void) {
 static void els_stepper_timer_x_line(void) {
   static volatile bool x_pul_state = 0;
 
-  if (stepper.xsteps > 0) {
+  bool pending = false;
+  if (els_config->x_closed_loop) {
+    pending = (stepper.pos.xdir * (stepper.xtarget - els_dro.xpos_um)) >= 5;
+    // TODO: overshot target, technically should flag this as an error.
+    if (stepper.xsteps <= -40)
+      pending = false;
+  }
+  else {
+    pending = stepper.xsteps > 0;
+  }
+
+  if (pending) {
     if (x_pul_state)
       els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
     else
       els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
 
     if (x_pul_state) {
-      stepper.pos.xpos += (stepper.xdir * stepper.xdelta);
+      stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
       stepper.xsteps--;
 
       uint32_t now = els_timer_elapsed_milliseconds();
@@ -474,11 +601,19 @@ static void els_stepper_timer_x_line(void) {
     x_pul_state = !x_pul_state;
   }
   else {
+    if (els_config->x_closed_loop)
+      stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+
+    stepper.xsteps = 0;
+    stepper.xtarget = els_dro.xpos_um;
+
+    x_pul_state = 0;
     stepper.pos.xbusy = false;
+
+    stepper.xop = STEPPER_OP_NA;
     TIM_ARR(ELS_X_TIMER) = ELS_TIMER_RELOAD_MAX;
   }
 }
-
 
 static void els_stepper_timer_zx_line(void) {
   static volatile bool z_pul_state = 0;
@@ -492,7 +627,7 @@ static void els_stepper_timer_zx_line(void) {
       els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
 
     if (z_pul_state) {
-      stepper.pos.zpos += (stepper.zdir * stepper.zdelta);
+      stepper.pos.zpos += (stepper.pos.zdir * stepper.zdelta);
       stepper.zsteps--;
       stepper.zx_line_err += stepper.zx_line_n;
     }
@@ -516,7 +651,7 @@ static void els_stepper_timer_zx_line(void) {
       }
 
       if (x_pul_state) {
-        stepper.pos.xpos += (stepper.xdir * stepper.xdelta);
+        stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
         stepper.xsteps--;
       }
 
@@ -524,8 +659,22 @@ static void els_stepper_timer_zx_line(void) {
     }
   }
 
-  if (stepper.xsteps == 0 && stepper.zsteps == 0)
+  if (stepper.xsteps == 0 && stepper.zsteps == 0) {
+    if (els_config->x_closed_loop)
+      stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+
+    if (els_config->z_closed_loop)
+      stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+
+    stepper.xtarget = els_dro.xpos_um;
+    stepper.ztarget = els_dro.zpos_um;
+
+    x_pul_state = z_pul_state = 0;
     stepper.pos.xbusy = stepper.pos.zbusy = false;
+
+    stepper.xop = STEPPER_OP_NA;
+    stepper.zop = STEPPER_OP_NA;
+  }
 }
 
 static void els_stepper_timer_xz_line(void) {
@@ -540,7 +689,7 @@ static void els_stepper_timer_xz_line(void) {
       els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
 
     if (x_pul_state) {
-      stepper.pos.xpos += (stepper.xdir * stepper.xdelta);
+      stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
       stepper.xsteps--;
       stepper.xz_line_err += stepper.xz_line_n;
     }
@@ -563,7 +712,7 @@ static void els_stepper_timer_xz_line(void) {
       }
 
       if (z_pul_state) {
-        stepper.pos.zpos += (stepper.zdir * stepper.zdelta);
+        stepper.pos.zpos += (stepper.pos.zdir * stepper.zdelta);
         stepper.zsteps--;
       }
 
@@ -572,18 +721,30 @@ static void els_stepper_timer_xz_line(void) {
   }
 
   if (stepper.xsteps == 0 && stepper.zsteps == 0) {
+    if (els_config->x_closed_loop)
+      stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+
+    if (els_config->z_closed_loop)
+      stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+
+    stepper.xtarget = els_dro.xpos_um;
+    stepper.ztarget = els_dro.zpos_um;
+
+    x_pul_state = z_pul_state = 0;
     stepper.pos.xbusy = stepper.pos.zbusy = false;
+
+    stepper.xop = STEPPER_OP_NA;
+    stepper.zop = STEPPER_OP_NA;
   }
 }
 
-
-static void els_stepper_timer_arc_cw(void) {
+static void els_stepper_timer_arc_q2_cw(void) {
   static volatile bool z_pul_state = 0;
   static volatile bool x_pul_state = 0;
 
   if (z_pul_state) {
     els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-    stepper.pos.zpos += (stepper.zdir * stepper.zdelta);
+    stepper.pos.zpos += (stepper.pos.zdir * stepper.zdelta);
     z_pul_state = 0;
   }
   else if ((stepper.pos.zpos - stepper.cw_circle_zpos) >= stepper.zdelta) {
@@ -594,30 +755,42 @@ static void els_stepper_timer_arc_cw(void) {
     els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
     x_pul_state = 0;
 
-    stepper.pos.xpos += (stepper.xdir * stepper.xdelta);
+    stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
     stepper.xsteps--;
 
-    stepper.cw_circle_zpos = SQR(stepper.cw_circle_radius) - SQR(stepper.pos.xpos + stepper.cw_circle_radius);
-    stepper.cw_circle_zpos = sqrt(fabs(stepper.cw_circle_zpos)) - stepper.cw_circle_length;
+    stepper.cw_circle_zpos =
+      sqrt(SQR(stepper.cw_circle_radius) - SQR(stepper.pos.xpos - stepper.cw_circle_center_x)) +
+      stepper.cw_circle_center_z;
   }
   else if (stepper.xsteps > 0) {
     els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
     x_pul_state = 1;
   }
   else {
+    if (els_config->x_closed_loop)
+      stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+
+    if (els_config->z_closed_loop)
+      stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+
+    stepper.xtarget = els_dro.xpos_um;
+    stepper.ztarget = els_dro.zpos_um;
+
     x_pul_state = z_pul_state = 0;
     stepper.pos.xbusy = stepper.pos.zbusy = false;
+
     stepper.xop = STEPPER_OP_NA;
+    stepper.zop = STEPPER_OP_NA;
   }
 }
 
-static void els_stepper_timer_arc_ccw(void) {
+static void els_stepper_timer_arc_q3_ccw(void) {
   static volatile bool z_pul_state = 0;
   static volatile bool x_pul_state = 0;
 
   if (z_pul_state) {
     els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-    stepper.pos.zpos += (stepper.zdir * stepper.zdelta);
+    stepper.pos.zpos += (stepper.pos.zdir * stepper.zdelta);
     z_pul_state = 0;
   }
   else if ((stepper.ccw_circle_zpos - stepper.pos.zpos) >= stepper.zdelta) {
@@ -628,20 +801,78 @@ static void els_stepper_timer_arc_ccw(void) {
     els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
     x_pul_state = 0;
 
-    stepper.pos.xpos += (stepper.xdir * stepper.xdelta);
+    stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
     stepper.xsteps--;
 
-    stepper.ccw_circle_zpos = SQR(stepper.ccw_circle_radius) - SQR(stepper.pos.xpos + stepper.ccw_circle_radius);
-    stepper.ccw_circle_zpos = stepper.ccw_circle_length - sqrt(fabs(stepper.ccw_circle_zpos));
+    stepper.ccw_circle_zpos =
+      -sqrt(SQR(stepper.ccw_circle_radius) - SQR(stepper.pos.xpos - stepper.ccw_circle_center_x)) +
+       stepper.ccw_circle_center_z;
   }
   else if (stepper.xsteps > 0) {
     els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
     x_pul_state = 1;
   }
   else {
+    if (els_config->x_closed_loop)
+      stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+
+    if (els_config->z_closed_loop)
+      stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+
+    stepper.xtarget = els_dro.xpos_um;
+    stepper.ztarget = els_dro.zpos_um;
+
     x_pul_state = z_pul_state = 0;
     stepper.pos.xbusy = stepper.pos.zbusy = false;
+
     stepper.xop = STEPPER_OP_NA;
+    stepper.zop = STEPPER_OP_NA;
+  }
+}
+
+static void els_stepper_timer_arc_q4_ccw(void) {
+  static volatile bool z_pul_state = 0;
+  static volatile bool x_pul_state = 0;
+
+  if (z_pul_state) {
+    els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
+    stepper.pos.zpos += (stepper.pos.zdir * stepper.zdelta);
+    z_pul_state = 0;
+  }
+  else if ((stepper.pos.zpos - stepper.ccw_circle_zpos) >= stepper.zdelta) {
+    els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
+    z_pul_state = 1;
+  }
+  else if (x_pul_state) {
+    els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
+    x_pul_state = 0;
+
+    stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
+    stepper.xsteps--;
+
+    stepper.ccw_circle_zpos =
+      -sqrt(SQR(stepper.ccw_circle_radius) - SQR(stepper.pos.xpos - stepper.ccw_circle_center_x)) +
+       stepper.ccw_circle_center_z;
+  }
+  else if (stepper.xsteps > 0) {
+    els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
+    x_pul_state = 1;
+  }
+  else {
+    if (els_config->x_closed_loop)
+      stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+
+    if (els_config->z_closed_loop)
+      stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+
+    stepper.xtarget = els_dro.xpos_um;
+    stepper.ztarget = els_dro.zpos_um;
+
+    x_pul_state = z_pul_state = 0;
+    stepper.pos.xbusy = stepper.pos.zbusy = false;
+
+    stepper.xop = STEPPER_OP_NA;
+    stepper.zop = STEPPER_OP_NA;
   }
 }
 
@@ -673,11 +904,14 @@ static void els_stepper_timer_x_isr(void) {
     case STEPPER_OP_LINE_XZ:
       els_stepper_timer_xz_line();
       break;
-    case STEPPER_OP_ARC_CW:
-      els_stepper_timer_arc_cw();
+    case STEPPER_OP_ARC_Q2_CW:
+      els_stepper_timer_arc_q2_cw();
       break;
-    case STEPPER_OP_ARC_CCW:
-      els_stepper_timer_arc_ccw();
+    case STEPPER_OP_ARC_Q3_CCW:
+      els_stepper_timer_arc_q3_ccw();
+      break;
+    case STEPPER_OP_ARC_Q4_CCW:
+      els_stepper_timer_arc_q4_ccw();
       break;
     default:
       break;
@@ -764,7 +998,7 @@ static void els_stepper_configure_timer(void) {
   timer_disable_preload(ELS_Z_TIMER);
   timer_continuous_mode(ELS_Z_TIMER);
 
-  nvic_set_priority(ELS_Z_TIMER_IRQ, 3);
+  nvic_set_priority(ELS_Z_TIMER_IRQ, 5);
   nvic_enable_irq(ELS_Z_TIMER_IRQ);
   timer_enable_update_event(ELS_Z_TIMER);
 
@@ -782,7 +1016,7 @@ static void els_stepper_configure_timer(void) {
   timer_disable_preload(ELS_X_TIMER);
   timer_continuous_mode(ELS_X_TIMER);
 
-  nvic_set_priority(ELS_X_TIMER_IRQ, 4);
+  nvic_set_priority(ELS_X_TIMER_IRQ, 5);
   nvic_enable_irq(ELS_X_TIMER_IRQ);
   timer_enable_update_event(ELS_X_TIMER);
 }
