@@ -510,14 +510,14 @@ static void els_stepper_timer_z_line(void) {
   if (els_config->z_closed_loop) {
     pending = (stepper.pos.zdir * (stepper.ztarget - els_dro.zpos_um)) >= 5;
     // TODO: overshot target, technically should flag this as an error.
-    if (stepper.zsteps <= -40)
+    if (stepper.zsteps <= -10)
       pending = false;
   }
   else {
     pending = stepper.zsteps > 0;
   }
 
-  if (pending) {
+  if (pending || z_pul_state) {
     if (z_pul_state)
       els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
     else
@@ -566,14 +566,14 @@ static void els_stepper_timer_x_line(void) {
   if (els_config->x_closed_loop) {
     pending = (stepper.pos.xdir * (stepper.xtarget - els_dro.xpos_um)) >= 5;
     // TODO: overshot target, technically should flag this as an error.
-    if (stepper.xsteps <= -40)
+    if (stepper.xsteps <= -10)
       pending = false;
   }
   else {
     pending = stepper.xsteps > 0;
   }
 
-  if (pending) {
+  if (pending || x_pul_state) {
     if (x_pul_state)
       els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
     else

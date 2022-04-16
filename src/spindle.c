@@ -70,13 +70,18 @@ void els_spindle_update(void) {
     spindle.last_rotations = spindle.rotations;
     spindle.last_updated_at = elapsed;
   }
-
-  if (spindle.rpm >= 600) {
-    if ((elapsed - spindle.last_updated_at) >= 5e5)
+  else {
+    if (spindle.rpm >= 600) {
+      if ((elapsed - spindle.last_updated_at) >= 5e5)
+        spindle.rpm = 0;
+    }
+    else if (spindle.rpm >= 200) {
+      if ((elapsed - spindle.last_updated_at) >= 2e6)
+        spindle.rpm = 0;
+    }
+    else if ((elapsed - spindle.last_updated_at) >= 5e6) {
       spindle.rpm = 0;
-  }
-  else if ((elapsed - spindle.last_updated_at) >= 2e6) {
-    spindle.rpm = 0;
+    }
   }
 }
 

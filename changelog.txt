@@ -1,3 +1,8 @@
+2022-04-16
+
+* increase stepper position resolution display
+* add a new function for diamond cut knurling
+
 2022-04-09
 
 * replaced encoder acceleration with manual multiplier selection (1, 10, 100)

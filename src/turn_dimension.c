@@ -313,22 +313,22 @@ static void els_turn_dimension_display_setting(void) {
 
   els_sprint_double2(text, sizeof(text), els_turn_dimension.feed_um / 1000.0, "Zf");
   if (els_turn_dimension.state == ELS_TURN_DIM_SET_FEED)
-    tft_font_write_bg(&tft, 197, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 228, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
-    tft_font_write_bg(&tft, 197, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 228, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double1(text, sizeof(text), els_turn_dimension.depth_of_cut_um / 1000.0, "Xs ");
+  els_sprint_double1(text, sizeof(text), els_turn_dimension.depth_of_cut_um / 1000.0, "Xs");
   if (els_turn_dimension.state == ELS_TURN_DIM_SET_DOC)
-    tft_font_write_bg(&tft, 197, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 228, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
-    tft_font_write_bg(&tft, 197, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 228, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  tft_font_write_bg(&tft, 365, 135, "/", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 375, 135, "/", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
   els_sprint_double1(text, sizeof(text), els_turn_dimension.finish_depth_um / 1000.0, NULL);
   if (els_turn_dimension.state == ELS_TURN_DIM_SET_FIN)
-    tft_font_write_bg(&tft, 386, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 395, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
-    tft_font_write_bg(&tft, 386, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 395, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_turn_dimension.length, "L");
   if (els_turn_dimension.state == ELS_TURN_DIM_SET_LEN)
@@ -346,14 +346,14 @@ static void els_turn_dimension_display_setting(void) {
 static void els_turn_dimension_display_axes(void) {
   char text[32];
 
-  els_sprint_double3(text, sizeof(text), els_stepper->zpos, "Z");
+  els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
 
   if (els_turn_dimension.state & ELS_TURN_DIM_SET_ZAXES)
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double3(text, sizeof(text), els_stepper->xpos, "X");
+  els_sprint_double33(text, sizeof(text), els_stepper->xpos, "X");
   if (els_turn_dimension.state & ELS_TURN_DIM_SET_XAXES)
     tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else

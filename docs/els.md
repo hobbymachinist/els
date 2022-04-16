@@ -537,6 +537,42 @@ Zero Z axis or X axis (DRO)
 
 Display DRO or diagram.
 
+### Knurling
+
+Uses a form of bidirectional multi-start threading operation to cut knurls. Given the large pitch sizes required,
+it's best to hand turn the spindle or use ~200 RPM.
+
+Steps:
+
+1. Move tool to Z/X origin as required
+2. Zero out Z and X axis
+3. Set (L) length of the stock to knurl
+4. Set (d) depth to cut
+5. Set (D) diameter of stock
+6. Set (A) lead angle, default to 30 deg.
+7. Set (N) number of knurls.
+8. Turn on spindle
+9. Press Ready to start
+
+![](images/knurling.png)
+
+#### Z/X
+
+1. Z axis jogging.
+2. Press key again for X axis jogging
+
+#### 0
+
+Zero Z axis or X axis (DRO)
+
+#### F1
+
+Sets length, cut depth, diameter, lead angle and knurl count. Press F1 again to cycle through the settings.
+
+#### F2
+
+Display DRO or diagram.
+
 ### External Threading
 
 Steps:

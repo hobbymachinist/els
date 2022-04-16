@@ -473,7 +473,7 @@ static void els_turning_display_refresh(void) {
   snprintf(text, sizeof(text), "%04d", els_spindle_get_counter());
   tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double3(text, sizeof(text), els_turning.zpos, "Z");
+  els_sprint_double33(text, sizeof(text), els_turning.zpos, "Z");
   tft_rgb_t color = (els_turning.state == ELS_TURNING_SET_ZAXES ? ILI9481_YELLOW : ILI9481_WHITE);
   tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
 

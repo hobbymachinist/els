@@ -24,7 +24,7 @@ extern "C" {
 #define ILI9481_CYAN      (tft_rgb_t){.g = ILI9481_GMAX, .b = ILI9481_BMAX}
 #define ILI9481_MAGENTA   (tft_rgb_t){.r = ILI9481_RMAX, .b = ILI9481_BMAX}
 #define ILI9481_WHITE     (tft_rgb_t){.r = ILI9481_RMAX, .g = ILI9481_GMAX, .b = ILI9481_BMAX}
-#define ILI9481_ORANGE    (tft_rgb_t){.r = ILI9481_BMAX, .g = 20}
+#define ILI9481_ORANGE    (tft_rgb_t){.r = ILI9481_RMAX, .g = 20}
 #define ILI9481_BLACK     (tft_rgb_t){.r = 0,  .g = 0, .b = 0}
 #define ILI9481_CERULEAN  (tft_rgb_t){.r = 0,  .g = 30, .b = 20}
 #define ILI9481_DIANNE    (tft_rgb_t){.r = 2,  .g = 18, .b = 12}
@@ -38,6 +38,7 @@ extern "C" {
 
 #define ILI9481_BGCOLOR1  (tft_rgb_t){.r = 10, .g = 40, .b = 30}
 #define ILI9481_BGCOLOR2  (tft_rgb_t){.r = 4,  .g = 30, .b = 8}
+#define ILI9481_BGCOLOR3  (tft_rgb_t){.r = 27, .g = 10}
 
 typedef struct {
   uint32_t port;

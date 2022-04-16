@@ -319,14 +319,14 @@ static void els_bore_hole_display_setting(void) {
 static void els_bore_hole_display_axes(void) {
   char text[32];
 
-  els_sprint_double3(text, sizeof(text), els_stepper->zpos, "Z");
+  els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
 
   if (els_bore_hole.state & ELS_BORE_HOLE_SET_ZAXES)
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double3(text, sizeof(text), els_stepper->xpos, "X");
+  els_sprint_double33(text, sizeof(text), els_stepper->xpos, "X");
   if (els_bore_hole.state & ELS_BORE_HOLE_SET_XAXES)
     tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
