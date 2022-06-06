@@ -121,31 +121,31 @@ extern "C" {
 // PS/2 keypad scancodes, update if the keypad changes.
 //-----------------------------------------------------------------------------
 #define ELS_KEY_EOF           -1
-#define ELS_KEY_OK            0x25
-#define ELS_KEY_EXIT          0x26
-#define ELS_KEY_SET_FEED      0x24
-#define ELS_KEY_REV_FEED      0x2b
+#define ELS_KEY_OK            0x5a
+#define ELS_KEY_EXIT          0x79
+#define ELS_KEY_SET_FEED      0x6c
+#define ELS_KEY_REV_FEED      0x75
 
 // basic functions that are manually driven on x-axis
-#define ELS_KEY_FUN_TURN      0x34
-#define ELS_KEY_FUN_THREAD    0x33
+#define ELS_KEY_FUN_TURN      0x77
+#define ELS_KEY_FUN_THREAD    0x4a
 
 // selection menu for additional functions
-#define ELS_KEY_SETTINGS      0x1c
-#define ELS_KEY_FUN_SELECT    0x32
-#define ELS_KEY_FUN_F1        0x21
-#define ELS_KEY_FUN_F2        0x23
+#define ELS_KEY_SETTINGS      0x7c
+#define ELS_KEY_FUN_SELECT    0x7b
+#define ELS_KEY_FUN_F1        0x7d
+#define ELS_KEY_FUN_F2        0x6b
 
-#define ELS_KEY_SET_ZX        0x43
+#define ELS_KEY_SET_ZX        0x73
 
-#define ELS_KEY_SET_ZX_ORI    0x3b
-#define ELS_KEY_SET_ZX_MIN    0x42
-#define ELS_KEY_SET_ZX_MAX    0x4b
-#define ELS_KEY_JOG_ZX_MIN    0x2e
-#define ELS_KEY_JOG_ZX_MAX    0x36
+#define ELS_KEY_SET_ZX_ORI    0x74
+#define ELS_KEY_SET_ZX_MIN    0x69
+#define ELS_KEY_SET_ZX_MAX    0x72
+#define ELS_KEY_JOG_ZX_MIN    0x66
+#define ELS_KEY_JOG_ZX_MAX    0x7a
 
-#define ELS_KEY_LOCK          0x16
-#define ELS_KEY_ENC_MULT      0x1e
+#define ELS_KEY_LOCK          0x71
+#define ELS_KEY_ENC_MULT      0x70
 
 
 //-----------------------------------------------------------------------------
