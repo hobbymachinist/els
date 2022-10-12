@@ -34,18 +34,18 @@ typedef struct {
 // PA5  - TFT Data
 // PA6  - TFT Data
 // PA7  - TFT Data
-// PA8  -
+// PA8  - RESERVED
 // PA9  - USART TX
 // PA10 - USART RX
 // PA11 - DRO X-A (Int)
 // PA12 - DRO X-B (Int)
-// PA13 -
-// PA14 -
-// PA15 -
+// PA13 - RESERVED
+// PA14 - RESERVED
+// PA15 - RESERVED
 //
 // PB0  - TFT RD
 // PB1  - DRO Z-A (Int)
-// PB2  -
+// PB2  - RESERVED
 // PB3  - Spindle Enc A (Int)
 // PB4  - Spindle Enc B
 // PB5  - DRO Z-B (Int)
@@ -55,7 +55,7 @@ typedef struct {
 // PB9  - TFT RST
 // PB10 - EEPROM SCL
 // PB11 - N/A
-// PB12 -
+// PB12 - RESERVED
 // PB13 - Z ENA
 // PB14 - Z DIR
 // PB15 - Z PUL
@@ -68,8 +68,8 @@ typedef struct {
 // PC5  - PS/2 Keypad DAT
 // PC6  - Spindle Enc A (Timer)
 // PC7  - Spindle Enc B (Timer)
-// PC8  -
-// PC9  -
+// PC8  - RESERVED
+// PC9  - RESERVED
 // PC10 -
 // PC11 -
 // PC12 - EEPROM SDA

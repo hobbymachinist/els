@@ -17,6 +17,10 @@ void els_stepper_stop(void);
 
 void els_stepper_move_x(double mm, double speed_mm_s);
 void els_stepper_move_z(double mm, double speed_mm_s);
+
+void els_stepper_move_x_no_accel(double mm, double speed_mm_s);
+void els_stepper_move_z_no_accel(double mm, double speed_mm_s);
+
 void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s);
 
 void els_stepper_x_backlash_fix(void);

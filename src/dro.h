@@ -16,7 +16,7 @@ typedef struct {
   volatile int32_t zpos_um;
 } els_dro_t;
 
-extern els_dro_t els_dro;
+extern volatile els_dro_t els_dro;
 
 void els_dro_setup(void);
 void els_dro_zero_x(void);

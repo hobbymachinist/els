@@ -284,11 +284,11 @@ static void els_threading_int_axes_setup(void);
 static void els_threading_int_set_zaxes(void);
 static void els_threading_int_set_xaxes(void);
 
-static void els_threading_int_recalulate_pitch_ratio(void);
+static void els_threading_int_recalculate_pitch_ratio(void);
 
 static void els_threading_int_configure_gpio(void);
 
-static void els_threading_int_encoder_isr(void);
+static void els_threading_int_encoder_isr(void) __attribute__ ((interrupt ("IRQ")));
 
 static void els_threading_int_keypad_process(void);
 
@@ -340,7 +340,7 @@ void els_threading_int_start(void) {
   els_threading_int.pitch_um = pitch_table_pitch_um[els_threading_int.pitch_table_index];
   els_threading_int.depth    = pitch_table_height_mm[els_threading_int.pitch_table_index];
 
-  els_threading_int_recalulate_pitch_ratio();
+  els_threading_int_recalculate_pitch_ratio();
   els_threading_int_axes_setup();
 
   els_threading_int.state = ELS_THREADING_IDLE;
@@ -740,6 +740,12 @@ static void els_threading_int_thread(void) {
       break;
     case ELS_THREADING_OP_READY:
       els_threading_int.op_state = ELS_THREADING_OP_MOVEZ0;
+
+      if (els_config->z_closed_loop)
+        els_stepper->zpos = els_dro.zpos_um / 1000.0;
+      if (els_config->x_closed_loop)
+        els_stepper->xpos = els_dro.xpos_um / 1000.0;
+
       break;
     case ELS_THREADING_OP_MOVEZ0:
       if (fabs(els_stepper->zpos) > PRECISION)
@@ -843,7 +849,7 @@ static void els_threading_int_thread(void) {
 // ----------------------------------------------------------------------------------
 // Function 2.1: pitch settings.
 // ----------------------------------------------------------------------------------
-static void els_threading_int_recalulate_pitch_ratio(void) {
+static void els_threading_int_recalculate_pitch_ratio(void) {
   uint32_t n = (els_threading_int.pitch_um * els_config->z_pulses_per_mm) / 1000;
   uint32_t d = els_config->spindle_encoder_ppr;
 
@@ -898,7 +904,7 @@ static void els_threading_int_set_pitch(void) {
           els_threading_int.pitch_um += (encoder_curr - els_threading_int.encoder_pos) * 10;
         }
 
-        els_threading_int_recalulate_pitch_ratio();
+        els_threading_int_recalculate_pitch_ratio();
         els_threading_int.encoder_pos = encoder_curr;
         els_threading_int_display_setting();
       }

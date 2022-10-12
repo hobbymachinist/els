@@ -28,16 +28,10 @@
 #include "dro.h"
 #include "utils.h"
 
-
-#define ELS_Z_TIMER                   TIM4
-#define ELS_Z_TIMER_IRQ               NVIC_TIM4_IRQ
-#define ELS_Z_TIMER_RCC               RCC_TIM4
-#define ELS_Z_TIMER_RST               RST_TIM4
-
-#define ELS_X_TIMER                   TIM7
-#define ELS_X_TIMER_IRQ               NVIC_TIM7_IRQ
-#define ELS_X_TIMER_RCC               RCC_TIM7
-#define ELS_X_TIMER_RST               RST_TIM7
+#define ELS_TIMER                     TIM7
+#define ELS_TIMER_IRQ                 NVIC_TIM7_IRQ
+#define ELS_TIMER_RCC                 RCC_TIM7
+#define ELS_TIMER_RST                 RST_TIM7
 
 #define ELS_SET_ZDIR_LR               els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
 #define ELS_SET_ZDIR_RL               els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
@@ -134,10 +128,13 @@ static void els_stepper_disable_z(void);
 
 static void els_stepper_timer_start(void);
 static void els_stepper_timer_stop(void);
-static void els_stepper_timer_z_isr(void);
-static void els_stepper_timer_x_isr(void);
+
+static void els_stepper_timer_isr(void) __attribute__ ((interrupt ("IRQ")));
 static void els_stepper_timer_x_update(uint32_t feed_um, bool accel);
 static void els_stepper_timer_z_update(uint32_t feed_um, bool accel);
+
+static void els_stepper_move_x_accel(double mm, double speed_mm_s, bool accel);
+static void els_stepper_move_z_accel(double mm, double speed_mm_s, bool accel);
 
 //==============================================================================
 // API
@@ -152,15 +149,13 @@ void els_stepper_start(void) {
   els_stepper_configure_timer();
 
   // reset isr
-  els_nvic_irq_set_handler(ELS_X_TIMER_IRQ, els_stepper_timer_x_isr);
-  els_nvic_irq_set_handler(ELS_Z_TIMER_IRQ, els_stepper_timer_z_isr);
+  els_nvic_irq_set_handler(ELS_TIMER_IRQ, els_stepper_timer_isr);
 
   els_stepper_enable_z();
   els_stepper_enable_x();
 
   // default
-  timer_set_period(ELS_Z_TIMER, ELS_TIMER_RELOAD_MAX);
-  timer_set_period(ELS_X_TIMER, ELS_TIMER_RELOAD_MAX);
+  timer_set_period(ELS_TIMER, ELS_TIMER_RELOAD_MAX);
 
   stepper.xtarget = (int32_t)round((stepper.pos.xpos * 1e3));
   stepper.ztarget = (int32_t)round((stepper.pos.zpos * 1e3));
@@ -175,6 +170,14 @@ void els_stepper_stop(void) {
 }
 
 void els_stepper_move_x(double mm, double speed_mm_s) {
+  els_stepper_move_x_accel(mm, speed_mm_s, true);
+}
+
+void els_stepper_move_x_no_accel(double mm, double speed_mm_s) {
+  els_stepper_move_x_accel(mm, speed_mm_s, false);
+}
+
+static void els_stepper_move_x_accel(double mm, double speed_mm_s, bool accel) {
   if (stepper.pos.xbusy) {
     if (stepper.xop != STEPPER_OP_LINE_X)
       return;
@@ -189,22 +192,38 @@ void els_stepper_move_x(double mm, double speed_mm_s) {
 
   stepper.pos.xbusy = true;
   stepper.xtarget += (int32_t)round(mm * 1e3);
-  els_stepper_timer_x_update(speed_mm_s * 1000, true);
+  els_stepper_timer_x_update(speed_mm_s * 1000, accel);
   if (mm < 0) {
+    int32_t delta = els_dro.xpos_um;
     ELS_SET_XDIR_BT;
     if (stepper.pos.xdir != -1) {
       stepper.pos.xdir = -1;
       els_stepper_x_backlash_fix();
     }
+
+    // re-adjust travel to compensate for overshooting.
+    if (els_config->x_closed_loop) {
+      delta -= els_dro.xpos_um;
+      mm += (delta / 1000.0);
+    }
+
     stepper.pos.xbusy = true;
     stepper.xsteps += (int32_t)round(-mm * els_config->z_pulses_per_mm);
   }
   else if (mm > 0) {
+    int32_t delta = els_dro.xpos_um;
     ELS_SET_XDIR_TB;
     if (stepper.pos.xdir != 1) {
       stepper.pos.xdir = 1;
       els_stepper_x_backlash_fix();
     }
+
+    // re-adjust travel to compensate for overshooting.
+    if (els_config->x_closed_loop) {
+      delta -= els_dro.xpos_um;
+      mm += (delta / 1000.0);
+    }
+
     stepper.pos.xbusy = true;
     stepper.xsteps += (int32_t)round(mm * els_config->x_pulses_per_mm);
   }
@@ -212,6 +231,14 @@ void els_stepper_move_x(double mm, double speed_mm_s) {
 }
 
 void els_stepper_move_z(double mm, double speed_mm_s) {
+  els_stepper_move_z_accel(mm, speed_mm_s, true);
+}
+
+void els_stepper_move_z_no_accel(double mm, double speed_mm_s) {
+  els_stepper_move_z_accel(mm, speed_mm_s, false);
+}
+
+static void els_stepper_move_z_accel(double mm, double speed_mm_s, bool accel) {
   if (stepper.pos.zbusy) {
     if (stepper.zop != STEPPER_OP_LINE_Z)
       return;
@@ -226,22 +253,38 @@ void els_stepper_move_z(double mm, double speed_mm_s) {
 
   stepper.pos.zbusy = true;
   stepper.ztarget += (int32_t)round(mm * 1e3);
-  els_stepper_timer_z_update(speed_mm_s * 1000, true);
+  els_stepper_timer_z_update(speed_mm_s * 1000, accel);
   if (mm < 0) {
+    int32_t delta = els_dro.zpos_um;
     ELS_SET_ZDIR_RL;
     if (stepper.pos.zdir != -1) {
       stepper.pos.zdir = -1;
       els_stepper_z_backlash_fix();
     }
+
+    // re-adjust travel to compensate for overshooting.
+    if (els_config->z_closed_loop) {
+      delta -= els_dro.zpos_um;
+      mm += (delta / 1000.0);
+    }
+
     stepper.pos.zbusy = true;
     stepper.zsteps += (int32_t)round(-mm * els_config->z_pulses_per_mm);
   }
   else if (mm > 0) {
+    int32_t delta = els_dro.zpos_um;
     ELS_SET_ZDIR_LR;
     if (stepper.pos.zdir != 1) {
       stepper.pos.zdir = 1;
       els_stepper_z_backlash_fix();
     }
+
+    // re-adjust travel to compensate for overshooting.
+    if (els_config->z_closed_loop) {
+      delta -= els_dro.zpos_um;
+      mm += (delta / 1000.0);
+    }
+
     stepper.pos.zbusy = true;
     stepper.zsteps += (int32_t)round(mm * els_config->z_pulses_per_mm);
   }
@@ -290,6 +333,9 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
       els_stepper_z_backlash_fix();
     }
   }
+
+  els_stepper_x_backlash_fix();
+  els_stepper_z_backlash_fix();
 
   uint32_t gcd = els_gcd(stepper.xsteps, stepper.zsteps);
   if (stepper.zsteps > stepper.xsteps) {
@@ -446,7 +492,7 @@ void els_stepper_zero_z(void) {
 // X axis, backlash compensation
 //==============================================================================
 void els_stepper_x_backlash_fix(void) {
-  if (els_config->x_closed_loop && 0) {
+  if (els_config->x_closed_loop) {
     size_t n = 0, max = els_config->x_pulses_per_mm >> 2;
     int32_t dro_xpos_um = els_dro.xpos_um;
     while (els_dro.xpos_um == dro_xpos_um && n < max) {
@@ -475,7 +521,7 @@ void els_stepper_x_backlash_fix(void) {
 // Z axis, backlash compensation
 //==============================================================================
 void els_stepper_z_backlash_fix(void) {
-  if (els_config->z_closed_loop && 0) {
+  if (els_config->z_closed_loop) {
     size_t n = 0, max = els_config->z_pulses_per_mm >> 2;
     int32_t dro_zpos_um = els_dro.zpos_um;
     while (els_dro.zpos_um == dro_zpos_um && n < max) {
@@ -510,7 +556,7 @@ static void els_stepper_timer_z_line(void) {
   if (els_config->z_closed_loop) {
     pending = (stepper.pos.zdir * (stepper.ztarget - els_dro.zpos_um)) >= 5;
     // TODO: overshot target, technically should flag this as an error.
-    if (stepper.zsteps <= -10)
+    if (stepper.zsteps <= -400)
       pending = false;
   }
   else {
@@ -529,16 +575,16 @@ static void els_stepper_timer_z_line(void) {
 
       uint32_t now = els_timer_elapsed_milliseconds();
       uint32_t elapsed = MAX((now - stepper.zreload_updated_at) / 10, 5);
-      if (stepper.zsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_Z_TIMER) != stepper.zreload_target) {
+      if (stepper.zsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
         stepper.zreload_updated_at = now;
-        if (TIM_ARR(ELS_Z_TIMER) > stepper.zreload_target)
-          TIM_ARR(ELS_Z_TIMER) = MAX(TIM_ARR(ELS_Z_TIMER) - ELS_TIMER_ACCEL_Z * elapsed, stepper.zreload_target);
+        if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
+          TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z * elapsed, stepper.zreload_target);
         else
-          TIM_ARR(ELS_Z_TIMER) = MIN(TIM_ARR(ELS_Z_TIMER) + ELS_TIMER_ACCEL_Z * elapsed, stepper.zreload_target);
+          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_Z * elapsed, stepper.zreload_target);
       }
       else if (stepper.zsteps <= ELS_TIMER_ACCEL_STEPS) {
         stepper.zreload_updated_at = now;
-        TIM_ARR(ELS_Z_TIMER) = MIN(TIM_ARR(ELS_Z_TIMER) + ELS_TIMER_DECEL_Z * elapsed, ELS_TIMER_RELOAD_MAX);
+        TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z * elapsed, ELS_TIMER_RELOAD_MAX);
       }
     }
 
@@ -555,7 +601,7 @@ static void els_stepper_timer_z_line(void) {
     stepper.pos.zbusy = false;
 
     stepper.zop = STEPPER_OP_NA;
-    TIM_ARR(ELS_Z_TIMER) = ELS_TIMER_RELOAD_MAX;
+    TIM_ARR(ELS_TIMER) = ELS_TIMER_RELOAD_MAX;
   }
 }
 
@@ -566,7 +612,7 @@ static void els_stepper_timer_x_line(void) {
   if (els_config->x_closed_loop) {
     pending = (stepper.pos.xdir * (stepper.xtarget - els_dro.xpos_um)) >= 5;
     // TODO: overshot target, technically should flag this as an error.
-    if (stepper.xsteps <= -10)
+    if (stepper.xsteps <= -400)
       pending = false;
   }
   else {
@@ -585,16 +631,16 @@ static void els_stepper_timer_x_line(void) {
 
       uint32_t now = els_timer_elapsed_milliseconds();
       uint32_t elapsed = MAX((now - stepper.xreload_updated_at) / 10, 5);
-      if (stepper.xsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_X_TIMER) != stepper.xreload_target) {
+      if (stepper.xsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
         stepper.xreload_updated_at = now;
-        if (TIM_ARR(ELS_X_TIMER) > stepper.xreload_target)
-          TIM_ARR(ELS_X_TIMER) = MAX(TIM_ARR(ELS_X_TIMER) - ELS_TIMER_ACCEL_X * elapsed, stepper.xreload_target);
+        if (TIM_ARR(ELS_TIMER) > stepper.xreload_target)
+          TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_X * elapsed, stepper.xreload_target);
         else
-          TIM_ARR(ELS_X_TIMER) = MIN(TIM_ARR(ELS_X_TIMER) + ELS_TIMER_ACCEL_X * elapsed, stepper.xreload_target);
+          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_X * elapsed, stepper.xreload_target);
       }
       else if (stepper.xsteps <= ELS_TIMER_ACCEL_STEPS) {
         stepper.xreload_updated_at = now;
-        TIM_ARR(ELS_X_TIMER) = MIN(TIM_ARR(ELS_X_TIMER) + ELS_TIMER_DECEL_X * elapsed, ELS_TIMER_RELOAD_MAX);
+        TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X * elapsed, ELS_TIMER_RELOAD_MAX);
       }
     }
 
@@ -611,7 +657,7 @@ static void els_stepper_timer_x_line(void) {
     stepper.pos.xbusy = false;
 
     stepper.xop = STEPPER_OP_NA;
-    TIM_ARR(ELS_X_TIMER) = ELS_TIMER_RELOAD_MAX;
+    TIM_ARR(ELS_TIMER) = ELS_TIMER_RELOAD_MAX;
   }
 }
 
@@ -879,8 +925,8 @@ static void els_stepper_timer_arc_q4_ccw(void) {
 //==============================================================================
 // ISR
 //==============================================================================
-static void els_stepper_timer_z_isr(void) {
-  TIM_SR(ELS_Z_TIMER) &= ~TIM_SR_UIF;
+static void els_stepper_timer_isr(void) {
+  TIM_SR(ELS_TIMER) &= ~TIM_SR_UIF;
 
   switch (stepper.zop) {
     case STEPPER_OP_LINE_Z:
@@ -892,10 +938,6 @@ static void els_stepper_timer_z_isr(void) {
     default:
       break;
   }
-}
-
-static void els_stepper_timer_x_isr(void) {
-  TIM_SR(ELS_X_TIMER) &= ~TIM_SR_UIF;
 
   switch (stepper.xop) {
     case STEPPER_OP_LINE_X:
@@ -984,57 +1026,32 @@ static void els_stepper_disable_x(void) {
 //
 // Clock setup.
 static void els_stepper_configure_timer(void) {
-  //----------------- Z Axis --------------------------------------------------------
-  rcc_periph_clock_enable(ELS_Z_TIMER_RCC);
-  rcc_periph_reset_pulse(ELS_Z_TIMER_RST);
+  rcc_periph_clock_enable(ELS_TIMER_RCC);
+  rcc_periph_reset_pulse(ELS_TIMER_RST);
 
   // clock division 0, alignment edge, count up.
-  timer_set_mode(ELS_Z_TIMER, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+  timer_set_mode(ELS_TIMER, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
 
   // 10us counter, ~100KHz
-  timer_set_prescaler(ELS_Z_TIMER, ((rcc_apb1_frequency * 2) / 100e3) - 1);
+  timer_set_prescaler(ELS_TIMER, ((rcc_apb1_frequency * 2) / 100e3) - 1);
 
   // disable preload
-  timer_disable_preload(ELS_Z_TIMER);
-  timer_continuous_mode(ELS_Z_TIMER);
+  timer_disable_preload(ELS_TIMER);
+  timer_continuous_mode(ELS_TIMER);
 
-  nvic_set_priority(ELS_Z_TIMER_IRQ, 5);
-  nvic_enable_irq(ELS_Z_TIMER_IRQ);
-  timer_enable_update_event(ELS_Z_TIMER);
-
-  //----------------- X Axis ---------------------------------------------------------
-  rcc_periph_clock_enable(ELS_X_TIMER_RCC);
-  rcc_periph_reset_pulse(ELS_X_TIMER_RST);
-
-  // clock division 0, alignment edge, count up.
-  timer_set_mode(ELS_X_TIMER, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
-
-  // 10us counter, ~100KHz
-  timer_set_prescaler(ELS_X_TIMER, ((rcc_apb1_frequency * 2) / 100e3) - 1);
-
-  // disable preload
-  timer_disable_preload(ELS_X_TIMER);
-  timer_continuous_mode(ELS_X_TIMER);
-
-  nvic_set_priority(ELS_X_TIMER_IRQ, 5);
-  nvic_enable_irq(ELS_X_TIMER_IRQ);
-  timer_enable_update_event(ELS_X_TIMER);
+  nvic_set_priority(ELS_TIMER_IRQ, 5);
+  nvic_enable_irq(ELS_TIMER_IRQ);
+  timer_enable_update_event(ELS_TIMER);
 }
 
 static void els_stepper_timer_start(void) {
-  timer_enable_counter(ELS_Z_TIMER);
-  timer_enable_irq(ELS_Z_TIMER, TIM_DIER_UIE);
-
-  timer_enable_counter(ELS_X_TIMER);
-  timer_enable_irq(ELS_X_TIMER, TIM_DIER_UIE);
+  timer_enable_counter(ELS_TIMER);
+  timer_enable_irq(ELS_TIMER, TIM_DIER_UIE);
 }
 
 static void els_stepper_timer_stop(void) {
-  timer_disable_irq(ELS_Z_TIMER, TIM_DIER_UIE);
-  timer_disable_counter(ELS_Z_TIMER);
-
-  timer_disable_irq(ELS_X_TIMER, TIM_DIER_UIE);
-  timer_disable_counter(ELS_X_TIMER);
+  timer_disable_irq(ELS_TIMER, TIM_DIER_UIE);
+  timer_disable_counter(ELS_TIMER);
 }
 
 // Update timer frequency for required feed rate.
@@ -1061,17 +1078,17 @@ static void els_stepper_timer_z_update(uint32_t feed_um, bool accel) {
   // TODO: check if period is 0 - 65535
   res = 100e3 / res;
 
-  timer_disable_irq(ELS_Z_TIMER, TIM_DIER_UIE);
-  timer_disable_counter(ELS_Z_TIMER);
+  timer_disable_irq(ELS_TIMER, TIM_DIER_UIE);
+  timer_disable_counter(ELS_TIMER);
 
   stepper.zreload_target = res;
   stepper.zreload_updated_at = els_timer_elapsed_milliseconds();
 
   if (!accel)
-    timer_set_period(ELS_Z_TIMER, res);
+    timer_set_period(ELS_TIMER, res);
 
-  timer_enable_counter(ELS_Z_TIMER);
-  timer_enable_irq(ELS_Z_TIMER, TIM_DIER_UIE);
+  timer_enable_counter(ELS_TIMER);
+  timer_enable_irq(ELS_TIMER, TIM_DIER_UIE);
 }
 
 // Update timer frequency for required feed rate.
@@ -1098,15 +1115,15 @@ static void els_stepper_timer_x_update(uint32_t feed_um, bool accel) {
   // TODO: check if period is 0 - 65535
   res = 100e3 / res;
 
-  timer_disable_irq(ELS_X_TIMER, TIM_DIER_UIE);
-  timer_disable_counter(ELS_X_TIMER);
+  timer_disable_irq(ELS_TIMER, TIM_DIER_UIE);
+  timer_disable_counter(ELS_TIMER);
 
   stepper.xreload_target = res;
   stepper.xreload_updated_at = els_timer_elapsed_milliseconds();
 
   if (!accel)
-    timer_set_period(ELS_X_TIMER, res);
+    timer_set_period(ELS_TIMER, res);
 
-  timer_enable_counter(ELS_X_TIMER);
-  timer_enable_irq(ELS_X_TIMER, TIM_DIER_UIE);
+  timer_enable_counter(ELS_TIMER);
+  timer_enable_irq(ELS_TIMER, TIM_DIER_UIE);
 }

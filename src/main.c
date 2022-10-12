@@ -84,7 +84,7 @@ int main(void) {
   els_gpio_setup();
   els_usart_setup();
 
-  printf("\nels v0.1.0 - build %s %s\n", GIT_SHA, BUILD_TS);
+  printf("\nels v0.1.0 - build %s\n", GIT_SHA);
 
   // core
   els_timer_setup();

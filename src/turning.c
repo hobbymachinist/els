@@ -168,7 +168,7 @@ static void els_turning_configure_timer(void);
 static void els_turning_timer_update(int32_t feed_um);
 static void els_turning_timer_start(void);
 static void els_turning_timer_stop(void);
-static void els_turning_timer_isr(void);
+static void els_turning_timer_isr(void) __attribute__ ((interrupt ("IRQ")));
 
 static void els_turning_keypad_process(void);
 

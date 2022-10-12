@@ -15,7 +15,7 @@ STM32F446 = 1
 
 CFLAGS   += -DGIT_SHA=\"$(GIT_SHA)\" -DBUILD_TS=\"$(BUILD_TS)\"
 CFLAGS   += -Isrc -DVERBOSE=$(VERBOSE)
-CFLAGS   += -std=gnu99 -mfloat-abi=hard
+CFLAGS   += -std=gnu99 -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS   += -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Os
 #CFLAGS   += -ffast-math
 #CFLAGS   += -frounding-math -fsignaling-nans -ffloat-store -ffp-contract=off

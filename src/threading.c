@@ -224,17 +224,17 @@ static void els_threading_set_max(void);
 static void els_threading_set_zaxes(void);
 static void els_threading_set_xaxes(void);
 
-static void els_threading_recalulate_pitch_ratio(void);
+static void els_threading_recalculate_pitch_ratio(void);
 
 static void els_threading_configure_gpio(void);
 static void els_threading_configure_timer(void);
 
-static void els_threading_timer_isr(void);
 static void els_threading_timer_update(int32_t feed_um);
 static void els_threading_timer_start(void);
 static void els_threading_timer_stop(void);
 
-static void els_threading_encoder_isr(void);
+static void els_threading_timer_isr(void) __attribute__ ((interrupt ("IRQ")));
+static void els_threading_encoder_isr(void) __attribute__ ((interrupt ("IRQ")));
 
 static void els_threading_keypad_process(void);
 
@@ -308,7 +308,7 @@ void els_threading_start(void) {
 
   els_threading_display_refresh();
 
-  els_threading_recalulate_pitch_ratio();
+  els_threading_recalculate_pitch_ratio();
 
   // spindle encoder
   nvic_set_priority(ELS_S_ENCODER2_IRQ, 4);
@@ -693,7 +693,7 @@ static void els_threading_run(void) {
 // Function 2: pitch settings.
 // ----------------------------------------------------------------------------------
 //
-static void els_threading_recalulate_pitch_ratio(void) {
+static void els_threading_recalculate_pitch_ratio(void) {
   uint32_t n = (els_threading.pitch_um * els_config->z_pulses_per_mm) / 1000;
   uint32_t d = els_config->spindle_encoder_ppr;
 
@@ -746,7 +746,7 @@ static void els_threading_set_pitch(void) {
 
         els_threading.encoder_pos = encoder_curr;
         els_threading_display_pitch();
-        els_threading_recalulate_pitch_ratio();
+        els_threading_recalculate_pitch_ratio();
       }
       break;
   }

@@ -144,6 +144,9 @@ static struct {
   // operation state
   els_turn_dimension_op_state_t op_state;
 
+  // saved xpos
+  double xpos_prev;
+
   // dro
   bool show_dro;
 } els_turn_dimension = {
@@ -560,6 +563,10 @@ static void els_turn_dimension_turn(void) {
     case ELS_TURN_DIM_OP_READY:
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_MOVEZ0;
       els_turn_dimension.spring_pass_count = 0;
+      if (els_config->z_closed_loop)
+        els_stepper->zpos = els_dro.zpos_um / 1000.0;
+      if (els_config->x_closed_loop)
+        els_stepper->xpos = els_dro.xpos_um / 1000.0;
       break;
     case ELS_TURN_DIM_OP_MOVEZ0:
       if (els_stepper->zbusy)
@@ -580,7 +587,7 @@ static void els_turn_dimension_turn(void) {
       break;
     case ELS_TURN_DIM_OP_START:
       // initial move.
-      els_stepper_move_z(-els_turn_dimension.length, els_turn_dimension.feed_mm_s);
+      els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.feed_mm_s);
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZL;
       break;
     case ELS_TURN_DIM_OP_ATZL:
@@ -588,15 +595,15 @@ static void els_turn_dimension_turn(void) {
         break;
 
       // backoff
-      #if BACKOFF_DEPTH > 0
-        els_stepper_move_x(BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
-      #endif
+      els_turn_dimension.xpos_prev = els_stepper->xpos;
+      els_stepper_move_x(BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZLB;
       break;
     case ELS_TURN_DIM_OP_ATZLB:
-      // no need to wait for back off
+      if (els_stepper->xbusy)
+        break;
       // move to Z=0
-      els_stepper_move_z(els_turn_dimension.length, els_config->z_retract_jog_mm_s);
+      els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZ0B;
       break;
     case ELS_TURN_DIM_OP_ATZ0B:
@@ -610,17 +617,18 @@ static void els_turn_dimension_turn(void) {
 
       remaining = fabs(els_turn_dimension.depth + els_stepper->xpos - BACKOFF_DEPTH);
       if (remaining >= (els_turn_dimension.depth_of_cut_um + els_turn_dimension.finish_depth_um) / 1000.0) {
-        xd = els_turn_dimension.depth_of_cut_um / 1000.0;
-        els_stepper_move_x(-xd - BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
+        xd = els_turn_dimension.xpos_prev - (els_turn_dimension.depth_of_cut_um / 1000.0);
+        els_stepper_move_x(xd - els_stepper->xpos, els_config->x_retract_jog_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FEED_IN;
       }
-      else if (remaining > (els_turn_dimension.finish_depth_um / 1000.0) + PRECISION) {
-        xd = remaining - (els_turn_dimension.finish_depth_um / 1000.0);
-        els_stepper_move_x(-xd - BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
+      else if (remaining > (els_turn_dimension.finish_depth_um / 1000.0) + (PRECISION * 5)) {
+        xd = els_turn_dimension.xpos_prev - (remaining - (els_turn_dimension.finish_depth_um / 1000.0));
+        els_stepper_move_x(xd - els_stepper->xpos, els_config->x_retract_jog_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FEED_IN;
       }
       else if (remaining > PRECISION) {
-        els_stepper_move_x(-remaining - BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
+        xd = els_turn_dimension.xpos_prev - remaining;
+        els_stepper_move_x(xd - els_stepper->xpos, els_config->x_retract_jog_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_SPRING;
       }
       else {
@@ -636,7 +644,7 @@ static void els_turn_dimension_turn(void) {
       }
       else {
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZL;
-        els_stepper_move_z(-els_turn_dimension.length, els_turn_dimension.feed_mm_s);
+        els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.feed_mm_s);
       }
       break;
     case ELS_TURN_DIM_OP_SPRING:
@@ -650,7 +658,7 @@ static void els_turn_dimension_turn(void) {
       else {
         els_turn_dimension.spring_pass_count++;
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZL;
-        els_stepper_move_z(-els_turn_dimension.length, els_turn_dimension.feed_mm_s / 2.0);
+        els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.feed_mm_s / 2.0);
       }
       break;
     case ELS_TURN_DIM_OP_DONE:

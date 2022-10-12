@@ -551,6 +551,12 @@ static void els_taper_ext_l_turn(void) {
       break;
     case ELS_TAPER_EXT_OP_READY:
       els_taper_ext_l.op_state = ELS_TAPER_EXT_OP_MOVEZL;
+
+      if (els_config->z_closed_loop)
+        els_stepper->zpos = els_dro.zpos_um / 1000.0;
+      if (els_config->x_closed_loop)
+        els_stepper->xpos = els_dro.xpos_um / 1000.0;
+
       break;
     case ELS_TAPER_EXT_OP_MOVEZL:
       if (els_stepper->zbusy)
@@ -562,6 +568,11 @@ static void els_taper_ext_l_turn(void) {
         els_taper_ext_l.op_state = ELS_TAPER_EXT_OP_MOVEX0;
       break;
     case ELS_TAPER_EXT_OP_MOVEX0:
+      if (els_taper_ext_l.only_spring_pass) {
+        els_taper_ext_l.op_state = ELS_TAPER_EXT_OP_START;
+        break;
+      }
+
       if (els_stepper->xbusy)
         break;
 

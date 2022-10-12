@@ -26,6 +26,8 @@ typedef struct {
   // boolean
   bool     x_closed_loop;
   bool     z_closed_loop;
+  bool     x_dro_invert;
+  bool     z_dro_invert;
 
   // computed
   uint32_t x_backlash_pulses;

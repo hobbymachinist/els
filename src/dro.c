@@ -15,6 +15,7 @@
 #include "gpio.h"
 #include "dro.h"
 #include "nvic.h"
+#include "config.h"
 
 // linear glass scale resolution in microns.
 #define  ELS_DRO_X_RESOLUTION 5
@@ -23,7 +24,7 @@
 //==============================================================================
 // State
 //==============================================================================
-els_dro_t els_dro;
+volatile els_dro_t els_dro;
 
 //==============================================================================
 // Internal functions
@@ -34,8 +35,8 @@ static void els_dro_configure_isr(void);
 //==============================================================================
 // ISR
 //==============================================================================
-static void els_dro_x_isr(void);
-static void els_dro_z_isr(void);
+static void els_dro_x_isr(void) __attribute__ ((interrupt ("IRQ")));
+static void els_dro_z_isr(void) __attribute__ ((interrupt ("IRQ")));
 
 //==============================================================================
 // API
@@ -102,6 +103,7 @@ static void els_dro_configure_isr(void) {
 //==============================================================================
 static void els_dro_x_isr(void) {
   volatile uint32_t x1, x2;
+  const int32_t x_dro_dir = els_config->x_dro_invert ? -1 : 1;
 
   x1 = els_gpio_get(GPIOA, GPIO11);
   x2 = els_gpio_get(GPIOA, GPIO12);
@@ -111,15 +113,15 @@ static void els_dro_x_isr(void) {
     exti_reset_request(EXTI11);
     if (x1) {
       if (x2)
-        els_dro.xpos_um -= ELS_DRO_X_RESOLUTION;
+        els_dro.xpos_um -= (x_dro_dir * ELS_DRO_X_RESOLUTION);
       else
-        els_dro.xpos_um += ELS_DRO_X_RESOLUTION;
+        els_dro.xpos_um += (x_dro_dir * ELS_DRO_X_RESOLUTION);
     }
     else {
       if (x2)
-        els_dro.xpos_um += ELS_DRO_X_RESOLUTION;
+        els_dro.xpos_um += (x_dro_dir * ELS_DRO_X_RESOLUTION);
       else
-        els_dro.xpos_um -= ELS_DRO_X_RESOLUTION;
+        els_dro.xpos_um -= (x_dro_dir * ELS_DRO_X_RESOLUTION);
     }
   }
 
@@ -127,15 +129,15 @@ static void els_dro_x_isr(void) {
     exti_reset_request(EXTI12);
     if (x1) {
       if (x2)
-        els_dro.xpos_um += ELS_DRO_X_RESOLUTION;
+        els_dro.xpos_um += (x_dro_dir * ELS_DRO_X_RESOLUTION);
       else
-        els_dro.xpos_um -= ELS_DRO_X_RESOLUTION;
+        els_dro.xpos_um -= (x_dro_dir * ELS_DRO_X_RESOLUTION);
     }
     else {
       if (x2)
-        els_dro.xpos_um -= ELS_DRO_X_RESOLUTION;
+        els_dro.xpos_um -= (x_dro_dir * ELS_DRO_X_RESOLUTION);
       else
-        els_dro.xpos_um += ELS_DRO_X_RESOLUTION;
+        els_dro.xpos_um += (x_dro_dir * ELS_DRO_X_RESOLUTION);
     }
   }
 }
@@ -143,6 +145,7 @@ static void els_dro_x_isr(void) {
 
 static void els_dro_z_isr(void) {
   volatile uint32_t x1, x2;
+  const int32_t z_dro_dir = els_config->z_dro_invert ? -1 : 1;
 
   x1 = els_gpio_get(GPIOB, GPIO1);
   x2 = els_gpio_get(GPIOB, GPIO5);
@@ -152,15 +155,15 @@ static void els_dro_z_isr(void) {
     exti_reset_request(EXTI1);
     if (x1) {
       if (x2)
-        els_dro.zpos_um -= ELS_DRO_Z_RESOLUTION;
+        els_dro.zpos_um -= (z_dro_dir * ELS_DRO_Z_RESOLUTION);
       else
-        els_dro.zpos_um += ELS_DRO_Z_RESOLUTION;
+        els_dro.zpos_um += (z_dro_dir * ELS_DRO_Z_RESOLUTION);
     }
     else {
       if (x2)
-        els_dro.zpos_um += ELS_DRO_Z_RESOLUTION;
+        els_dro.zpos_um += (z_dro_dir * ELS_DRO_Z_RESOLUTION);
       else
-        els_dro.zpos_um -= ELS_DRO_Z_RESOLUTION;
+        els_dro.zpos_um -= (z_dro_dir * ELS_DRO_Z_RESOLUTION);
     }
   }
 
@@ -168,15 +171,15 @@ static void els_dro_z_isr(void) {
     exti_reset_request(EXTI5);
     if (x1) {
       if (x2)
-        els_dro.zpos_um += ELS_DRO_Z_RESOLUTION;
+        els_dro.zpos_um += (z_dro_dir * ELS_DRO_Z_RESOLUTION);
       else
-        els_dro.zpos_um -= ELS_DRO_Z_RESOLUTION;
+        els_dro.zpos_um -= (z_dro_dir * ELS_DRO_Z_RESOLUTION);
     }
     else {
       if (x2)
-        els_dro.zpos_um -= ELS_DRO_Z_RESOLUTION;
+        els_dro.zpos_um -= (z_dro_dir * ELS_DRO_Z_RESOLUTION);
       else
-        els_dro.zpos_um += ELS_DRO_Z_RESOLUTION;
+        els_dro.zpos_um += (z_dro_dir * ELS_DRO_Z_RESOLUTION);
     }
   }
 }
