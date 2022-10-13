@@ -8,3 +8,4 @@
 *.nc
 obj/
 tmp/
+hw/els/els-backups/*
