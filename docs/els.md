@@ -23,7 +23,7 @@ https://www.youtube.com/channel/UCVE05OvPm0yVd1yQSVZ0YSA/videos
 
 ### Kicad assets
 
-All hw designs are done in Kicad.
+All hw designs are done in Kicad 6.0.
 
 - hw/els: The main board.
 - hw/lcd: The LCD adapter for ILI9481 module
@@ -139,9 +139,7 @@ than the minimum required PPR.
 
 ### DRO
 
-Supports TTL optical DROs. Defaults to the commonly available 5uM resolution versions. The DRO module only supports half the
-resolution along Z axis 10uM (0.01mm) to avoid the overhead of processing an additional interrupt. This seems to be
-enough for my needs.
+Supports TTL optical DROs and defaults to the commonly available 5uM resolution versions.
 
 Most TTL optical DROs you get from China operate on a 5V logic level. You need to to get a DB9 panel or PCB socket (male)
 and break out the 4 wires based on the wiring diagram for your DRO scale.
