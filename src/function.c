@@ -286,8 +286,8 @@ void els_function_init(void) {
       els_function_registry[i].setup_cb();
   }
 
-  els_function.function_sel = ELS_FUNCTION_TAPER_EXT_1;
-  els_function_start(ELS_FUNCTION_TAPER_EXT_1);
+  els_function.function_sel = ELS_FUNCTION_TURN_DIM;
+  els_function_start(ELS_FUNCTION_TURN_DIM);
 }
 
 void els_function_update(void) {

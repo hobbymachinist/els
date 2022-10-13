@@ -40,15 +40,13 @@
 #define ELS_SET_XDIR_TB               els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 
 #define ELS_TIMER_RELOAD_MAX          600
-#define ELS_TIMER_ACCEL_STEPS         40
+#define ELS_TIMER_ACCEL_STEPS         150
 
-#define ELS_TIMER_ACCEL_X             1.05
-#define ELS_TIMER_DECEL_X             1.5
+#define ELS_TIMER_ACCEL_X             10
+#define ELS_TIMER_DECEL_X             10
 
-#define ELS_TIMER_ACCEL_Z             1.05
-#define ELS_TIMER_DECEL_Z             1.5
-
-#define ELS_TIMER_ACCEL_DISABLED      0
+#define ELS_TIMER_ACCEL_Z             10
+#define ELS_TIMER_DECEL_Z             10
 
 //==============================================================================
 // Internal State
@@ -574,17 +572,19 @@ static void els_stepper_timer_z_line(void) {
       stepper.zsteps--;
 
       uint32_t now = els_timer_elapsed_milliseconds();
-      uint32_t elapsed = MAX((now - stepper.zreload_updated_at) / 10, 5);
-      if (stepper.zsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
+      uint32_t elapsed = now - stepper.zreload_updated_at;
+
+      if (elapsed > 10) {
         stepper.zreload_updated_at = now;
-        if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
-          TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z * elapsed, stepper.zreload_target);
-        else
-          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_Z * elapsed, stepper.zreload_target);
-      }
-      else if (stepper.zsteps <= ELS_TIMER_ACCEL_STEPS) {
-        stepper.zreload_updated_at = now;
-        TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z * elapsed, ELS_TIMER_RELOAD_MAX);
+        if (stepper.zsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
+          if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
+            TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z, stepper.zreload_target);
+          else
+            TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_Z, stepper.zreload_target);
+        }
+        else if (stepper.zsteps <= ELS_TIMER_ACCEL_STEPS) {
+          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z, ELS_TIMER_RELOAD_MAX);
+        }
       }
     }
 
@@ -630,17 +630,19 @@ static void els_stepper_timer_x_line(void) {
       stepper.xsteps--;
 
       uint32_t now = els_timer_elapsed_milliseconds();
-      uint32_t elapsed = MAX((now - stepper.xreload_updated_at) / 10, 5);
-      if (stepper.xsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
+      uint32_t elapsed = now - stepper.xreload_updated_at;
+
+      if (elapsed > 10) {
         stepper.xreload_updated_at = now;
-        if (TIM_ARR(ELS_TIMER) > stepper.xreload_target)
-          TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_X * elapsed, stepper.xreload_target);
-        else
-          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_X * elapsed, stepper.xreload_target);
-      }
-      else if (stepper.xsteps <= ELS_TIMER_ACCEL_STEPS) {
-        stepper.xreload_updated_at = now;
-        TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X * elapsed, ELS_TIMER_RELOAD_MAX);
+        if (stepper.xsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
+          if (TIM_ARR(ELS_TIMER) > stepper.xreload_target)
+            TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_X, stepper.xreload_target);
+          else
+            TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_X, stepper.xreload_target);
+        }
+        else if (stepper.xsteps <= ELS_TIMER_ACCEL_STEPS) {
+          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X, ELS_TIMER_RELOAD_MAX);
+        }
       }
     }
 
@@ -1058,10 +1060,6 @@ static void els_stepper_timer_stop(void) {
 static void els_stepper_timer_z_update(uint32_t feed_um, bool accel) {
   uint32_t res;
 
-  #if ELS_TIMER_ACCEL_DISABLED
-    accel = false;
-  #endif
-
   if (feed_um == stepper.zfeed_um && accel)
     return;
 
@@ -1084,7 +1082,9 @@ static void els_stepper_timer_z_update(uint32_t feed_um, bool accel) {
   stepper.zreload_target = res;
   stepper.zreload_updated_at = els_timer_elapsed_milliseconds();
 
-  if (!accel)
+  if (accel)
+    timer_set_period(ELS_TIMER, ELS_TIMER_RELOAD_MAX);
+  else
     timer_set_period(ELS_TIMER, res);
 
   timer_enable_counter(ELS_TIMER);
@@ -1094,10 +1094,6 @@ static void els_stepper_timer_z_update(uint32_t feed_um, bool accel) {
 // Update timer frequency for required feed rate.
 static void els_stepper_timer_x_update(uint32_t feed_um, bool accel) {
   uint32_t res;
-
-  #if ELS_TIMER_ACCEL_DISABLED
-    accel = false;
-  #endif
 
   if (feed_um == stepper.xfeed_um && accel)
     return;
@@ -1121,7 +1117,9 @@ static void els_stepper_timer_x_update(uint32_t feed_um, bool accel) {
   stepper.xreload_target = res;
   stepper.xreload_updated_at = els_timer_elapsed_milliseconds();
 
-  if (!accel)
+  if (accel)
+    timer_set_period(ELS_TIMER, ELS_TIMER_RELOAD_MAX);
+  else
     timer_set_period(ELS_TIMER, res);
 
   timer_enable_counter(ELS_TIMER);
