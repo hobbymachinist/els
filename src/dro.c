@@ -144,14 +144,16 @@ static void els_dro_x_isr(void) {
 
 
 static void els_dro_z_isr(void) {
-  volatile uint32_t x1, x2;
+  volatile uint32_t x1, x2, exti1, exti5;
   const int32_t z_dro_dir = els_config->z_dro_invert ? -1 : 1;
 
   x1 = els_gpio_get(GPIOB, GPIO1);
   x2 = els_gpio_get(GPIOB, GPIO5);
+  exti1 = exti_get_flag_status(EXTI1);
+  exti5 = exti_get_flag_status(EXTI5);
 
   // ------------ Z AXIS ------------------------------------------------------
-  if (exti_get_flag_status(EXTI1)) {
+  if (exti1) {
     exti_reset_request(EXTI1);
     if (x1) {
       if (x2)
@@ -167,7 +169,7 @@ static void els_dro_z_isr(void) {
     }
   }
 
-  if (exti_get_flag_status(EXTI5)) {
+  if (exti5) {
     exti_reset_request(EXTI5);
     if (x1) {
       if (x2)

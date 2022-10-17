@@ -40,13 +40,15 @@
 #define ELS_SET_XDIR_TB               els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 
 #define ELS_TIMER_RELOAD_MAX          600
-#define ELS_TIMER_ACCEL_STEPS         150
+#define ELS_TIMER_DECEL_STEPS         250
 
-#define ELS_TIMER_ACCEL_X             10
-#define ELS_TIMER_DECEL_X             10
+#define ELS_TIMER_ACCEL_X             8
+#define ELS_TIMER_DECEL_X             8
 
-#define ELS_TIMER_ACCEL_Z             10
-#define ELS_TIMER_DECEL_Z             10
+#define ELS_TIMER_ACCEL_Z             8
+#define ELS_TIMER_DECEL_Z             8
+
+#define ELS_TIMER_ACCEL_INTERVAL_MS   20
 
 //==============================================================================
 // Internal State
@@ -574,15 +576,15 @@ static void els_stepper_timer_z_line(void) {
       uint32_t now = els_timer_elapsed_milliseconds();
       uint32_t elapsed = now - stepper.zreload_updated_at;
 
-      if (elapsed > 10) {
+      if (elapsed >= ELS_TIMER_ACCEL_INTERVAL_MS) {
         stepper.zreload_updated_at = now;
-        if (stepper.zsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
+        if (stepper.zsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
           if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
             TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z, stepper.zreload_target);
           else
             TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_Z, stepper.zreload_target);
         }
-        else if (stepper.zsteps <= ELS_TIMER_ACCEL_STEPS) {
+        else if (stepper.zsteps <= ELS_TIMER_DECEL_STEPS) {
           TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z, ELS_TIMER_RELOAD_MAX);
         }
       }
@@ -632,15 +634,15 @@ static void els_stepper_timer_x_line(void) {
       uint32_t now = els_timer_elapsed_milliseconds();
       uint32_t elapsed = now - stepper.xreload_updated_at;
 
-      if (elapsed > 10) {
+      if (elapsed >= ELS_TIMER_ACCEL_INTERVAL_MS) {
         stepper.xreload_updated_at = now;
-        if (stepper.xsteps > ELS_TIMER_ACCEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
+        if (stepper.xsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
           if (TIM_ARR(ELS_TIMER) > stepper.xreload_target)
             TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_X, stepper.xreload_target);
           else
             TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_X, stepper.xreload_target);
         }
-        else if (stepper.xsteps <= ELS_TIMER_ACCEL_STEPS) {
+        else if (stepper.xsteps <= ELS_TIMER_DECEL_STEPS) {
           TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X, ELS_TIMER_RELOAD_MAX);
         }
       }
