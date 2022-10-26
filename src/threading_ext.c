@@ -487,13 +487,13 @@ static void els_threading_ext_display_setting(void) {
   else
     tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double1(text, sizeof(text), els_threading_ext.pitch_um / 1000.0, "P");
+  els_sprint_double23(text, sizeof(text), els_threading_ext.pitch_um / 1000.0, "P");
   if (els_threading_ext.state == ELS_THREADING_SET_PITCH && els_threading_ext.pitch_mode == ELS_THREADING_PITCH_MODE_ARB)
     tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double1(text, sizeof(text), els_threading_ext.depth, "H");
+  els_sprint_double23(text, sizeof(text), els_threading_ext.depth, "H");
   if (els_threading_ext.state == ELS_THREADING_SET_DEPTH)
     tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
@@ -743,6 +743,7 @@ static void els_threading_ext_thread(void) {
 
       if (els_config->z_closed_loop)
         els_stepper->zpos = els_dro.zpos_um / 1000.0;
+
       if (els_config->x_closed_loop)
         els_stepper->xpos = els_dro.xpos_um / 1000.0;
 
@@ -804,7 +805,7 @@ static void els_threading_ext_thread(void) {
       break;
     case ELS_THREADING_OP_ATZ0XM:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        if (fabs(els_threading_ext.depth + els_stepper->xpos) > PRECISION) {
+        if ((els_threading_ext.depth + els_stepper->xpos) > PRECISION) {
           double xd;
           xd = MIN(
             els_threading_ext.depth + els_stepper->xpos,
@@ -901,7 +902,7 @@ static void els_threading_ext_set_pitch(void) {
           els_threading_ext.depth    = pitch_table_height_mm[els_threading_ext.pitch_table_index];
         }
         else {
-          els_threading_ext.pitch_um += (encoder_curr - els_threading_ext.encoder_pos) * 10;
+          els_threading_ext.pitch_um += (encoder_curr - els_threading_ext.encoder_pos);
         }
 
         els_threading_ext_recalculate_pitch_ratio();
@@ -988,11 +989,11 @@ void els_threading_ext_set_depth(void) {
     default:
       encoder_curr = els_encoder_read();
       if (els_threading_ext.encoder_pos != encoder_curr) {
-        double delta = (encoder_curr - els_threading_ext.encoder_pos) * 0.01 * els_threading_ext.encoder_multiplier;
+        double delta = (encoder_curr - els_threading_ext.encoder_pos) * 0.001 * els_threading_ext.encoder_multiplier;
         if (els_threading_ext.depth + delta <= 0)
           els_threading_ext.depth = 0;
-        else if (els_threading_ext.depth + delta >= ELS_X_MAX_MM)
-          els_threading_ext.depth = ELS_X_MAX_MM;
+        else if (els_threading_ext.depth + delta >= 5.00)
+          els_threading_ext.depth = 5.00;
         else
           els_threading_ext.depth += delta;
         els_threading_ext.encoder_pos = encoder_curr;
