@@ -465,7 +465,11 @@ static void els_threading_display_pitch(void) {
     tft_filled_rectangle(&tft, 220, 110, 30, 30, ILI9481_BLACK);
 
   els_sprint_double13(text, sizeof(text), els_threading.pitch_um / 1000.0, "PITCH");
-  tft_font_write_bg(&tft, 249, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  if (els_threading.state == ELS_THREADING_SET_PITCH)
+    tft_font_write_bg(&tft, 249, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  else
+    tft_font_write_bg(&tft, 249, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+
 
   if (els_threading.pitch_type == ELS_THREADING_PITCH_STD) {
     tft_filled_rectangle(&tft, 249, 200, 260, 25, ILI9481_BLACK);
@@ -634,6 +638,7 @@ static void els_threading_keypad_process(void) {
       els_threading.encoder_pos = 0;
       els_encoder_set_rotation_debounce(50e3);
       els_encoder_reset();
+      els_threading_display_pitch();
       break;
     case ELS_KEY_SET_ZX:
       if (els_threading.state & (ELS_THREADING_IDLE | ELS_THREADING_PAUSED)) {
@@ -721,6 +726,7 @@ static void els_threading_set_pitch(void) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
       els_threading.state = ELS_THREADING_IDLE;
+      els_threading_display_pitch();
       break;
     case ELS_KEY_SET_FEED:
       els_threading.pitch_type = (els_threading.pitch_type + 1) % 2;

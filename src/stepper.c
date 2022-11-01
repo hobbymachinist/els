@@ -39,16 +39,15 @@
 #define ELS_SET_XDIR_BT               els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 #define ELS_SET_XDIR_TB               els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 
-#define ELS_TIMER_RELOAD_MAX          600
+// at 100khz, 50 pulses per second.
+#define ELS_TIMER_RELOAD_MAX          500
 #define ELS_TIMER_DECEL_STEPS         250
 
-#define ELS_TIMER_ACCEL_X             8
-#define ELS_TIMER_DECEL_X             8
+#define ELS_TIMER_ACCEL_X             2
+#define ELS_TIMER_DECEL_X             1
 
-#define ELS_TIMER_ACCEL_Z             8
-#define ELS_TIMER_DECEL_Z             8
-
-#define ELS_TIMER_ACCEL_INTERVAL_MS   20
+#define ELS_TIMER_ACCEL_Z             3
+#define ELS_TIMER_DECEL_Z             1
 
 //==============================================================================
 // Internal State
@@ -105,8 +104,6 @@ static struct {
 
   uint32_t xreload_target;
   uint32_t zreload_target;
-  uint32_t xreload_updated_at;
-  uint32_t zreload_updated_at;
 } stepper;
 
 //==============================================================================
@@ -497,9 +494,9 @@ void els_stepper_x_backlash_fix(void) {
     int32_t dro_xpos_um = els_dro.xpos_um;
     while (els_dro.xpos_um == dro_xpos_um && n < max) {
       els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
-      els_delay_microseconds(1e3);
+      els_delay_microseconds(2e3);
       els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
-      els_delay_microseconds(1e3);
+      els_delay_microseconds(2e3);
       n++;
     }
     stepper.pos.xpos = els_dro.xpos_um * 1e-3;
@@ -526,9 +523,9 @@ void els_stepper_z_backlash_fix(void) {
     int32_t dro_zpos_um = els_dro.zpos_um;
     while (els_dro.zpos_um == dro_zpos_um && n < max) {
       els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-      els_delay_microseconds(1e3);
+      els_delay_microseconds(2e3);
       els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-      els_delay_microseconds(1e3);
+      els_delay_microseconds(2e3);
       n++;
     }
     stepper.pos.zpos = els_dro.zpos_um * 1e-3;
@@ -573,20 +570,16 @@ static void els_stepper_timer_z_line(void) {
       stepper.pos.zpos += (stepper.pos.zdir * stepper.zdelta);
       stepper.zsteps--;
 
-      uint32_t now = els_timer_elapsed_milliseconds();
-      uint32_t elapsed = now - stepper.zreload_updated_at;
-
-      if (elapsed >= ELS_TIMER_ACCEL_INTERVAL_MS) {
-        stepper.zreload_updated_at = now;
-        if (stepper.zsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
-          if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
-            TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z, stepper.zreload_target);
-          else
-            TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_Z, stepper.zreload_target);
-        }
-        else if (stepper.zsteps <= ELS_TIMER_DECEL_STEPS) {
-          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z, ELS_TIMER_RELOAD_MAX);
-        }
+      // accelerate or constant velocity
+      if (stepper.zsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
+        if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
+          TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z, stepper.zreload_target);
+        else
+          TIM_ARR(ELS_TIMER) = stepper.zreload_target;
+      }
+      // decelerate
+      else if (stepper.zsteps <= ELS_TIMER_DECEL_STEPS) {
+        TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z, ELS_TIMER_RELOAD_MAX);
       }
     }
 
@@ -631,20 +624,16 @@ static void els_stepper_timer_x_line(void) {
       stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
       stepper.xsteps--;
 
-      uint32_t now = els_timer_elapsed_milliseconds();
-      uint32_t elapsed = now - stepper.xreload_updated_at;
-
-      if (elapsed >= ELS_TIMER_ACCEL_INTERVAL_MS) {
-        stepper.xreload_updated_at = now;
-        if (stepper.xsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
-          if (TIM_ARR(ELS_TIMER) > stepper.xreload_target)
-            TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_X, stepper.xreload_target);
-          else
-            TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_ACCEL_X, stepper.xreload_target);
-        }
-        else if (stepper.xsteps <= ELS_TIMER_DECEL_STEPS) {
-          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X, ELS_TIMER_RELOAD_MAX);
-        }
+      // accelerate or constant velocity
+      if (stepper.xsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
+        if (TIM_ARR(ELS_TIMER) > stepper.xreload_target)
+          TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_X, stepper.xreload_target);
+        else
+          TIM_ARR(ELS_TIMER) = stepper.xreload_target;
+      }
+      // decelerate
+      else if (stepper.xsteps <= ELS_TIMER_DECEL_STEPS) {
+        TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X, ELS_TIMER_RELOAD_MAX);
       }
     }
 
@@ -1082,7 +1071,6 @@ static void els_stepper_timer_z_update(uint32_t feed_um, bool accel) {
   timer_disable_counter(ELS_TIMER);
 
   stepper.zreload_target = res;
-  stepper.zreload_updated_at = els_timer_elapsed_milliseconds();
 
   if (accel)
     timer_set_period(ELS_TIMER, ELS_TIMER_RELOAD_MAX);
@@ -1117,7 +1105,6 @@ static void els_stepper_timer_x_update(uint32_t feed_um, bool accel) {
   timer_disable_counter(ELS_TIMER);
 
   stepper.xreload_target = res;
-  stepper.xreload_updated_at = els_timer_elapsed_milliseconds();
 
   if (accel)
     timer_set_period(ELS_TIMER, ELS_TIMER_RELOAD_MAX);

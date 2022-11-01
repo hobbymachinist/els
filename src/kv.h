@@ -30,7 +30,9 @@ typedef enum {
   ELS_KV_X_CLOSED_LOOP        = 10,
   ELS_KV_Z_CLOSED_LOOP        = 11,
   ELS_KV_X_DRO_INVERT         = 12,
-  ELS_KV_Z_DRO_INVERT         = 13
+  ELS_KV_Z_DRO_INVERT         = 13,
+  ELS_KV_X_JOG_MM_S           = 14,
+  ELS_KV_Z_JOG_MM_S           = 15
 } els_kv_t;
 
 void els_kv_setup(void);

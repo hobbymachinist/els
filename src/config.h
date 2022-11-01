@@ -20,6 +20,8 @@ typedef struct {
 
   uint32_t spindle_encoder_ppr;
 
+  uint32_t x_jog_mm_s;
+  uint32_t z_jog_mm_s;
   uint32_t x_retract_jog_mm_s;
   uint32_t z_retract_jog_mm_s;
 

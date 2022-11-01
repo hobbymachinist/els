@@ -36,10 +36,7 @@
 #include "taper_ext_l.h"
 #include "utils.h"
 
-#define ELS_Z_JOG_MM_S  8
-#define ELS_X_JOG_MM_S  4
-
-#define PRECISION       (1e-2)
+#define PRECISION 1e-2
 //==============================================================================
 // Externs
 //==============================================================================
@@ -599,8 +596,8 @@ static void els_taper_ext_l_turn(void) {
       els_taper_ext_l.xcurr = els_stepper->xpos;
       remaining = fabs(els_taper_ext_l.xcurr + els_taper_ext_l.depth);
       if (remaining <= PRECISION) {
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_JOG_MM_S);
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
         els_taper_ext_l.op_state = ELS_TAPER_EXT_OP_DONE;
       }
       else {
@@ -639,7 +636,7 @@ static void els_taper_ext_l_turn(void) {
         els_taper_ext_l.op_state = ELS_TAPER_EXT_OP_RESETZ;
       }
       else {
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_JOG_MM_S);
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
         els_taper_ext_l.op_state = ELS_TAPER_EXT_OP_DONE;
       }
       break;
@@ -856,7 +853,7 @@ static void els_taper_ext_l_zjog(void) {
   if (els_taper_ext_l.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_taper_ext_l.encoder_pos) * 0.01 * els_taper_ext_l.encoder_multiplier;
     els_taper_ext_l.encoder_pos = encoder_curr;
-    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
 }
 
@@ -871,6 +868,6 @@ static void els_taper_ext_l_xjog(void) {
     // ----------------------------------------------------------------------------------
     delta = (encoder_curr - els_taper_ext_l.encoder_pos) * 0.01 * els_taper_ext_l.encoder_multiplier;
     els_taper_ext_l.encoder_pos = encoder_curr;
-    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, els_config->x_jog_mm_s);
   }
 }

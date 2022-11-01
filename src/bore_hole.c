@@ -36,9 +36,6 @@
 #include "bore_hole.h"
 #include "utils.h"
 
-#define ELS_Z_JOG_MM_S  8
-#define ELS_X_JOG_MM_S  4
-
 #define PRECISION       1e-2
 #define BACKOFF_DEPTH   0.2
 //==============================================================================
@@ -813,7 +810,7 @@ static void els_bore_hole_zjog(void) {
   if (els_bore_hole.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_bore_hole.encoder_pos) * (0.01 * els_bore_hole.encoder_multiplier);
     els_bore_hole.encoder_pos = encoder_curr;
-    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
 }
 
@@ -825,6 +822,6 @@ static void els_bore_hole_xjog(void) {
   if (els_bore_hole.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_bore_hole.encoder_pos) * (0.01 * els_bore_hole.encoder_multiplier);
     els_bore_hole.encoder_pos = encoder_curr;
-    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, els_config->x_jog_mm_s);
   }
 }

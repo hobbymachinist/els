@@ -20,7 +20,7 @@ extern "C" {
 #define ELS_X_BACKLASH_UM     (225)
 
 // backlash pulse period / 2
-#define ELS_BACKLASH_DELAY_US (800)
+#define ELS_BACKLASH_DELAY_US (1e3)
 
 #define ELS_Z_MAX_MM          (550)
 #define ELS_X_MAX_MM          (150)

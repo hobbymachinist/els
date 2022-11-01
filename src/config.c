@@ -43,12 +43,14 @@ typedef enum {
   ELS_CONFIG_X_BACKLASH_UM        = 2,
   ELS_CONFIG_Z_BACKLASH_UM        = 3,
   ELS_CONFIG_SPINDLE_ENCODER_PPR  = 4,
-  ELS_CONFIG_X_RETRACT_JOG_MM_S   = 5,
-  ELS_CONFIG_Z_RETRACT_JOG_MM_S   = 6,
-  ELS_CONFIG_X_CLOSED_LOOP        = 7,
-  ELS_CONFIG_Z_CLOSED_LOOP        = 8,
-  ELS_CONFIG_X_DRO_INVERT         = 9,
-  ELS_CONFIG_Z_DRO_INVERT         = 10,
+  ELS_CONFIG_X_JOG_MM_S           = 5,
+  ELS_CONFIG_Z_JOG_MM_S           = 6,
+  ELS_CONFIG_X_RETRACT_JOG_MM_S   = 7,
+  ELS_CONFIG_Z_RETRACT_JOG_MM_S   = 8,
+  ELS_CONFIG_X_CLOSED_LOOP        = 9,
+  ELS_CONFIG_Z_CLOSED_LOOP        = 10,
+  ELS_CONFIG_X_DRO_INVERT         = 11,
+  ELS_CONFIG_Z_DRO_INVERT         = 12,
 } els_config_setting_t;
 
 static struct {
@@ -65,6 +67,8 @@ const char *settings[] = {
   "X BACKLASH uM",
   "Z BACKLASH uM",
   "SPINDLE ENCODER PPR",
+  "X JOG MM/S",
+  "Z JOG MM/S",
   "X RETRACT JOG MM/S",
   "Z RETRACT JOG MM/S",
   "X CLOSED LOOP",
@@ -128,17 +132,31 @@ void els_config_setup(void) {
     els_kv_write(ELS_KV_SPINDLE_ENCODER_PPR, &_els_config.spindle_encoder_ppr, sizeof(_els_config.spindle_encoder_ppr));
   }
 
+  els_kv_read(ELS_KV_X_JOG_MM_S, &_els_config.x_jog_mm_s, sizeof(_els_config.x_jog_mm_s));
+  if (_els_config.x_jog_mm_s == 0) {
+    _els_config.x_jog_mm_s = 4;
+    printf("set default x jog mm/s = %lu\n", _els_config.x_jog_mm_s);
+    els_kv_write(ELS_KV_X_JOG_MM_S, &_els_config.x_jog_mm_s, sizeof(_els_config.x_jog_mm_s));
+  }
+
+  els_kv_read(ELS_KV_Z_JOG_MM_S, &_els_config.z_jog_mm_s, sizeof(_els_config.z_jog_mm_s));
+  if (_els_config.z_jog_mm_s == 0) {
+    _els_config.z_jog_mm_s = 8;
+    printf("set default z jog mm/s = %lu\n", _els_config.z_jog_mm_s);
+    els_kv_write(ELS_KV_Z_JOG_MM_S, &_els_config.z_jog_mm_s, sizeof(_els_config.z_jog_mm_s));
+  }
+
   els_kv_read(ELS_KV_X_RETRACT_JOG_MM_S, &_els_config.x_retract_jog_mm_s, sizeof(_els_config.x_retract_jog_mm_s));
   if (_els_config.x_retract_jog_mm_s == 0) {
     _els_config.x_retract_jog_mm_s = 1;
-    printf("set default x min jog mm/s = %lu\n", _els_config.x_retract_jog_mm_s);
+    printf("set default x retract jog mm/s = %lu\n", _els_config.x_retract_jog_mm_s);
     els_kv_write(ELS_KV_X_RETRACT_JOG_MM_S, &_els_config.x_retract_jog_mm_s, sizeof(_els_config.x_retract_jog_mm_s));
   }
 
   els_kv_read(ELS_KV_Z_RETRACT_JOG_MM_S, &_els_config.z_retract_jog_mm_s, sizeof(_els_config.z_retract_jog_mm_s));
   if (_els_config.z_retract_jog_mm_s == 0) {
     _els_config.z_retract_jog_mm_s = 2;
-    printf("set default z min jog mm/s = %lu\n", _els_config.z_retract_jog_mm_s);
+    printf("set default z retract jog mm/s = %lu\n", _els_config.z_retract_jog_mm_s);
     els_kv_write(ELS_KV_Z_RETRACT_JOG_MM_S, &_els_config.z_retract_jog_mm_s, sizeof(_els_config.z_retract_jog_mm_s));
   }
 
@@ -153,8 +171,10 @@ void els_config_setup(void) {
   printf("x backlash um = %lu\n", _els_config.x_backlash_um);
   printf("z backlash um = %lu\n", _els_config.z_backlash_um);
   printf("spindle encoder ppr = %lu\n", _els_config.spindle_encoder_ppr);
-  printf("x min jog mm/s = %lu\n", _els_config.x_retract_jog_mm_s);
-  printf("z min jog mm/s = %lu\n", _els_config.z_retract_jog_mm_s);
+  printf("x jog mm/s = %lu\n", _els_config.x_jog_mm_s);
+  printf("z jog mm/s = %lu\n", _els_config.z_jog_mm_s);
+  printf("x retract jog mm/s = %lu\n", _els_config.x_retract_jog_mm_s);
+  printf("z retract jog mm/s = %lu\n", _els_config.z_retract_jog_mm_s);
   printf("x closed loop = %d\n", _els_config.x_closed_loop);
   printf("z closed loop = %d\n", _els_config.z_closed_loop);
   printf("x dro invert = %d\n", _els_config.x_dro_invert);
@@ -263,6 +283,10 @@ static uint32_t els_config_get(size_t setting) {
       return _els_config.z_backlash_um;
     case ELS_CONFIG_SPINDLE_ENCODER_PPR:
       return _els_config.spindle_encoder_ppr;
+    case ELS_CONFIG_X_JOG_MM_S:
+      return _els_config.x_jog_mm_s;
+    case ELS_CONFIG_Z_JOG_MM_S:
+      return _els_config.z_jog_mm_s;
     case ELS_CONFIG_X_RETRACT_JOG_MM_S:
       return _els_config.x_retract_jog_mm_s;
     case ELS_CONFIG_Z_RETRACT_JOG_MM_S:
@@ -301,6 +325,14 @@ static void els_config_set(size_t setting, uint32_t value) {
     case ELS_CONFIG_SPINDLE_ENCODER_PPR:
       _els_config.spindle_encoder_ppr = value;
       els_kv_write(ELS_KV_SPINDLE_ENCODER_PPR, &value, sizeof(value));
+      break;
+    case ELS_CONFIG_X_JOG_MM_S:
+      _els_config.x_jog_mm_s = value;
+      els_kv_write(ELS_KV_X_JOG_MM_S, &value, sizeof(value));
+      break;
+    case ELS_CONFIG_Z_JOG_MM_S:
+      _els_config.z_jog_mm_s = value;
+      els_kv_write(ELS_KV_Z_JOG_MM_S, &value, sizeof(value));
       break;
     case ELS_CONFIG_X_RETRACT_JOG_MM_S:
       _els_config.x_retract_jog_mm_s = value;

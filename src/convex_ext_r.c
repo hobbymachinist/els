@@ -36,10 +36,7 @@
 #include "convex_ext_r.h"
 #include "utils.h"
 
-#define ELS_Z_JOG_MM_S  8
-#define ELS_X_JOG_MM_S  4
-
-#define PRECISION       (1e-2)
+#define PRECISION 1e-2
 //==============================================================================
 // Externs
 //==============================================================================
@@ -917,7 +914,7 @@ static void els_convex_ext_r_zjog(void) {
   if (els_convex_ext_r.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
     els_convex_ext_r.encoder_pos = encoder_curr;
-    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
 }
 
@@ -929,7 +926,7 @@ static void els_convex_ext_r_xjog(void) {
   if (els_convex_ext_r.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
     els_convex_ext_r.encoder_pos = encoder_curr;
-    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, els_config->x_jog_mm_s);
   }
 }
 

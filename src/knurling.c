@@ -118,10 +118,7 @@ static const char *op_labels[] = {
 #define ELS_KNURLING_SET_XDIR_BT          els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 #define ELS_KNURLING_SET_XDIR_TB          els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 
-#define ELS_Z_JOG_MM_S                     8
-#define ELS_X_JOG_MM_S                     4
-
-#define PRECISION                          (1e-2)
+#define PRECISION                         (1e-2)
 //==============================================================================
 // Internal state
 //==============================================================================
@@ -743,14 +740,14 @@ static void els_knurling_thread_stage1(void) {
       break;
     case ELS_KNURLING_OP_MOVEZ0:
       if (fabs(els_stepper->zpos) > PRECISION)
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_JOG_MM_S);
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
       els_knurling.op_state = ELS_KNURLING_OP_MOVEX0;
       break;
     case ELS_KNURLING_OP_MOVEX0:
       if (els_stepper->zbusy)
         break;
       if (fabs(els_stepper->xpos) > PRECISION)
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
       els_knurling.op_state = ELS_KNURLING_OP_START;
       break;
     case ELS_KNURLING_OP_START:
@@ -784,18 +781,18 @@ static void els_knurling_thread_stage1(void) {
       break;
     case ELS_KNURLING_OP_KNURLL:
       els_knurling.xpos_prev = els_stepper->xpos;
-      els_stepper_move_x(2 - els_stepper->xpos, ELS_X_JOG_MM_S);
+      els_stepper_move_x(2 - els_stepper->xpos, els_config->x_jog_mm_s);
       els_knurling.op_state = ELS_KNURLING_OP_ATZL;
       break;
     case ELS_KNURLING_OP_ATZL:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_JOG_MM_S);
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
         els_knurling.op_state = ELS_KNURLING_OP_ATZLXM;
       }
       break;
     case ELS_KNURLING_OP_ATZLXM:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_stepper_move_x(els_knurling.xpos_prev - els_stepper->xpos, ELS_X_JOG_MM_S);
+        els_stepper_move_x(els_knurling.xpos_prev - els_stepper->xpos, els_config->x_jog_mm_s);
         els_knurling.op_state = ELS_KNURLING_OP_ATZ0XM;
       }
       break;
@@ -808,17 +805,17 @@ static void els_knurling_thread_stage1(void) {
             els_knurling.depth_of_cut_um / 1000.0
           );
 
-          els_stepper_move_x(-xd, ELS_X_JOG_MM_S);
+          els_stepper_move_x(-xd, els_config->x_jog_mm_s);
           els_knurling.op_state = ELS_KNURLING_OP_FEED_IN;
         }
         else if (els_knurling.phase_offset + els_knurling.phase_delta < els_config->spindle_encoder_ppr * 2) {
           els_knurling.phase_offset += els_knurling.phase_delta;
-          els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
+          els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
           els_knurling.op_state = ELS_KNURLING_OP_FEED_IN;
           els_knurling_display_setting();
         }
         else {
-          els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
+          els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
           els_knurling.op_state = ELS_KNURLING_OP_DONE;
         }
       }
@@ -860,14 +857,14 @@ static void els_knurling_thread_stage2(void) {
       break;
     case ELS_KNURLING_OP_MOVEZL:
       if (fabs(-els_knurling.length - els_stepper->zpos) > PRECISION)
-        els_stepper_move_z(-els_knurling.length - els_stepper->zpos, ELS_Z_JOG_MM_S);
+        els_stepper_move_z(-els_knurling.length - els_stepper->zpos, els_config->z_jog_mm_s);
       els_knurling.op_state = ELS_KNURLING_OP_MOVEX0;
       break;
     case ELS_KNURLING_OP_MOVEX0:
       if (els_stepper->zbusy)
         break;
       if (fabs(els_stepper->xpos) > PRECISION)
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
       els_knurling.op_state = ELS_KNURLING_OP_START;
       break;
     case ELS_KNURLING_OP_START:
@@ -901,18 +898,18 @@ static void els_knurling_thread_stage2(void) {
       break;
     case ELS_KNURLING_OP_KNURLL:
       els_knurling.xpos_prev = els_stepper->xpos;
-      els_stepper_move_x(2 - els_stepper->xpos, ELS_X_JOG_MM_S);
+      els_stepper_move_x(2 - els_stepper->xpos, els_config->x_jog_mm_s);
       els_knurling.op_state = ELS_KNURLING_OP_ATZ0;
       break;
     case ELS_KNURLING_OP_ATZ0:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_stepper_move_z(-els_knurling.length - els_stepper->zpos, ELS_Z_JOG_MM_S);
+        els_stepper_move_z(-els_knurling.length - els_stepper->zpos, els_config->z_jog_mm_s);
         els_knurling.op_state = ELS_KNURLING_OP_ATZ0XM;
       }
       break;
     case ELS_KNURLING_OP_ATZ0XM:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_stepper_move_x(els_knurling.xpos_prev - els_stepper->xpos, ELS_X_JOG_MM_S);
+        els_stepper_move_x(els_knurling.xpos_prev - els_stepper->xpos, els_config->x_jog_mm_s);
         els_knurling.op_state = ELS_KNURLING_OP_ATZLXM;
       }
       break;
@@ -925,18 +922,18 @@ static void els_knurling_thread_stage2(void) {
             els_knurling.depth_of_cut_um / 1000.0
           );
 
-          els_stepper_move_x(-xd, ELS_X_JOG_MM_S);
+          els_stepper_move_x(-xd, els_config->x_jog_mm_s);
           els_knurling.op_state = ELS_KNURLING_OP_FEED_IN;
         }
         else if (els_knurling.phase_offset + els_knurling.phase_delta < els_config->spindle_encoder_ppr * 2) {
           els_knurling.phase_offset += els_knurling.phase_delta;
-          els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
+          els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
           els_knurling.op_state = ELS_KNURLING_OP_FEED_IN;
           els_knurling_display_setting();
         }
         else {
-          els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
-          els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_JOG_MM_S);
+          els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+          els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
           els_knurling.op_state = ELS_KNURLING_OP_DONE;
         }
       }
@@ -1205,7 +1202,7 @@ static void els_knurling_zjog(void) {
   if (els_knurling.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_knurling.encoder_pos) * 0.01 * els_knurling.encoder_multiplier;
     els_knurling.state |= ELS_KNURLING_ZJOG;
-    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, els_config->z_jog_mm_s);
     els_knurling.encoder_pos = encoder_curr;
     els_knurling_display_axes();
   }
@@ -1226,7 +1223,7 @@ static void els_knurling_xjog(void) {
   if (els_knurling.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_knurling.encoder_pos) * 0.01 * els_knurling.encoder_multiplier;
     els_knurling.state |= ELS_KNURLING_XJOG;
-    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, els_config->x_jog_mm_s);
     els_knurling.encoder_pos = encoder_curr;
     els_knurling_display_axes();
   }

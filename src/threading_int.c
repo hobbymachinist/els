@@ -191,9 +191,6 @@ static const char *pitch_table_label[] = {
 #define ELS_THREADING_SET_XDIR_BT          els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 #define ELS_THREADING_SET_XDIR_TB          els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
 
-#define ELS_Z_JOG_MM_S                     8
-#define ELS_X_JOG_MM_S                     4
-
 #define PRECISION                          (1e-2)
 //==============================================================================
 // Internal state
@@ -750,14 +747,14 @@ static void els_threading_int_thread(void) {
       break;
     case ELS_THREADING_OP_MOVEZ0:
       if (fabs(els_stepper->zpos) > PRECISION)
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_JOG_MM_S);
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
       els_threading_int.op_state = ELS_THREADING_OP_MOVEX0;
       break;
     case ELS_THREADING_OP_MOVEX0:
       if (els_stepper->zbusy)
         break;
       if (fabs(els_stepper->xpos) > PRECISION)
-        els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
       els_threading_int.op_state = ELS_THREADING_OP_START;
       break;
     case ELS_THREADING_OP_START:
@@ -788,18 +785,18 @@ static void els_threading_int_thread(void) {
       break;
     case ELS_THREADING_OP_THREADL:
       els_threading_int.xpos_prev = els_stepper->xpos;
-      els_stepper_move_x(-2 - els_stepper->xpos, ELS_X_JOG_MM_S);
+      els_stepper_move_x(-2 - els_stepper->xpos, els_config->x_jog_mm_s);
       els_threading_int.op_state = ELS_THREADING_OP_ATZL;
       break;
     case ELS_THREADING_OP_ATZL:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_stepper_move_z(0 - els_stepper->zpos, ELS_Z_JOG_MM_S);
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
         els_threading_int.op_state = ELS_THREADING_OP_ATZLXM;
       }
       break;
     case ELS_THREADING_OP_ATZLXM:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_stepper_move_x(els_threading_int.xpos_prev - els_stepper->xpos, ELS_X_JOG_MM_S);
+        els_stepper_move_x(els_threading_int.xpos_prev - els_stepper->xpos, els_config->x_jog_mm_s);
         els_threading_int.op_state = ELS_THREADING_OP_ATZ0XM;
       }
       break;
@@ -812,7 +809,7 @@ static void els_threading_int_thread(void) {
             els_threading_int.depth_of_cut_um / 1000.0
           );
 
-          els_stepper_move_x(xd, ELS_X_JOG_MM_S);
+          els_stepper_move_x(xd, els_config->x_jog_mm_s);
           els_threading_int.op_state = ELS_THREADING_OP_FEED_IN;
         }
         else {
@@ -829,7 +826,7 @@ static void els_threading_int_thread(void) {
         if (els_threading_int.spring_pass_count >= els_threading_int.spring_passes) {
           els_threading_int.op_state = ELS_THREADING_OP_DONE;
           els_threading_int.spring_pass_count = 0;
-          els_stepper_move_x(0 - els_stepper->xpos, ELS_X_JOG_MM_S);
+          els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
         }
         else {
           els_threading_int.op_state = ELS_THREADING_OP_ATZ0;
@@ -1067,7 +1064,7 @@ static void els_threading_int_zjog(void) {
   if (els_threading_int.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_threading_int.encoder_pos) * 0.01 * els_threading_int.encoder_multiplier;
     els_threading_int.state |= ELS_THREADING_ZJOG;
-    els_stepper_move_z(delta, ELS_Z_JOG_MM_S);
+    els_stepper_move_z(delta, els_config->z_jog_mm_s);
     els_threading_int.encoder_pos = encoder_curr;
     els_threading_int_display_axes();
   }
@@ -1088,7 +1085,7 @@ static void els_threading_int_xjog(void) {
   if (els_threading_int.encoder_pos != encoder_curr) {
     delta = (encoder_curr - els_threading_int.encoder_pos) * 0.01 * els_threading_int.encoder_multiplier;
     els_threading_int.state |= ELS_THREADING_XJOG;
-    els_stepper_move_x(delta, ELS_X_JOG_MM_S);
+    els_stepper_move_x(delta, els_config->x_jog_mm_s);
     els_threading_int.encoder_pos = encoder_curr;
     els_threading_int_display_axes();
   }
