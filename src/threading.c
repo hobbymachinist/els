@@ -40,8 +40,6 @@
 #define ELS_THREADING_TIMER_RCC     RCC_TIM4
 #define ELS_THREADING_TIMER_RST     RST_TIM4
 
-#define ELS_THREADING_Z_JOG_FEED_UM 6000
-
 #define ELS_THREADING_PITCH_MIN_UM  100
 #define ELS_THREADING_PITCH_MAX_UM  5000
 
@@ -299,7 +297,7 @@ void els_threading_start(void) {
   // gpio / exti isr
   els_nvic_irq_set_handler(ELS_S_ENCODER2_IRQ, els_threading_encoder_isr);
 
-  els_threading_timer_update(ELS_THREADING_Z_JOG_FEED_UM);
+  els_threading_timer_update(els_config->z_jog_mm_s * 1e3);
   els_threading_timer_start();
 
   els_threading.state = ELS_THREADING_IDLE;

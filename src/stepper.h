@@ -14,6 +14,7 @@ extern "C" {
 void els_stepper_setup(void);
 void els_stepper_start(void);
 void els_stepper_stop(void);
+void els_stepper_sync(void);
 
 void els_stepper_move_x(double mm, double speed_mm_s);
 void els_stepper_move_z(double mm, double speed_mm_s);

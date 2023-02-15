@@ -25,6 +25,7 @@ size_t els_sprint_double3(char *text, size_t size, float value, const char *pref
 size_t els_sprint_double33(char *text, size_t size, float value, const char *prefix);
 size_t els_sprint_double13(char *text, size_t size, float value, const char *prefix);
 size_t els_sprint_double23(char *text, size_t size, float value, const char *prefix);
+size_t els_sprint_double24(char *text, size_t size, float value, const char *prefix);
 uint32_t els_gcd(uint32_t u, uint32_t v);
 
 #ifdef ELS_DEBUG

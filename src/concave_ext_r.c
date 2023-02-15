@@ -563,12 +563,7 @@ static void els_concave_ext_r_turn(void) {
       break;
     case ELS_CONCAVE_EXT_OP_READY:
       els_concave_ext_r.op_state = ELS_CONCAVE_EXT_OP_MOVEZ0;
-
-      if (els_config->z_closed_loop)
-        els_stepper->zpos = els_dro.zpos_um / 1000.0;
-      if (els_config->x_closed_loop)
-        els_stepper->xpos = els_dro.xpos_um / 1000.0;
-
+      els_stepper_sync();
       break;
     case ELS_CONCAVE_EXT_OP_MOVEZ0:
       if (els_stepper->zbusy)

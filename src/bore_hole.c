@@ -108,7 +108,7 @@ static const char *op_labels[] = {
 
 static struct {
   uint32_t feed_um;
-  uint32_t feed_mm_s;
+  double   feed_mm_s;
 
   // not supported.
   bool     feed_reverse;
@@ -292,7 +292,7 @@ void els_bore_hole_update(void) {
 static void els_bore_hole_display_setting(void) {
   char text[32];
 
-  els_sprint_double2(text, sizeof(text), els_bore_hole.feed_um / 1000.0, "Zf");
+  els_sprint_double2(text, sizeof(text), els_bore_hole.feed_mm_s, "Zf");
   if (els_bore_hole.state == ELS_BORE_HOLE_SET_FEED)
     tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
@@ -525,12 +525,7 @@ static void els_bore_hole_turn(void) {
       break;
     case ELS_BORE_HOLE_OP_READY:
       els_bore_hole.op_state = ELS_BORE_HOLE_OP_MOVEZ0;
-
-      if (els_config->z_closed_loop)
-        els_stepper->zpos = els_dro.zpos_um / 1000.0;
-      if (els_config->x_closed_loop)
-        els_stepper->xpos = els_dro.xpos_um / 1000.0;
-
+      els_stepper_sync();
       break;
     case ELS_BORE_HOLE_OP_MOVEZ0:
       if (els_stepper->zbusy)
@@ -584,7 +579,7 @@ static void els_bore_hole_turn(void) {
       if (els_stepper->xbusy)
         break;
 
-      if (fabs(els_bore_hole.width - els_stepper->xpos) > PRECISION) {
+      if ((els_stepper->xpos + PRECISION) < els_bore_hole.width) {
         double xd;
         xd = MIN(
           els_bore_hole.width - els_stepper->xpos,
@@ -650,8 +645,8 @@ static void els_bore_hole_set_feed(void) {
         else
           els_bore_hole.feed_um += delta;
         els_bore_hole.encoder_pos = encoder_curr;
-        els_bore_hole_display_setting();
         els_bore_hole.feed_mm_s = els_bore_hole.feed_um / 1000.0;
+        els_bore_hole_display_setting();
       }
       break;
   }

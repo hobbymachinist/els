@@ -25,6 +25,8 @@
 #include "convex_ext_l.h"
 #include "concave_ext_r.h"
 #include "knurling.h"
+#include "parting.h"
+#include "facing.h"
 
 #include "tft/tft.h"
 #include "tft/fonts/fonts.h"
@@ -48,43 +50,47 @@ typedef enum {
   // turn stock to a specific length and diameter.
   ELS_FUNCTION_TURN_DIM     = 4,
 
+  // facing and parting
+  ELS_FUNCTION_FACING       = 5,
+  ELS_FUNCTION_PARTING      = 6,
+
   // bore stock to a specific length and diameter.
-  ELS_FUNCTION_BORE_DIM_1   = 5,
-  ELS_FUNCTION_BORE_DIM_2   = 6,
+  ELS_FUNCTION_BORE_DIM_1   = 7,
+  ELS_FUNCTION_BORE_DIM_2   = 8,
 
   // knurling
-  ELS_FUNCTION_KNURLING     = 7,
+  ELS_FUNCTION_KNURLING     = 9,
 
   // external thread given length and pitch.
-  ELS_FUNCTION_THREAD_EXT   = 8,
+  ELS_FUNCTION_THREAD_EXT   = 10,
   // internal thread given length and pitch.
-  ELS_FUNCTION_THREAD_INT   = 9,
+  ELS_FUNCTION_THREAD_INT   = 11,
 
   // turn stock to an external taper d & l
-  ELS_FUNCTION_TAPER_EXT_1  = 10,
-  ELS_FUNCTION_TAPER_EXT_2  = 11,
+  ELS_FUNCTION_TAPER_EXT_1  = 12,
+  ELS_FUNCTION_TAPER_EXT_2  = 13,
 
   // turn stock to an internal taper d & l
-  ELS_FUNCTION_TAPER_INT    = 12,
+  ELS_FUNCTION_TAPER_INT    = 14,
 
   // turn external convex radius right (cw) and left (ccw) approach.
-  ELS_FUNCTION_CONVEX_EXT_1 = 13,
-  ELS_FUNCTION_CONVEX_EXT_2 = 14,
+  ELS_FUNCTION_CONVEX_EXT_1 = 15,
+  ELS_FUNCTION_CONVEX_EXT_2 = 16,
 
   // turn external concave radius right (cw) and left (ccw) approach.
-  ELS_FUNCTION_CONKAV_EXT_1 = 15,
-  ELS_FUNCTION_CONKAV_EXT_2 = 16,
+  ELS_FUNCTION_CONKAV_EXT_1 = 17,
+  ELS_FUNCTION_CONKAV_EXT_2 = 18,
 
   // internal concave pockets
-  ELS_FUNCTION_CONKAV_INT   = 17,
+  ELS_FUNCTION_CONKAV_INT   = 19,
 
   // rounded groove
-  ELS_FUNCTION_GROOVE_RND   = 18,
+  ELS_FUNCTION_GROOVE_RND   = 20,
   // straight groove
-  ELS_FUNCTION_GROOVE_STD   = 19,
+  ELS_FUNCTION_GROOVE_STD   = 21,
 
   // max
-  ELS_FUNCTION_MAX          = 20,
+  ELS_FUNCTION_MAX          = 22,
 } els_function_type_t;
 
 static char *function_type_labels[] = {
@@ -93,6 +99,8 @@ static char *function_type_labels[] = {
   "MANUAL TURNING",
   "MANUAL THREADING",
   "TURNING",
+  "FACING",
+  "PARTING",
   "BORING - POCKET",
   "BORING - HOLE",
   "KNURLING",
@@ -107,7 +115,7 @@ static char *function_type_labels[] = {
   "CONCAVE EXTERNAL - L",
   "CONCAVE INTERNAL",
   "GROOVE ROUNDED",
-  "GROOVE STANDARD"
+  "GROOVE STANDARD",
 };
 
 //==============================================================================
@@ -198,6 +206,20 @@ static const struct {
     .busy_cb = els_turn_dimension_busy
   },
   {
+    .setup_cb = els_facing_setup,
+    .start_cb = els_facing_start,
+    .update_cb = els_facing_update,
+    .stop_cb = els_facing_stop,
+    .busy_cb = els_facing_busy
+   },
+  {
+    .setup_cb = els_parting_setup,
+    .start_cb = els_parting_start,
+    .update_cb = els_parting_update,
+    .stop_cb = els_parting_stop,
+    .busy_cb = els_parting_busy
+   },
+  {
     .setup_cb = els_bore_dimension_setup,
     .start_cb = els_bore_dimension_start,
     .update_cb = els_bore_dimension_update,
@@ -273,7 +295,15 @@ static const struct {
     .update_cb = els_concave_ext_r_update,
     .stop_cb = els_concave_ext_r_stop,
     .busy_cb = els_concave_ext_r_busy
-  }
+  },
+  // TODO: concave ext - l
+  {.setup_cb = NULL, .start_cb = NULL, .update_cb = NULL, .stop_cb = NULL},
+  // TODO: concave internal
+  {.setup_cb = NULL, .start_cb = NULL, .update_cb = NULL, .stop_cb = NULL},
+  // TODO: groove standard
+  {.setup_cb = NULL, .start_cb = NULL, .update_cb = NULL, .stop_cb = NULL},
+  // TODO: groove rounded
+  {.setup_cb = NULL, .start_cb = NULL, .update_cb = NULL, .stop_cb = NULL},
 };
 
 #define ELS_FUNCTION_REGISTRY_SIZE (sizeof(els_function_registry) / sizeof(els_function_registry[0]))
@@ -314,7 +344,7 @@ void els_function_update(void) {
       break;
   }
 
-  if (els_function.function_curr < ELS_FUNCTION_REGISTRY_SIZE)
+  if (els_function.function_curr < ELS_FUNCTION_REGISTRY_SIZE && els_function_registry[els_function.function_curr].update_cb)
     els_function_registry[els_function.function_curr].update_cb();
   else
     els_function_not_implemented_update();
@@ -331,7 +361,7 @@ void els_function_restore(void) {
 // Function Change
 //------------------------------------------------------------------------------
 static void els_function_stop(void) {
-  if (els_function.function_curr < ELS_FUNCTION_REGISTRY_SIZE)
+  if (els_function.function_curr < ELS_FUNCTION_REGISTRY_SIZE && els_function_registry[els_function.function_curr].stop_cb)
     els_function_registry[els_function.function_curr].stop_cb();
   else
     els_function_not_implemented_stop();
@@ -339,7 +369,7 @@ static void els_function_stop(void) {
 
 static void els_function_start(els_function_type_t f) {
   els_function.function_curr = f;
-  if (els_function.function_curr < ELS_FUNCTION_REGISTRY_SIZE)
+  if (els_function.function_curr < ELS_FUNCTION_REGISTRY_SIZE && els_function_registry[els_function.function_curr].start_cb)
     els_function_registry[els_function.function_curr].start_cb();
   else
     els_function_not_implemented_start();
@@ -349,7 +379,7 @@ static void els_function_change(els_function_type_t f) {
   if (els_keypad_locked() || els_function.function_curr == f)
     return;
 
-  if (els_function.function_curr < ELS_FUNCTION_REGISTRY_SIZE) {
+  if (els_function.function_curr < ELS_FUNCTION_REGISTRY_SIZE && els_function_registry[els_function.function_curr].stop_cb) {
     if (els_function_registry[els_function.function_curr].busy_cb &&
         els_function_registry[els_function.function_curr].busy_cb()) {
       printf("%s is busy, exit submenu or stop operation first.\n", function_type_labels[els_function.function_curr]);

@@ -354,7 +354,7 @@ static void els_taper_ext_r_display_axes(void) {
     els_sprint_double33(text, sizeof(text), (els_dro.xpos_um / 1000.0), "X");
     tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-    els_sprint_double33(text, sizeof(text), atan(els_taper_ext_r.depth / els_taper_ext_r.length) * 180 / M_PI, NULL);
+    els_sprint_double24(text, sizeof(text), atan(els_taper_ext_r.depth / els_taper_ext_r.length) * 180 / M_PI, NULL);
     tft_font_write_bg(&tft, 226, 240, "J", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
     tft_font_write_bg(&tft, 226, 280, text, &noto_sans_mono_bold_14, ILI9481_WHITE, ILI9481_BLACK);
   }
@@ -547,12 +547,7 @@ static void els_taper_ext_r_turn(void) {
       break;
     case ELS_TAPER_EXT_OP_READY:
       els_taper_ext_r.op_state = ELS_TAPER_EXT_OP_MOVEZ0;
-
-      if (els_config->z_closed_loop)
-        els_stepper->zpos = els_dro.zpos_um / 1000.0;
-      if (els_config->x_closed_loop)
-        els_stepper->xpos = els_dro.xpos_um / 1000.0;
-
+      els_stepper_sync();
       break;
     case ELS_TAPER_EXT_OP_MOVEZ0:
       if (els_stepper->zbusy)

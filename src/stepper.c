@@ -70,6 +70,9 @@ static struct {
   int32_t xtarget;
   int32_t ztarget;
 
+  bool z_accel;
+  bool x_accel;
+
   volatile int32_t xsteps;
   double xdelta;
   uint32_t xfeed_um;
@@ -166,6 +169,14 @@ void els_stepper_stop(void) {
   els_stepper_disable_x();
 }
 
+void els_stepper_sync(void) {
+  if (els_config->x_closed_loop)
+    stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+
+  if (els_config->z_closed_loop)
+    stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+}
+
 void els_stepper_move_x(double mm, double speed_mm_s) {
   els_stepper_move_x_accel(mm, speed_mm_s, true);
 }
@@ -187,8 +198,10 @@ static void els_stepper_move_x_accel(double mm, double speed_mm_s, bool accel) {
     stepper.xtarget = els_dro.xpos_um;
   }
 
+  stepper.x_accel = accel;
   stepper.pos.xbusy = true;
   stepper.xtarget += (int32_t)round(mm * 1e3);
+
   els_stepper_timer_x_update(speed_mm_s * 1000, accel);
   if (mm < 0) {
     int32_t delta = els_dro.xpos_um;
@@ -248,8 +261,10 @@ static void els_stepper_move_z_accel(double mm, double speed_mm_s, bool accel) {
     stepper.ztarget = els_dro.zpos_um;
   }
 
+  stepper.z_accel = accel;
   stepper.pos.zbusy = true;
   stepper.ztarget += (int32_t)round(mm * 1e3);
+
   els_stepper_timer_z_update(speed_mm_s * 1000, accel);
   if (mm < 0) {
     int32_t delta = els_dro.zpos_um;
@@ -257,12 +272,12 @@ static void els_stepper_move_z_accel(double mm, double speed_mm_s, bool accel) {
     if (stepper.pos.zdir != -1) {
       stepper.pos.zdir = -1;
       els_stepper_z_backlash_fix();
-    }
 
-    // re-adjust travel to compensate for overshooting.
-    if (els_config->z_closed_loop) {
-      delta -= els_dro.zpos_um;
-      mm += (delta / 1000.0);
+      // re-adjust travel to compensate for overshooting.
+      if (els_config->z_closed_loop) {
+        delta -= els_dro.zpos_um;
+        mm += (delta / 1000.0);
+      }
     }
 
     stepper.pos.zbusy = true;
@@ -274,12 +289,12 @@ static void els_stepper_move_z_accel(double mm, double speed_mm_s, bool accel) {
     if (stepper.pos.zdir != 1) {
       stepper.pos.zdir = 1;
       els_stepper_z_backlash_fix();
-    }
 
-    // re-adjust travel to compensate for overshooting.
-    if (els_config->z_closed_loop) {
-      delta -= els_dro.zpos_um;
-      mm += (delta / 1000.0);
+      // re-adjust travel to compensate for overshooting.
+      if (els_config->z_closed_loop) {
+        delta -= els_dro.zpos_um;
+        mm += (delta / 1000.0);
+      }
     }
 
     stepper.pos.zbusy = true;
@@ -553,7 +568,7 @@ static void els_stepper_timer_z_line(void) {
   if (els_config->z_closed_loop) {
     pending = (stepper.pos.zdir * (stepper.ztarget - els_dro.zpos_um)) >= 5;
     // TODO: overshot target, technically should flag this as an error.
-    if (stepper.zsteps <= -400)
+    if (stepper.zsteps <= -2000)
       pending = false;
   }
   else {
@@ -571,15 +586,17 @@ static void els_stepper_timer_z_line(void) {
       stepper.zsteps--;
 
       // accelerate or constant velocity
-      if (stepper.zsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
-        if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
-          TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z, stepper.zreload_target);
-        else
-          TIM_ARR(ELS_TIMER) = stepper.zreload_target;
-      }
-      // decelerate
-      else if (stepper.zsteps <= ELS_TIMER_DECEL_STEPS) {
-        TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z, ELS_TIMER_RELOAD_MAX);
+      if (stepper.z_accel) {
+        if (stepper.zsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
+          if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
+            TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z, stepper.zreload_target);
+          else
+            TIM_ARR(ELS_TIMER) = stepper.zreload_target;
+        }
+        // decelerate
+        else if (stepper.zsteps <= ELS_TIMER_DECEL_STEPS) {
+          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z, ELS_TIMER_RELOAD_MAX);
+        }
       }
     }
 
@@ -587,7 +604,7 @@ static void els_stepper_timer_z_line(void) {
   }
   else {
     if (els_config->z_closed_loop)
-      stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+      stepper.pos.zpos = els_dro.zpos_um / 1000.0;
 
     stepper.zsteps = 0;
     stepper.ztarget = els_dro.zpos_um;
@@ -607,7 +624,7 @@ static void els_stepper_timer_x_line(void) {
   if (els_config->x_closed_loop) {
     pending = (stepper.pos.xdir * (stepper.xtarget - els_dro.xpos_um)) >= 5;
     // TODO: overshot target, technically should flag this as an error.
-    if (stepper.xsteps <= -400)
+    if (stepper.xsteps <= -1200)
       pending = false;
   }
   else {
@@ -624,16 +641,18 @@ static void els_stepper_timer_x_line(void) {
       stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
       stepper.xsteps--;
 
-      // accelerate or constant velocity
-      if (stepper.xsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
-        if (TIM_ARR(ELS_TIMER) > stepper.xreload_target)
-          TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_X, stepper.xreload_target);
-        else
-          TIM_ARR(ELS_TIMER) = stepper.xreload_target;
-      }
-      // decelerate
-      else if (stepper.xsteps <= ELS_TIMER_DECEL_STEPS) {
-        TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X, ELS_TIMER_RELOAD_MAX);
+      if (stepper.x_accel) {
+        // accelerate or constant velocity
+        if (stepper.xsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.xreload_target) {
+          if (TIM_ARR(ELS_TIMER) > stepper.xreload_target)
+            TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_X, stepper.xreload_target);
+          else
+            TIM_ARR(ELS_TIMER) = stepper.xreload_target;
+        }
+        // decelerate
+        else if (stepper.xsteps <= ELS_TIMER_DECEL_STEPS) {
+          TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X, ELS_TIMER_RELOAD_MAX);
+        }
       }
     }
 
@@ -641,7 +660,7 @@ static void els_stepper_timer_x_line(void) {
   }
   else {
     if (els_config->x_closed_loop)
-      stepper.pos.xpos = els_dro.xpos_um * 1e-3;
+      stepper.pos.xpos = els_dro.xpos_um / 1000.0;
 
     stepper.xsteps = 0;
     stepper.xtarget = els_dro.xpos_um;

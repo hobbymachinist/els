@@ -427,7 +427,8 @@ Steps:
 
 1. Move tool to Z/X origin as required
 2. Zero out Z and X axis
-3. Set feed and depth of cut
+3. Set roughing feed and feed for spring pass
+4. Set the roughing depth of cut and depth of cut for spring pass
 4. Set length and turning depth
 5. Turn on spindle
 6. Press Ready to start
@@ -436,8 +437,16 @@ Steps:
 
 #### F/P
 
-1. Set feed. The feed rate is independent of the spindle RPM at mm/s.
-2. Press key again to set depth of cut for turning and finishing pass.
+Set feed & depth of cut.
+
+NOTE: The feed rate is independent of the spindle RPM at mm/s.
+
+Press key to cycle through
+
+1. roughing feed rate in mm/s
+2. finishing pass feed rate in mm/s
+3. roughing depth of cut in mm
+4. finishing pass feed rate in mm/s
 
 #### Z/X
 

@@ -169,3 +169,27 @@ size_t els_sprint_double13(char *text, size_t size, float value, const char *pre
       return snprintf(text, size, "-%01d.%03d", ivalue, dec);
   }
 }
+
+size_t els_sprint_double24(char *text, size_t size, float value, const char *prefix) {
+  if (value >= 0) {
+    int ivalue = (int)value;
+    int dec = dround((value - ivalue) * 10000);
+    // deal with floating point errors.
+    if (dec > 9999) { dec = 0; ivalue++; }
+    if (prefix)
+      return snprintf(text, size, "%s %02d.%04d", prefix, ivalue, dec);
+    else
+      return snprintf(text, size, "%02d.%04d", ivalue, dec);
+  }
+  else {
+    int ivalue = -(int)value;
+    int dec = dround((-value - ivalue) * 10000);
+    // deal with floating point errors.
+    if (dec > 9999) { dec = 0; ivalue++; }
+    if (prefix)
+      return snprintf(text, size, "%s-%02d.%04d", prefix, ivalue, dec);
+    else
+      return snprintf(text, size, "-%02d.%04d", ivalue, dec);
+  }
+}
+

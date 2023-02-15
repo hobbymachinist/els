@@ -61,10 +61,11 @@ typedef enum {
   ELS_TURN_DIM_SET_XAXES = 32,
   ELS_TURN_DIM_XJOG      = 64,
   ELS_TURN_DIM_SET_FEED  = 128,
-  ELS_TURN_DIM_SET_DOC   = 256,
-  ELS_TURN_DIM_SET_FIN   = 512,
-  ELS_TURN_DIM_SET_LEN   = 1024,
-  ELS_TURN_DIM_SET_DEPTH = 2048
+  ELS_TURN_DIM_SET_FFEED = 256,
+  ELS_TURN_DIM_SET_DOC   = 512,
+  ELS_TURN_DIM_SET_FDOC  = 1024,
+  ELS_TURN_DIM_SET_LEN   = 2048,
+  ELS_TURN_DIM_SET_DEPTH = 4096
 } els_turn_dimension_state_t;
 
 typedef enum {
@@ -111,6 +112,9 @@ static struct {
   int32_t  feed_um;
   double   feed_mm_s;
 
+  int32_t  finish_feed_um;
+  double   finish_feed_mm_s;
+
   // not supported yet.
   bool     feed_reverse;
 
@@ -148,11 +152,12 @@ static struct {
   // dro
   bool show_dro;
 } els_turn_dimension = {
-  .depth_of_cut_um = 200,
-  .finish_depth_um = 200,
-  .feed_um = 2000,
-  .length = 15,
-  .depth = 0.50,
+  .depth_of_cut_um = 250,
+  .finish_depth_um = 250,
+  .feed_um = 4000,
+  .finish_feed_um = 2000,
+  .length = 20,
+  .depth = 1.00,
   .spring_pass_count = 0,
   .spring_passes = 1,
   .encoder_multiplier = 1
@@ -172,6 +177,8 @@ static void els_turn_dimension_display_diagram(void);
 static void els_turn_dimension_display_encoder_pips(void);
 
 static void els_turn_dimension_set_feed(void);
+static void els_turn_dimension_set_finish_feed(void);
+
 static void els_turn_dimension_set_depth_of_cut(void);
 static void els_turn_dimension_set_finish_depth(void);
 
@@ -221,6 +228,7 @@ void els_turn_dimension_start(void) {
 
   // reset state
   els_turn_dimension.feed_mm_s = els_turn_dimension.feed_um / 1000.0;
+  els_turn_dimension.finish_feed_mm_s = els_turn_dimension.finish_feed_um / 1000.0;
   els_turn_dimension.spring_pass_count = 0;
   els_turn_dimension.prev_op_state = 0;
   els_turn_dimension.prev_state = 0;
@@ -270,10 +278,13 @@ void els_turn_dimension_update(void) {
     case ELS_TURN_DIM_SET_FEED:
       els_turn_dimension_set_feed();
       break;
+    case ELS_TURN_DIM_SET_FFEED:
+      els_turn_dimension_set_finish_feed();
+      break;
     case ELS_TURN_DIM_SET_DOC:
       els_turn_dimension_set_depth_of_cut();
       break;
-    case ELS_TURN_DIM_SET_FIN:
+    case ELS_TURN_DIM_SET_FDOC:
       els_turn_dimension_set_finish_depth();
       break;
     case ELS_TURN_DIM_SET_LEN:
@@ -312,11 +323,18 @@ void els_turn_dimension_update(void) {
 static void els_turn_dimension_display_setting(void) {
   char text[32];
 
-  els_sprint_double2(text, sizeof(text), els_turn_dimension.feed_um / 1000.0, "Zf");
+  els_sprint_double1(text, sizeof(text), els_turn_dimension.feed_mm_s, "Zf");
   if (els_turn_dimension.state == ELS_TURN_DIM_SET_FEED)
     tft_font_write_bg(&tft, 228, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 228, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+
+  tft_font_write_bg(&tft, 375, 102, "/", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  els_sprint_double1(text, sizeof(text), els_turn_dimension.finish_feed_mm_s, NULL);
+  if (els_turn_dimension.state == ELS_TURN_DIM_SET_FFEED)
+    tft_font_write_bg(&tft, 395, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  else
+    tft_font_write_bg(&tft, 395, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double1(text, sizeof(text), els_turn_dimension.depth_of_cut_um / 1000.0, "Xs");
   if (els_turn_dimension.state == ELS_TURN_DIM_SET_DOC)
@@ -326,7 +344,7 @@ static void els_turn_dimension_display_setting(void) {
 
   tft_font_write_bg(&tft, 375, 135, "/", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
   els_sprint_double1(text, sizeof(text), els_turn_dimension.finish_depth_um / 1000.0, NULL);
-  if (els_turn_dimension.state == ELS_TURN_DIM_SET_FIN)
+  if (els_turn_dimension.state == ELS_TURN_DIM_SET_FDOC)
     tft_font_write_bg(&tft, 395, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 395, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
@@ -561,10 +579,7 @@ static void els_turn_dimension_turn(void) {
     case ELS_TURN_DIM_OP_READY:
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_MOVEZ0;
       els_turn_dimension.spring_pass_count = 0;
-      if (els_config->z_closed_loop)
-        els_stepper->zpos = els_dro.zpos_um / 1000.0;
-      if (els_config->x_closed_loop)
-        els_stepper->xpos = els_dro.xpos_um / 1000.0;
+      els_stepper_sync();
       break;
     case ELS_TURN_DIM_OP_MOVEZ0:
       if (els_stepper->zbusy)
@@ -584,9 +599,10 @@ static void els_turn_dimension_turn(void) {
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_START;
       break;
     case ELS_TURN_DIM_OP_START:
-      // initial move.
-      els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.feed_mm_s);
-      els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZL;
+      // initial move - scratch pass.
+      // els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.feed_mm_s);
+      // els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZL;
+      els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZ0;
       break;
     case ELS_TURN_DIM_OP_ATZL:
       if (els_stepper->zbusy)
@@ -594,39 +610,50 @@ static void els_turn_dimension_turn(void) {
 
       // backoff
       els_turn_dimension.xpos_prev = els_stepper->xpos;
-      els_stepper_move_x(BACKOFF_DEPTH, els_config->x_retract_jog_mm_s);
+      els_stepper_move_x_no_accel(BACKOFF_DEPTH, els_turn_dimension.feed_mm_s);
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZLB;
       break;
     case ELS_TURN_DIM_OP_ATZLB:
       if (els_stepper->xbusy)
         break;
       // move to Z=0
-      els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
-      els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZ0B;
+      els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+
+      if (els_turn_dimension.spring_pass_count >= els_turn_dimension.spring_passes) {
+        els_stepper_move_x(0 - els_stepper->xpos, els_turn_dimension.feed_mm_s);
+        els_turn_dimension.op_state = ELS_TURN_DIM_OP_DONE;
+      }
+      else {
+        els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZ0B;
+      }
       break;
     case ELS_TURN_DIM_OP_ATZ0B:
       if (els_stepper->zbusy || els_stepper->xbusy)
         break;
-      els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZ0;
+
+      if (fabs(els_stepper->xpos - els_turn_dimension.xpos_prev) >= PRECISION)
+        els_stepper_move_x(els_turn_dimension.xpos_prev - els_stepper->xpos, els_turn_dimension.feed_mm_s);
+      else
+        els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZ0;
       break;
     case ELS_TURN_DIM_OP_ATZ0:
       if (els_stepper->xbusy)
         break;
 
-      remaining = fabs(els_turn_dimension.depth + els_stepper->xpos - BACKOFF_DEPTH);
+      remaining = fabs(els_turn_dimension.depth + els_stepper->xpos);
       if (remaining >= (els_turn_dimension.depth_of_cut_um + els_turn_dimension.finish_depth_um) / 1000.0) {
-        xd = els_turn_dimension.xpos_prev - (els_turn_dimension.depth_of_cut_um / 1000.0);
-        els_stepper_move_x(xd - els_stepper->xpos, els_config->x_retract_jog_mm_s);
+        xd = (els_turn_dimension.depth_of_cut_um / 1000.0);
+        els_stepper_move_x(-xd, els_turn_dimension.feed_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FEED_IN;
       }
       else if (remaining > (els_turn_dimension.finish_depth_um / 1000.0) + (PRECISION * 5)) {
-        xd = els_turn_dimension.xpos_prev - (remaining - (els_turn_dimension.finish_depth_um / 1000.0));
-        els_stepper_move_x(xd - els_stepper->xpos, els_config->x_retract_jog_mm_s);
+        xd = (remaining - (els_turn_dimension.finish_depth_um / 1000.0));
+        els_stepper_move_x(-xd, els_turn_dimension.feed_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FEED_IN;
       }
       else if (remaining > PRECISION) {
-        xd = els_turn_dimension.xpos_prev - remaining;
-        els_stepper_move_x(xd - els_stepper->xpos, els_config->x_retract_jog_mm_s);
+        xd = remaining;
+        els_stepper_move_x(-xd, els_turn_dimension.feed_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_SPRING;
       }
       else {
@@ -656,7 +683,7 @@ static void els_turn_dimension_turn(void) {
       else {
         els_turn_dimension.spring_pass_count++;
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZL;
-        els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.feed_mm_s / 2.0);
+        els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.finish_feed_mm_s);
       }
       break;
     case ELS_TURN_DIM_OP_DONE:
@@ -683,7 +710,7 @@ static void els_turn_dimension_set_feed(void) {
       els_turn_dimension_display_setting();
       break;
     case ELS_KEY_SET_FEED:
-      els_turn_dimension.state = ELS_TURN_DIM_SET_DOC;
+      els_turn_dimension.state = ELS_TURN_DIM_SET_FFEED;
       els_turn_dimension_display_setting();
       break;
     case ELS_KEY_REV_FEED:
@@ -700,14 +727,45 @@ static void els_turn_dimension_set_feed(void) {
         else
           els_turn_dimension.feed_um += delta;
         els_turn_dimension.encoder_pos = encoder_curr;
-        els_turn_dimension_display_setting();
-
         els_turn_dimension.feed_mm_s = els_turn_dimension.feed_um / 1000.0;
+        els_turn_dimension_display_setting();
       }
       break;
   }
 }
 
+static void els_turn_dimension_set_finish_feed(void) {
+  int32_t encoder_curr;
+  switch(els_keypad_read()) {
+    case ELS_KEY_OK:
+    case ELS_KEY_EXIT:
+      els_turn_dimension.state = ELS_TURN_DIM_IDLE;
+      els_turn_dimension_display_setting();
+      break;
+    case ELS_KEY_SET_FEED:
+      els_turn_dimension.state = ELS_TURN_DIM_SET_DOC;
+      els_turn_dimension_display_setting();
+      break;
+    case ELS_KEY_REV_FEED:
+      els_turn_dimension_display_setting();
+      break;
+    default:
+      encoder_curr = els_encoder_read();
+      if (els_turn_dimension.encoder_pos != encoder_curr) {
+        int32_t delta = (encoder_curr - els_turn_dimension.encoder_pos) * 10 * els_turn_dimension.encoder_multiplier;
+        if (els_turn_dimension.finish_feed_um + delta <= ELS_TURN_DIM_FEED_MIN)
+          els_turn_dimension.finish_feed_um = ELS_TURN_DIM_FEED_MIN;
+        else if (els_turn_dimension.finish_feed_um + delta >= ELS_TURN_DIM_FEED_MAX)
+          els_turn_dimension.finish_feed_um = ELS_TURN_DIM_FEED_MAX;
+        else
+          els_turn_dimension.finish_feed_um += delta;
+        els_turn_dimension.encoder_pos = encoder_curr;
+        els_turn_dimension.finish_feed_mm_s = els_turn_dimension.finish_feed_um / 1000.0;
+        els_turn_dimension_display_setting();
+      }
+      break;
+  }
+}
 // ----------------------------------------------------------------------------------
 // Function 2.2: depth of cut settings.
 // ----------------------------------------------------------------------------------
@@ -720,7 +778,7 @@ static void els_turn_dimension_set_depth_of_cut(void) {
       els_turn_dimension_display_setting();
       break;
     case ELS_KEY_SET_FEED:
-      els_turn_dimension.state = ELS_TURN_DIM_SET_FIN;
+      els_turn_dimension.state = ELS_TURN_DIM_SET_FDOC;
       els_turn_dimension_display_setting();
       break;
     default:

@@ -123,7 +123,7 @@ static const char *op_labels[] = {
 // Internal state
 //==============================================================================
 #define ELS_KNURLING_DEPTH_MIN            (0.05)
-#define ELS_KNURLING_DEPTH_MAX            (0.5)
+#define ELS_KNURLING_DEPTH_MAX            (1.00)
 
 static struct {
   int32_t  timer_feed_um;
@@ -854,6 +854,7 @@ static void els_knurling_thread_stage2(void) {
       els_knurling.pitch_curr = 0;
       els_knurling.op_state = ELS_KNURLING_OP_MOVEZL;
       els_knurling_display_setting();
+      els_stepper_sync();
       break;
     case ELS_KNURLING_OP_MOVEZL:
       if (fabs(-els_knurling.length - els_stepper->zpos) > PRECISION)
@@ -1037,8 +1038,8 @@ static void els_knurling_set_angle(void) {
       encoder_curr = els_encoder_read();
       if (els_knurling.encoder_pos != encoder_curr) {
         double delta = (encoder_curr - els_knurling.encoder_pos) * 0.01 * els_knurling.encoder_multiplier;
-        if (els_knurling.angle + delta < 20)
-          els_knurling.angle = 20;
+        if (els_knurling.angle + delta < 10)
+          els_knurling.angle = 10;
         else if (els_knurling.angle + delta > 60)
           els_knurling.angle = 60;
         else
