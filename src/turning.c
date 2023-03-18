@@ -490,12 +490,17 @@ static void els_turning_display_refresh(void) {
 static void els_turning_keypad_process(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
-      if (els_turning.state == ELS_TURNING_IDLE)
+      if (els_turning.state == ELS_TURNING_IDLE) {
         els_turning.state = ELS_TURNING_PAUSED;
+        els_turning_timer_update(els_turning.timer_feed_um);
+        els_turning_start();
+      }
       break;
     case ELS_KEY_EXIT:
-      if (els_turning.state & (ELS_TURNING_PAUSED | ELS_TURNING_ACTIVE))
+      if (els_turning.state & (ELS_TURNING_PAUSED | ELS_TURNING_ACTIVE)) {
         els_turning.state = ELS_TURNING_IDLE;
+        els_turning_stop();
+      }
       break;
     case ELS_KEY_SET_FEED:
       els_turning.state = ELS_TURNING_SET_FEED;
@@ -904,8 +909,8 @@ bool els_turning_busy(void) {
 static void els_turning_timer_update(int32_t feed_um) {
   uint32_t res;
 
-  if (feed_um == els_turning.timer_feed_um)
-    return;
+  // if (feed_um == els_turning.timer_feed_um)
+  //   return;
 
   els_turning.timer_feed_um = feed_um;
 

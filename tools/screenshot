@@ -23,4 +23,4 @@ for row in 1..320
 end
 
 png.save(file.sub(/.hex$/, '.png'), interlace: true)
-FileUtils.rm_f(file)
+#FileUtils.rm_f(file)

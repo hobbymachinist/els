@@ -1,0 +1,74 @@
+#!/usr/bin/env ruby
+
+
+# https://en.wikipedia.org/wiki/Machine_taper#Dimensions
+#
+# https://www.cgtk.co.uk/metalwork/data/morse
+#
+# Taper D1                 D2                L2              Half Angle
+#
+PRESETS = {
+  0 => {major_dia:  9.045, minor_dia:  6.40, length:  50.80, angle: [1, 29, 27]},
+  1 => {major_dia: 12.065, minor_dia:  9.37, length:  53.98, angle: [1, 25, 43]},
+  2 => {major_dia: 17.780, minor_dia: 14.52, length:  65.09, angle: [1, 25, 50]},
+  3 => {major_dia: 23.825, minor_dia: 19.76, length:  80.96, angle: [1, 26, 16]},
+  4 => {major_dia: 31.267, minor_dia: 25.91, length: 103.19, angle: [1, 29, 15]},
+  5 => {major_dia: 44.399, minor_dia: 37.47, length: 131.76, angle: [1, 30, 26]},
+  6 => {major_dia: 63.348, minor_dia: 53.75, length: 184.15, angle: [1, 29, 36]},
+  7 => {major_dia: 83.058, minor_dia: 69.85, length: 254.00, angle: [1, 29, 22]}
+}
+
+class MorseTaper
+  attr_reader :length, :angle, :tan_angle, :major_dia, :minor_dia
+  def initialize(length, (deg, min, sec), major_dia, minor_dia)
+    @length = length
+    @angle = deg + min / 60.0 + sec / 3600.0
+    @tan_angle = Math.tan(angle * Math::PI / 180)
+    @major_dia = major_dia
+    @minor_dia = minor_dia
+  end
+
+  def candidates
+    puts "Nominal values:"
+    puts "--------------------------------------------------"
+    puts "Length  = %.2f, Angle   = %.8f°" % [length, angle]
+    puts "Major Φ = %.2f, Minor Φ = %.2f" % [major_dia, minor_dia]
+    puts
+    puts "Best length and taper depth combinations:"
+    puts "--------------------------------------------------"
+    data =
+      ((length - 10)..(length + 5)).
+        step(0.01).
+        map {|l|
+          depth = (l * tan_angle).round(5);
+          ['%.2f' % l, '%.4f' % depth, '%.8f' % (tan_angle - (depth / l)).abs]
+        }.
+        select {|(l, d, delta)| d =~ /\...00/ }.
+        sort_by {|(l, d, delta)| delta}.
+        each {|(l, d, delta)|
+          c_angle = (Math.atan(delta.to_f) * 180) / Math::PI
+          print "length = %s depth = %.2f error = %.8f°\n" % [l, d.to_f, c_angle]
+        }
+  end
+end
+
+calc = ->(taper) do
+  puts "=================================================="
+  puts "Options for Morse Taper #{taper}"
+  puts "=================================================="
+  puts
+  MorseTaper.
+    new(
+      PRESETS[taper][:length],
+      PRESETS[taper][:angle],
+      PRESETS[taper][:major_dia],
+      PRESETS[taper][:minor_dia],
+    ).
+    candidates
+end
+
+if ARGV.length > 0 && (0..7).include?(taper = ARGV.shift.to_i)
+  calc.call(taper)
+else
+  (0..7).each {|taper| calc.call(taper) }
+end

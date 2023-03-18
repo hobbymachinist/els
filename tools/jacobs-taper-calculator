@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+
+# https://en.wikipedia.org/wiki/Machine_taper#Dimensions
+#
+PRESETS = {
+  "0"   => {small_end:  5.8024, large_end:  6.3500, length: 11.1130},
+  "1"   => {small_end:  8.4686, large_end:  9.7536, length: 16.6690},
+  "2"   => {small_end: 12.3860, large_end: 14.1990, length: 22.2250},
+  "2S"  => {small_end: 12.3860, large_end: 13.9400, length: 19.0500},
+  "2.5" => {small_end: 15.8750, large_end: 17.1960, length: 26.7970},
+  "3"   => {small_end: 18.9510, large_end: 20.5990, length: 30.9560},
+  "4"   => {small_end: 26.3450, large_end: 28.5500, length: 42.0700},
+  "5"   => {small_end: 33.4290, large_end: 35.8900, length: 47.6250},
+  "6"   => {small_end: 15.8520, large_end: 17.1700, length: 25.4000},
+  "33"  => {small_end: 14.2370, large_end: 15.8500, length: 25.4000},
+}.freeze
+
+class JacobsTaper
+  attr_reader :length, :angle, :tan_angle, :small_end, :large_end, :depth
+  def initialize(length, small_end, large_end)
+    @length = length
+    @small_end = small_end
+    @large_end = large_end
+    @depth = (large_end - small_end) / 2
+
+    @tan_angle = (depth / length)
+    @angle = Math.atan(tan_angle) * 180 / Math::PI
+  end
+
+  def candidates
+    puts "Nominal values:"
+    puts "--------------------------------------------------"
+    puts "Length  = %.2f, Angle   = %.8f°" % [length, angle]
+    puts "Major Φ = %.2f, Minor Φ = %.2f, Depth = %.2f" % [large_end, small_end, (large_end - small_end) / 2]
+    puts
+    puts "Best length and taper depth combinations:"
+    puts "--------------------------------------------------"
+    data =
+      ((length - 5)..(length + 5)).
+        step(0.01).
+        map {|l|
+          depth = (l * tan_angle).round(5);
+          ['%.2f' % l, '%.4f' % depth, '%.8f' % (tan_angle - (depth / l)).abs]
+        }.
+        select {|(l, d, delta)| d =~ /\...00/ }.
+        sort_by {|(l, d, delta)| delta}.
+        each {|(l, d, delta)|
+          c_angle = (Math.atan(delta.to_f) * 180) / Math::PI
+          print "length = %s depth = %.2f error = %.8f°\n" % [l, d.to_f, c_angle]
+        }
+  end
+end
+
+calc = ->(taper) do
+  puts "=================================================="
+  puts "Options for Jacobs Taper #{taper}"
+  puts "=================================================="
+  puts
+  JacobsTaper.
+    new(
+      PRESETS[taper][:length],
+      PRESETS[taper][:small_end],
+      PRESETS[taper][:large_end],
+    ).
+    candidates
+end
+
+if ARGV.length > 0 && PRESETS.key?(ARGV[0])
+  calc.call(ARGV.shift)
+else
+  PRESETS.keys.each {|taper| calc.call(taper) }
+end

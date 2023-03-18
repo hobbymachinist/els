@@ -664,40 +664,30 @@ static void els_threading_keypad_process(void) {
 static void els_threading_run(void) {
   int zdir = (els_threading.pitch_reverse ? 1 : -1);
 
-  switch (els_threading.spindle_dir) {
-    case ELS_S_DIRECTION_CW:
-      if (els_threading.zjog_steps == 0) {
-        if (els_threading.zdir != -zdir) {
-          ELS_THREADING_SET_ZDIR_LR;
-          if (els_threading.zdir != 0)
-            ELS_THREADING_Z_BACKLASH_FIX;
-        }
-        els_threading.zdir = -zdir;
+  if (els_threading.zjog_steps == 0) {
+    if (els_threading.zdir != zdir) {
+      if (zdir == 1) {
+        ELS_THREADING_SET_ZDIR_LR;
+        ELS_THREADING_Z_BACKLASH_FIX;
       }
-      if (els_threading.state == ELS_THREADING_PAUSED && els_spindle_get_counter() == 0) {
-        els_threading.pitch_curr = 0;
-        els_threading.state = ELS_THREADING_ACTIVE;
+      else {
+        ELS_THREADING_SET_ZDIR_RL;
+        ELS_THREADING_Z_BACKLASH_FIX;
       }
-      break;
-    case ELS_S_DIRECTION_CCW:
-      if (els_threading.zjog_steps == 0) {
-        if (els_threading.zdir != zdir) {
-          ELS_THREADING_SET_ZDIR_RL;
-          if (els_threading.zdir != 0)
-            ELS_THREADING_Z_BACKLASH_FIX;
-        }
-        els_threading.zdir = zdir;
-      }
-      if (els_threading.state == ELS_THREADING_PAUSED && els_spindle_get_counter() == 0) {
-        els_threading.pitch_curr = 0;
-        els_threading.state = ELS_THREADING_ACTIVE;
-      }
-      break;
-    default:
-      els_threading.zdir = 0;
-      if (els_threading.state == ELS_THREADING_ACTIVE)
-        els_threading.state = ELS_THREADING_PAUSED;
-      break;
+      els_threading.zdir = zdir;
+    }
+  }
+
+  if (els_threading.spindle_dir != ELS_S_DIRECTION_IDLE) {
+    if (els_threading.state == ELS_THREADING_PAUSED && els_spindle_get_counter() == 0) {
+      els_threading.pitch_curr = 0;
+      els_threading.state = ELS_THREADING_ACTIVE;
+    }
+  }
+  else {
+   els_threading.zdir = 0;
+   if (els_threading.state == ELS_THREADING_ACTIVE)
+      els_threading.state = ELS_THREADING_PAUSED;
   }
 }
 

@@ -211,7 +211,9 @@ PH1  - UNUSED
 
 ![](images/keypad.png)
 
-Keymap, top to bottom and left to right
+Keymap, left to right.
+
+### Row 1
 
 1. Settings
 2. Lathe Functions
@@ -219,18 +221,23 @@ Keymap, top to bottom and left to right
 4. Special Function Key - F2
 5. Keypad Lock / Unlock
 6. Encoder multiplier change. Cyles through 1, 10 & 100.
-7. Feed / Pitch
-8. Reverse feed direction (only available in manual operations)
-9. Turning
-10. Threading External
-11. Stop Operation / Exit setting
-12. Ready to start / Accept setting
-13. Z/X axis setting
-14. Zero Z / X axis
-15. Set position as minimum limit (only for manual turning)
-16. Set position as maximum limit (only for manual turning)
-17. Jog to minimum (only available in manual operations)
-17. Jog to maximum (only available in manual operations)
+
+### Row 2
+
+1. Feed / Pitch
+2. Reverse feed direction (not available in all functions)
+3. Turning
+4. Threading External
+5. Stop Operation / Exit setting
+6. Ready to start / Accept setting
+
+### Row 3
+1. Z/X axis setting
+2. Zero Z / X axis
+3. Set position as minimum limit (only for manual turning)
+4. Set position as maximum limit (only for manual turning)
+5. Jog to minimum (only available in manual operations)
+6. Jog to maximum (only available in manual operations)
 
 ## Lathe Functions
 
@@ -468,6 +475,80 @@ Display DRO or diagram.
 
 ![](images/turning-dro.png)
 
+
+### Facing
+
+Steps:
+
+1. Move tool to Z/X origin as required
+2. Zero out Z and X axis
+3. Set feed
+4. Set depth of cut on Z for each pass
+4. Set length on Z axis to face and depth (radius of stock to face)
+5. Turn on spindle
+6. Press Ready to start
+
+![](images/facing.png)
+
+#### F/P
+
+Set feed (Xf) & depth of cut (Zs).
+
+#### Z/X
+
+1. Z axis jogging.
+2. Press key again for X axis jogging
+
+#### 0
+
+Zero Z axis or X axis (DRO)
+
+#### F1
+
+1. Set length
+2. Press key again to set depth
+
+#### F2
+
+Display DRO or diagram.
+
+
+### Parting
+
+Steps:
+
+1. Move tool to Z/X origin as required
+2. Zero out Z and X axis
+3. Set feed (Xf)
+4. Set depth of cut (radius of stock to part off)
+5. Set retraction rate (Rx) if needed. e.g. if set to 2mm, this retracts the tool 5mm for every 2mm of in-feed.
+5. Turn on spindle
+6. Press Ready to start
+
+![](images/parting.png)
+
+#### F/P
+
+Set feed (Xf) & retraction (Rx).
+
+#### Z/X
+
+1. Z axis jogging.
+2. Press key again for X axis jogging
+
+#### 0
+
+Zero Z axis or X axis (DRO)
+
+#### F1
+
+Set total depth to part off, this is half the stock diameter ideally.
+
+#### F2
+
+Display DRO or diagram.
+
+
 ### Boring Pocket
 
 Steps:
@@ -547,7 +628,7 @@ Display DRO or diagram.
 ### Knurling
 
 Uses a form of bidirectional multi-start threading operation to cut knurls. Given the large pitch sizes required,
-it's best to hand turn the spindle or use ~200 RPM.
+it's best to hand turn the spindle or use RPM < 30.
 
 Steps:
 
@@ -592,11 +673,13 @@ Steps:
 6. Press Ready to start
 
 ![](images/threading-ext.png)
+![](images/threading-ext-l.png)
 
 #### F/P
 
 1. Select pitch, cycles through standard metric pitches.
 2. Press key again to set an arbitrary pitch and thread height / depth.
+3. Press "Reverse Direction (`</>`)" button to switch between RH and LH threads.
 
 #### Z/X
 
@@ -609,14 +692,19 @@ Zero Z axis or X axis (DRO)
 
 #### F1
 
+IMPORTANT: The diagonal infeed hard codes the angle to 26.565° which is only valid for 60° thread profiles.
+
 1. Set length of thread
 2. Press key again to set depth of cut.
+3. While in depth of cut selection press "Reverse Direction (`</>`)" button to switch between plunge and diagonal in-feed.
 
 #### F2
 
 Display DRO or diagram.
 
 ### Internal Threading
+
+TODO: add support for LH threads and diagonal in-feed
 
 Steps:
 

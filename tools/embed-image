@@ -10,7 +10,7 @@ mask = 0
 bits = 0
 for y in 0..(png.height - 1)
   for x in 0..(png.width - 1)
-    if ChunkyPNG::Color.a(png[x, y]) > 0 && ChunkyPNG::Color.b(png[x, y]) > 0
+    if ChunkyPNG::Color.a(png[x, y]) > 32 && ChunkyPNG::Color.b(png[x, y]) > 32
       mask = (mask << 1) | 1
     else
       mask = mask << 1
@@ -30,6 +30,7 @@ if bits > 0
 end
 
 name = File.basename(file, File.extname(file))
+name = name.gsub(/[^a-z0-9_]/, '_').gsub(/_+/, '_')
 puts(<<~C)
 #include "tft/image.h"
 

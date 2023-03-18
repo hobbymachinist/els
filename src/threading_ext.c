@@ -46,7 +46,12 @@ extern const tft_font_t noto_sans_mono_bold_26;
 extern const tft_font_t gears_regular_32;
 extern const tft_font_t gears_regular_50;
 extern const tft_font_t inconsolata_lgc_bold_14;
+
 extern const tft_image_t external_thread;
+extern const tft_image_t external_thread_l;
+extern const tft_image_t infeed_st;
+extern const tft_image_t infeed_dia;
+extern const tft_image_t infeed_dia_l;
 
 //==============================================================================
 // Config
@@ -219,6 +224,9 @@ static struct {
 
   double   xpos_prev;
 
+  bool     diagonal_infeed;
+  double   zpos_start;
+
   uint8_t  spring_passes;
   uint8_t  spring_pass_count;
 
@@ -251,17 +259,20 @@ static struct {
   // dro
   bool show_dro;
 } els_threading_ext = {
-  .depth_of_cut_um = 50,
+  .depth_of_cut_um = 100,
   .pitch_table_index = 4,
   .length = 10,
   .spring_passes = 1,
   .spring_pass_count = 0,
-  .encoder_multiplier = 1
+  .encoder_multiplier = 1,
+  .diagonal_infeed = true,
+  .pitch_reverse = 0
 };
 
 //==============================================================================
 // Internal functions
 //==============================================================================
+static void els_threading_ext_set_zdir(void);
 static void els_threading_ext_run(void);
 static void els_threading_ext_thread(void);
 
@@ -442,14 +453,22 @@ static void els_threading_ext_encoder_isr(void) {
     }
 
     if (els_threading_ext.state == ELS_THREADING_ACTIVE && els_threading_ext.op_state == ELS_THREADING_OP_THREAD) {
-      els_stepper->zdir = (els_threading_ext.spindle_dir == ELS_S_DIRECTION_CCW ? -1 : 1);
       if (reset_pulse_pending) {
         reset_pulse_pending = false;
         els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
         els_stepper->zpos += (els_stepper->zdir * els_threading_ext.zdelta);
 
-        if (fabs((0 - els_stepper->zpos) - els_threading_ext.length) <= PRECISION)
-          els_threading_ext.op_state = ELS_THREADING_OP_THREADL;
+        if (els_config->z_closed_loop) {
+          double dro_zpos = (double)els_dro.zpos_um * 1e-3;
+          if ((els_stepper->zdir * (dro_zpos - els_threading_ext.zpos_start)) >= els_threading_ext.length) {
+            els_threading_ext.op_state = ELS_THREADING_OP_THREADL;
+            els_stepper->zpos = dro_zpos;
+          }
+        }
+        else {
+          if ((els_stepper->zdir * (els_stepper->zpos - els_threading_ext.zpos_start)) >= els_threading_ext.length)
+            els_threading_ext.op_state = ELS_THREADING_OP_THREADL;
+        }
       }
 
       els_threading_ext.pitch_curr += els_threading_ext.pitch_n;
@@ -498,12 +517,20 @@ static void els_threading_ext_display_setting(void) {
 
   uint16_t x = (els_threading_ext.show_dro ? 220 : 8), y = 262;
   tft_filled_rectangle(&tft, x, y, 80, 40, ILI9481_BLACK);
+
   if (els_threading_ext.pitch_mode == ELS_THREADING_PITCH_MODE_TABLE) {
     tft_font_write_bg(&tft, x, y, pitch_table_label[els_threading_ext.pitch_table_index],
       &noto_sans_mono_bold_26,
       (els_threading_ext.state == ELS_THREADING_SET_PITCH ? ILI9481_YELLOW : ILI9481_WHITE),
       ILI9481_BLACK);
   }
+
+  x = (els_threading_ext.show_dro ? 220 : 8), y = 230;
+  tft_filled_rectangle(&tft, x, y, 80, 40, ILI9481_BLACK);
+  if (els_threading_ext.diagonal_infeed)
+    tft_image_draw(&tft, x, y, (els_threading_ext.pitch_reverse ? &infeed_dia_l : &infeed_dia), ILI9481_YELLOW);
+  else
+    tft_image_draw(&tft, x, y, &infeed_st, ILI9481_YELLOW);
 }
 
 static void els_threading_ext_display_axes(void) {
@@ -537,7 +564,10 @@ static void els_threading_ext_display_diagram(void) {
   // ----------------------------------------------------------------------------------------------
   // diagram
   // ----------------------------------------------------------------------------------------------
-  tft_image_draw(&tft, 100, 235, &external_thread, ILI9481_WHITE);
+  if (els_threading_ext.pitch_reverse)
+    tft_image_draw(&tft, 100, 235, &external_thread_l, ILI9481_WHITE);
+  else
+    tft_image_draw(&tft, 100, 235, &external_thread, ILI9481_WHITE);
 
   tft_font_write_bg(&tft, 166, 183, "A", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
   tft_font_write_bg(&tft, 210, 199, "L", &inconsolata_lgc_bold_14, ILI9481_WHITE, ILI9481_BLACK);
@@ -548,18 +578,28 @@ static void els_threading_ext_display_diagram(void) {
   tft_font_write_bg(&tft, 260, 227, "B", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
 
   // origin
-  tft_font_write_bg(&tft, 245, 264, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  if (els_threading_ext.pitch_reverse)
+    tft_font_write_bg(&tft, 165, 264, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  else
+    tft_font_write_bg(&tft, 245, 264, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
 
   // legend
-  tft_font_write_bg(&tft, 8, 200, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 26, 220, "(0,0)", &inconsolata_lgc_bold_14, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 8, 180, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 26, 200, "(0,0)", &inconsolata_lgc_bold_14, ILI9481_WHITE, ILI9481_BLACK);
   // ----------------------------------------------------------------------------------------------
 }
 static void els_threading_ext_display_header(void) {
-  tft_rgb_t color = (els_threading_ext.locked ? ILI9481_RED : ILI9481_FOREST);
+  if (els_threading_ext.pitch_reverse) {
+    tft_rgb_t color = (els_threading_ext.locked ? ILI9481_RED : ILI9481_GREEN);
+    tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+    tft_font_write_bg(&tft, 8, 0, "THREAD EXTERNAL - L", &noto_sans_mono_bold_26, ILI9481_BLACK, color);
+  }
+  else {
+    tft_rgb_t color = (els_threading_ext.locked ? ILI9481_RED : ILI9481_FOREST);
+    tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+    tft_font_write_bg(&tft, 8, 0, "THREAD EXTERNAL - R", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  }
 
-  tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
-  tft_font_write_bg(&tft, 8, 0, "THREAD EXTERNAL", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
   els_threading_ext_display_encoder_pips();
 }
 
@@ -669,6 +709,7 @@ static void els_threading_ext_keypad_process(void) {
         els_threading_ext_display_axes();
       else
         els_threading_ext_display_diagram();
+      els_threading_ext_display_setting();
       break;
     case ELS_KEY_SET_ZX:
       if (els_threading_ext.state & (ELS_THREADING_IDLE | ELS_THREADING_PAUSED)) {
@@ -686,39 +727,33 @@ static void els_threading_ext_keypad_process(void) {
 // ---------------------------------------------------------------------------------------
 // Function 1: primary turning handler, detects direction change and toggles the DIR pin.
 // ---------------------------------------------------------------------------------------
-static void els_threading_ext_run(void) {
-  // TODO: reverse threading is not supported yet.
+//
+// sets zdir depending on type of thread wanted & compensates for backlash.
+static void els_threading_ext_set_zdir(void) {
   int zdir = (els_threading_ext.pitch_reverse ? 1 : -1);
 
-  switch (els_threading_ext.spindle_dir) {
-    case ELS_S_DIRECTION_CW:
-      if (els_threading_ext.state == ELS_THREADING_PAUSED) {
-        if (!els_stepper->xbusy &&  !els_stepper->zbusy) {
-          if (els_stepper->zdir != -zdir) {
-            ELS_THREADING_SET_ZDIR_LR;
-            els_stepper_z_backlash_fix();
-          }
-          els_stepper->zdir = -zdir;
-        }
-        if (els_spindle_get_counter() == 0)
-          els_threading_ext.state = ELS_THREADING_ACTIVE;
-      }
-      break;
-    case ELS_S_DIRECTION_CCW:
-      if (els_threading_ext.state == ELS_THREADING_PAUSED) {
-        if (!els_stepper->xbusy &&  !els_stepper->zbusy) {
-          if (els_stepper->zdir != zdir) {
-            ELS_THREADING_SET_ZDIR_RL;
-            els_stepper_z_backlash_fix();
-          }
-          els_stepper->zdir = zdir;
-        }
-        if (els_spindle_get_counter() == 0)
-          els_threading_ext.state = ELS_THREADING_ACTIVE;
-      }
-      break;
-    default:
-      break;
+  if (zdir == 1) {
+    ELS_THREADING_SET_ZDIR_LR;
+    if (els_stepper->zdir != zdir) {
+      els_stepper->zdir = zdir;
+      els_stepper_z_backlash_fix();
+    }
+  }
+  else {
+    ELS_THREADING_SET_ZDIR_RL;
+    if (els_stepper->zdir != zdir) {
+      els_stepper->zdir = zdir;
+      els_stepper_z_backlash_fix();
+    }
+  }
+  els_stepper->zdir = zdir;
+}
+
+static void els_threading_ext_run(void) {
+  if (els_threading_ext.state == ELS_THREADING_PAUSED && !els_stepper->xbusy && !els_stepper->zbusy) {
+    els_threading_ext_set_zdir();
+    if (els_spindle_get_counter() == 0)
+      els_threading_ext.state = ELS_THREADING_ACTIVE;
   }
 
   if (els_threading_ext.state == ELS_THREADING_ACTIVE)
@@ -727,8 +762,6 @@ static void els_threading_ext_run(void) {
 
 // main control loop
 static void els_threading_ext_thread(void) {
-  // TODO: reverse threading is not supported yet.
-  int zdir = (els_threading_ext.pitch_reverse ? 1 : -1);
 
   switch (els_threading_ext.op_state) {
     case ELS_THREADING_OP_NA:
@@ -743,6 +776,7 @@ static void els_threading_ext_thread(void) {
       if (fabs(els_stepper->zpos) > PRECISION)
         els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
       els_threading_ext.op_state = ELS_THREADING_OP_MOVEX0;
+      els_threading_ext.zpos_start = 0;
       break;
     case ELS_THREADING_OP_MOVEX0:
       if (els_stepper->zbusy)
@@ -758,18 +792,6 @@ static void els_threading_ext_thread(void) {
       break;
     case ELS_THREADING_OP_ATZ0:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        if (els_threading_ext.spindle_dir == ELS_S_DIRECTION_CW) {
-          ELS_THREADING_SET_ZDIR_LR;
-          if (els_stepper->zdir != -zdir)
-            els_stepper_z_backlash_fix();
-          els_stepper->zdir = -zdir;
-        }
-        else {
-          ELS_THREADING_SET_ZDIR_RL;
-          if (els_stepper->zdir != zdir)
-            els_stepper_z_backlash_fix();
-          els_stepper->zdir = zdir;
-        }
         if (els_spindle_get_counter() == 0)
           els_threading_ext.op_state = ELS_THREADING_OP_THREAD;
       }
@@ -784,7 +806,7 @@ static void els_threading_ext_thread(void) {
       break;
     case ELS_THREADING_OP_ATZL:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+        els_stepper_move_z(els_threading_ext.zpos_start - els_stepper->zpos, els_config->z_jog_mm_s);
         els_threading_ext.op_state = ELS_THREADING_OP_ATZLXM;
       }
       break;
@@ -796,14 +818,32 @@ static void els_threading_ext_thread(void) {
       break;
     case ELS_THREADING_OP_ATZ0XM:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
+        els_threading_ext_set_zdir();
         if ((els_threading_ext.depth + els_stepper->xpos) > PRECISION) {
-          double xd;
+          double xd, zd;
+
           xd = MIN(
             els_threading_ext.depth + els_stepper->xpos,
             els_threading_ext.depth_of_cut_um / 1000.0
           );
-
           els_stepper_move_x(-xd, els_config->x_jog_mm_s);
+
+          // -------------------------------------------------------------------
+          // EXPERIMENTAL - only works for 60° standard threads
+          // -------------------------------------------------------------------
+          // 15° - 29.5° in-feed for reduced tool stress.
+          //
+          // Use ~26.565° in-feed angle
+          //
+          // 1. 0.5543 multiplier for 29.0°
+          // 2. 0.5658 multiplier for 29.5°
+          //
+          // -------------------------------------------------------------------
+          if (els_threading_ext.diagonal_infeed) {
+            zd = (xd * 0.5) * els_stepper->zdir;
+            els_threading_ext.zpos_start += zd;
+            els_stepper_move_z(zd, els_config->z_jog_mm_s);
+          }
           els_threading_ext.op_state = ELS_THREADING_OP_FEED_IN;
         }
         else {
@@ -821,6 +861,7 @@ static void els_threading_ext_thread(void) {
           els_threading_ext.op_state = ELS_THREADING_OP_DONE;
           els_threading_ext.spring_pass_count = 0;
           els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+          els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
         }
         else {
           els_threading_ext.op_state = ELS_THREADING_OP_ATZ0;
@@ -871,8 +912,13 @@ static void els_threading_ext_set_pitch(void) {
       els_threading_ext_display_setting();
       break;
     case ELS_KEY_REV_FEED:
-      // TODO
-      // els_threading_ext.pitch_reverse = !els_threading_ext.pitch_reverse;
+      els_threading_ext.pitch_reverse = !els_threading_ext.pitch_reverse;
+      els_threading_ext_display_header();
+      tft_filled_rectangle(&tft, 0, 200, 300, 120, ILI9481_BLACK);
+      if (els_threading_ext.show_dro)
+        els_threading_ext_display_axes();
+      else
+        els_threading_ext_display_diagram();
       els_threading_ext_display_setting();
       break;
     default:
@@ -917,6 +963,10 @@ static void els_threading_ext_set_depth_of_cut(void) {
       break;
     case ELS_KEY_FUN_F1:
       els_threading_ext.state = ELS_THREADING_SET_LEN;
+      els_threading_ext_display_setting();
+      break;
+    case ELS_KEY_REV_FEED:
+      els_threading_ext.diagonal_infeed = !els_threading_ext.diagonal_infeed;
       els_threading_ext_display_setting();
       break;
     default:
