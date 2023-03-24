@@ -79,7 +79,7 @@ typedef enum {
   ELS_TURN_DIM_OP_ATZLB   = 8,
   ELS_TURN_DIM_OP_ATZ0B   = 9,
   ELS_TURN_DIM_OP_FEED_IN = 10,
-  ELS_TURN_DIM_OP_SPRING  = 11,
+  ELS_TURN_DIM_OP_FINISH  = 11,
   ELS_TURN_DIM_OP_DONE    = 12
 } els_turn_dimension_op_state_t;
 
@@ -95,7 +95,7 @@ static const char *op_labels[] = {
   "BACKOFF",
   "RETURN ",
   "FEED IN",
-  "SPRING ",
+  "FINISH ",
   "DONE   "
 };
 
@@ -126,8 +126,8 @@ static struct {
   double   length;
   double   depth;
 
-  uint8_t  spring_pass_count;
-  uint8_t  spring_passes;
+  uint8_t  finish_pass_count;
+  uint8_t  finish_passes;
 
   // jogging state
   int32_t  encoder_pos;
@@ -158,8 +158,8 @@ static struct {
   .finish_feed_um = 2000,
   .length = 20,
   .depth = 1.00,
-  .spring_pass_count = 0,
-  .spring_passes = 1,
+  .finish_pass_count = 0,
+  .finish_passes = 1,
   .encoder_multiplier = 1
 };
 
@@ -229,7 +229,7 @@ void els_turn_dimension_start(void) {
   // reset state
   els_turn_dimension.feed_mm_s = els_turn_dimension.feed_um / 1000.0;
   els_turn_dimension.finish_feed_mm_s = els_turn_dimension.finish_feed_um / 1000.0;
-  els_turn_dimension.spring_pass_count = 0;
+  els_turn_dimension.finish_pass_count = 0;
   els_turn_dimension.prev_op_state = 0;
   els_turn_dimension.prev_state = 0;
   els_turn_dimension.prev_dir = 0;
@@ -471,19 +471,19 @@ static void els_turn_dimension_display_refresh(void) {
   if (els_turn_dimension.op_state != els_turn_dimension.prev_op_state) {
     els_turn_dimension.prev_op_state = els_turn_dimension.op_state;
 
-    static bool spring_pass_shown = false;
-    if (els_turn_dimension.spring_pass_count > 0) {
-      if (!spring_pass_shown) {
-        spring_pass_shown = true;
+    static bool finish_pass_shown = false;
+    if (els_turn_dimension.finish_pass_count > 0) {
+      if (!finish_pass_shown) {
+        finish_pass_shown = true;
         tft_filled_rectangle(&tft, 310, 195, 169, 35, ILI9481_BLACK);
-        tft_font_write_bg(&tft, 310, 190, "SPRING", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 310, 190, "FINISH", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
       }
     }
     else {
       const char *label = op_labels[els_turn_dimension.op_state];
       tft_filled_rectangle(&tft, 310, 195, 169, 35, ILI9481_BLACK);
       tft_font_write_bg(&tft, 310, 190, label, &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
-      spring_pass_shown = false;
+      finish_pass_shown = false;
     }
   }
 }
@@ -578,7 +578,7 @@ static void els_turn_dimension_turn(void) {
       break;
     case ELS_TURN_DIM_OP_READY:
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_MOVEZ0;
-      els_turn_dimension.spring_pass_count = 0;
+      els_turn_dimension.finish_pass_count = 0;
       els_stepper_sync();
       break;
     case ELS_TURN_DIM_OP_MOVEZ0:
@@ -619,7 +619,7 @@ static void els_turn_dimension_turn(void) {
       // move to Z=0
       els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
 
-      if (els_turn_dimension.spring_pass_count >= els_turn_dimension.spring_passes) {
+      if (els_turn_dimension.finish_pass_count >= els_turn_dimension.finish_passes) {
         els_stepper_move_x(0 - els_stepper->xpos, els_turn_dimension.feed_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_DONE;
       }
@@ -654,10 +654,10 @@ static void els_turn_dimension_turn(void) {
       else if (remaining > PRECISION) {
         xd = remaining;
         els_stepper_move_x(-xd, els_turn_dimension.feed_mm_s);
-        els_turn_dimension.op_state = ELS_TURN_DIM_OP_SPRING;
+        els_turn_dimension.op_state = ELS_TURN_DIM_OP_FINISH;
       }
       else {
-        els_turn_dimension.op_state = ELS_TURN_DIM_OP_SPRING;
+        els_turn_dimension.op_state = ELS_TURN_DIM_OP_FINISH;
       }
       break;
     case ELS_TURN_DIM_OP_FEED_IN:
@@ -665,23 +665,23 @@ static void els_turn_dimension_turn(void) {
         break;
 
       if (fabs(els_turn_dimension.depth + els_stepper->xpos) <= PRECISION) {
-        els_turn_dimension.op_state = ELS_TURN_DIM_OP_SPRING;
+        els_turn_dimension.op_state = ELS_TURN_DIM_OP_FINISH;
       }
       else {
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZL;
         els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.feed_mm_s);
       }
       break;
-    case ELS_TURN_DIM_OP_SPRING:
+    case ELS_TURN_DIM_OP_FINISH:
       if (els_stepper->xbusy)
         break;
 
-      if (els_turn_dimension.spring_pass_count >= els_turn_dimension.spring_passes) {
+      if (els_turn_dimension.finish_pass_count >= els_turn_dimension.finish_passes) {
         els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_DONE;
       }
       else {
-        els_turn_dimension.spring_pass_count++;
+        els_turn_dimension.finish_pass_count++;
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZL;
         els_stepper_move_z_no_accel(-els_turn_dimension.length, els_turn_dimension.finish_feed_mm_s);
       }
@@ -691,7 +691,7 @@ static void els_turn_dimension_turn(void) {
         break;
 
       // beer time
-      els_turn_dimension.spring_pass_count = 0;
+      els_turn_dimension.finish_pass_count = 0;
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_IDLE;
       els_turn_dimension.state = ELS_TURN_DIM_IDLE;
       break;
@@ -902,6 +902,10 @@ static void els_turn_dimension_set_zaxes(void) {
         els_turn_dimension_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_turn_dimension.state = ELS_TURN_DIM_SET_XAXES;
       els_turn_dimension_display_axes();
@@ -926,6 +930,10 @@ static void els_turn_dimension_set_xaxes(void) {
         els_turn_dimension_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->xbusy)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_turn_dimension.state = ELS_TURN_DIM_SET_ZAXES;
       els_turn_dimension_display_axes();
@@ -940,24 +948,26 @@ static void els_turn_dimension_set_xaxes(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_turn_dimension_zjog(void) {
-  double  delta;
+  double  delta, step;
   int32_t  encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_turn_dimension.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_turn_dimension.encoder_pos) * (0.01 * els_turn_dimension.encoder_multiplier);
+    step = els_turn_dimension.encoder_multiplier == 1 ? 0.005 : 0.01 * els_turn_dimension.encoder_multiplier;
+    delta = (encoder_curr - els_turn_dimension.encoder_pos) * step;
     els_turn_dimension.encoder_pos = encoder_curr;
     els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
 }
 
 static void els_turn_dimension_xjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_turn_dimension.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_turn_dimension.encoder_pos) * (0.01 * els_turn_dimension.encoder_multiplier);
+    step = els_turn_dimension.encoder_multiplier == 1 ? 0.005 : 0.01 * els_turn_dimension.encoder_multiplier;
+    delta = (encoder_curr - els_turn_dimension.encoder_pos) * step;
     els_turn_dimension.encoder_pos = encoder_curr;
     els_stepper_move_x(delta, els_config->x_jog_mm_s);
   }

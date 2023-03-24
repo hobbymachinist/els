@@ -123,8 +123,6 @@ static void els_stepper_configure_axes(void);
 
 static void els_stepper_enable_x(void);
 static void els_stepper_enable_z(void);
-static void els_stepper_disable_x(void);
-static void els_stepper_disable_z(void);
 
 static void els_stepper_timer_start(void);
 static void els_stepper_timer_stop(void);
@@ -1005,7 +1003,7 @@ static void els_stepper_enable_z(void) {
   #endif
 }
 
-static void els_stepper_disable_z(void) {
+void els_stepper_disable_z(void) {
   // active low.
   #if ELS_Z_ENA_ACTIVE_LOW
     els_gpio_set(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
@@ -1014,7 +1012,7 @@ static void els_stepper_disable_z(void) {
   #endif
 }
 
-static void els_stepper_enable_x(void) {
+void els_stepper_enable_x(void) {
   // active low.
   #if ELS_X_ENA_ACTIVE_LOW
     els_gpio_clear(ELS_X_ENA_PORT, ELS_X_ENA_PIN);
@@ -1023,7 +1021,7 @@ static void els_stepper_enable_x(void) {
   #endif
 }
 
-static void els_stepper_disable_x(void) {
+void els_stepper_disable_x(void) {
   // active low.
   #if ELS_X_ENA_ACTIVE_LOW
     els_gpio_set(ELS_X_ENA_PORT, ELS_X_ENA_PIN);

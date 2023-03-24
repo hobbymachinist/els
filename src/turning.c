@@ -30,6 +30,7 @@
 #include "dro.h"
 #include "encoder.h"
 #include "spindle.h"
+#include "stepper.h"
 #include "keypad.h"
 #include "turning.h"
 #include "utils.h"
@@ -40,7 +41,7 @@
 #define ELS_TURNING_TIMER_RCC     RCC_TIM4
 #define ELS_TURNING_TIMER_RST     RST_TIM4
 
-#define ELS_TURNING_Z_JOG_FEED_UM 6000
+#define PRECISION                 (1e-2)
 
 //==============================================================================
 // Externs
@@ -48,6 +49,7 @@
 extern tft_device_t tft;
 
 extern const tft_font_t noto_sans_mono_bold_26;
+extern const tft_font_t noto_sans_mono_bold_arrows_24;
 extern const tft_font_t gears_regular_32;
 extern const tft_font_t gears_regular_50;
 
@@ -55,37 +57,19 @@ extern const tft_font_t gears_regular_50;
 // Config
 //==============================================================================
 typedef enum {
-  ELS_TURNING_IDLE      = 1,
-  ELS_TURNING_PAUSED    = 2,
-  ELS_TURNING_ACTIVE    = 4,
-  ELS_TURNING_SET_FEED  = 8,
-  ELS_TURNING_SET_ZAXES = 16,
-  ELS_TURNING_SET_XAXES = 32,
-  ELS_TURNING_ZLIM_MIN  = 64,
-  ELS_TURNING_ZLIM_MAX  = 128,
-  ELS_TURNING_ZJOG      = 256,
-  ELS_TURNING_SET_MIN   = 512,
-  ELS_TURNING_SET_MAX   = 1024
+  ELS_TURNING_IDLE       = 1,
+  ELS_TURNING_PAUSED     = 2,
+  ELS_TURNING_ACTIVE     = 4,
+  ELS_TURNING_SET_FEED   = 8,
+  ELS_TURNING_SET_ZAXES  = 16,
+  ELS_TURNING_SET_XAXES  = 32,
+  ELS_TURNING_ZLIM       = 64,
+  ELS_TURNING_SET_LENGTH = 128
 
 } els_turning_state_t;
 
-#define ELS_TURNING_ZJOG_PULSES          (els_config->z_pulses_per_mm / 10)
-
 #define ELS_TURNING_SET_ZDIR_LR          els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
 #define ELS_TURNING_SET_ZDIR_RL          els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-
-#define ELS_TURNING_Z_BACKLASH_FIX       do { \
-                                           if (els_turning.zdir != 0 && els_config->z_backlash_pulses) {     \
-                                             els_printf("backlash compensation\n");                          \
-                                             for (size_t _n = 0; _n < els_config->z_backlash_pulses; _n++) { \
-                                               els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);                  \
-                                               els_delay_microseconds(ELS_BACKLASH_DELAY_US);                \
-                                               els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);                \
-                                               els_delay_microseconds(ELS_BACKLASH_DELAY_US);                \
-                                             }                                                               \
-                                           }                                                                 \
-                                         } while (0)
-
 
 #define ELS_TURNING_TIMER_CHANGE(feed)   do {                                                              \
                                            if (els_turning.timer_feed_um != feed) {                        \
@@ -110,11 +94,8 @@ static struct {
   bool     locked;
 
   // z-axis state & config
-  double   zpos;
-  double   zmin;
-  double   zmax;
+  double   length;
   double   zdelta;
-  int      zdir;
   bool     zstop;
 
   // input read for jogging
@@ -122,11 +103,6 @@ static struct {
 
   // encoder multiplier
   int16_t encoder_multiplier;
-
-  // jogging
-  int32_t  stepper_pulse_pos;
-  int32_t  stepper_pulse_curr;
-  int32_t  zjog_steps;
 
   // module state
   els_turning_state_t state;
@@ -136,11 +112,9 @@ static struct {
   els_spindle_direction_t prev_dir;
 
 } els_turning = {
-  .feed_um = 1000,
-  .zstop = false,
-  .zpos = 0,
-  .zmin = 0,
-  .zmax = 0,
+  .feed_um = 2000,
+  .zstop = true,
+  .length = 10,
   .encoder_multiplier = 1
 };
 
@@ -159,10 +133,9 @@ static void els_turning_set_feed(void);
 static void els_turning_set_zaxes(void);
 static void els_turning_set_xaxes(void);
 
-static void els_turning_set_min(void);
-static void els_turning_set_max(void);
+static void els_turning_handle_zlim(void);
+static void els_turning_set_length(void);
 
-static void els_turning_configure_gpio(void);
 static void els_turning_configure_timer(void);
 
 static void els_turning_timer_update(int32_t feed_um);
@@ -172,24 +145,13 @@ static void els_turning_timer_isr(void) __attribute__ ((interrupt ("IRQ")));
 
 static void els_turning_keypad_process(void);
 
-static void els_turning_enable_z(void);
-static void els_turning_disable_z(void);
-
-// manual jogging
+// jog
 static void els_turning_zjog(void);
-static void els_turning_zjog_sync(void);
-static void els_turning_zjog_pulse(void);
-
-// auto jog to min / max
-static void els_turning_zjog_min(void);
-static void els_turning_zjog_max(void);
-static void els_turning_zjog_auto(double travel);
 
 //==============================================================================
 // API
 //==============================================================================
 void els_turning_setup(void) {
-  els_turning_configure_gpio();
   els_turning_configure_timer();
 }
 
@@ -221,9 +183,6 @@ void els_turning_start(void) {
   // reset state
   els_turning.prev_state = 0;
   els_turning.prev_dir = 0;
-  els_turning.zpos = 0; // XXX
-  els_turning.zmin = 0;
-  els_turning.zmax = 10; // XXX
 
   els_turning.state = ELS_TURNING_IDLE;
   els_turning_timer_update(els_turning.feed_um);
@@ -236,12 +195,13 @@ void els_turning_start(void) {
 
   els_turning_display_refresh();
 
-  els_turning_enable_z();
+  els_stepper_start();
+  els_stepper_disable_x();
 }
 
 void els_turning_stop(void) {
   els_turning_timer_stop();
-  els_turning_disable_z();
+  els_stepper_stop();
 }
 
 void els_turning_update(void) {
@@ -266,18 +226,19 @@ void els_turning_update(void) {
     case ELS_TURNING_SET_FEED:
       els_turning_set_feed();
       break;
-    case ELS_TURNING_SET_MIN:
-      els_turning_set_min();
+    case ELS_TURNING_SET_LENGTH:
+      els_turning_set_length();
       break;
-    case ELS_TURNING_SET_MAX:
-      els_turning_set_max();
+    case ELS_TURNING_ZLIM:
+      els_turning_handle_zlim();
+      break;
+    case ELS_TURNING_SET_ZAXES:
+      els_turning_set_zaxes();
       break;
     case ELS_TURNING_SET_XAXES:
       els_turning_set_xaxes();
       break;
     default:
-      if (els_turning.state & (ELS_TURNING_SET_ZAXES | ELS_TURNING_ZLIM_MIN | ELS_TURNING_ZLIM_MAX | ELS_TURNING_ZJOG))
-        els_turning_set_zaxes();
       break;
   }
 
@@ -307,30 +268,19 @@ static void els_turning_timer_isr(void) {
       els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
 
     if (els_turning.zstop) {
-      if (z_pul_state)
-        els_turning.zpos += (els_turning.zdir * els_turning.zdelta);
+      if (els_config->z_closed_loop)
+        els_stepper->zpos = (double)els_dro.zpos_um * 1e-3;
+      else if (z_pul_state)
+        els_stepper->zpos += (els_stepper->zdir * els_turning.zdelta);
 
-      if (els_turning.zpos <= els_turning.zmin)
-        els_turning.state = ELS_TURNING_ZLIM_MIN;
-      else if (els_turning.zpos >= els_turning.zmax)
-        els_turning.state = ELS_TURNING_ZLIM_MAX;
+      if (els_stepper->zdir * els_stepper->zpos >= els_turning.length)
+        els_turning.state = ELS_TURNING_ZLIM;
     }
+    else if (els_config->z_closed_loop)  {
+      els_stepper->zpos = (double)els_dro.zpos_um * 1e-3;
+    }
+
     z_pul_state = !z_pul_state;
-  }
-  else if (els_turning.state & ELS_TURNING_ZJOG) {
-    if (els_turning.zjog_steps > 0) {
-      if (z_pul_state)
-        els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-      else
-        els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-
-      if (!z_pul_state) {
-        els_turning.zpos += (els_turning.zdir * els_turning.zdelta);
-        els_turning.zjog_steps--;
-      }
-
-      z_pul_state = !z_pul_state;
-    }
   }
 }
 
@@ -344,15 +294,17 @@ static void els_turning_timer_isr(void) {
 static void els_turning_display_feed(void) {
   char text[32];
   tft_rgb_t color = (els_turning.state == ELS_TURNING_SET_FEED ? ILI9481_YELLOW : ILI9481_WHITE);
+
+  tft_filled_rectangle(&tft, 270, 228, 84, 25, ILI9481_BLACK);
+  els_sprint_double2(text, sizeof(text), els_turning.feed_um / 1000.0, "FEED");
+  tft_font_write_bg(&tft, 270, 228, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
   if (els_turning.feed_reverse) {
-    tft_filled_rectangle(&tft, 270, 228, 84, 25, ILI9481_BLACK);
-    els_sprint_double2(text, sizeof(text), els_turning.feed_um / 1000.0, "REV ");
-    tft_font_write_bg(&tft, 270, 228, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 270, 190, "LR", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 335, 185, "C", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
   }
   else {
-    tft_filled_rectangle(&tft, 270, 228, 84, 25, ILI9481_BLACK);
-    els_sprint_double2(text, sizeof(text), els_turning.feed_um / 1000.0, "FEED");
-    tft_font_write_bg(&tft, 270, 228, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 270, 190, "RL", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 335, 185, "A", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
   }
 }
 
@@ -360,17 +312,13 @@ static void els_turning_display_axes(void) {
   char text[32];
   tft_rgb_t color;
 
-  els_sprint_double3(text, sizeof(text), els_turning.zpos, "Z");
+  els_sprint_double3(text, sizeof(text), els_stepper->zpos, "Z");
   color = (els_turning.state == ELS_TURNING_SET_ZAXES ? ILI9481_YELLOW : ILI9481_WHITE);
   tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
 
-  els_sprint_double3(text, sizeof(text), els_turning.zmin, "MIN");
-  color = (els_turning.state == ELS_TURNING_SET_MIN ? ILI9481_YELLOW : ILI9481_WHITE);
+  els_sprint_double3(text, sizeof(text), els_turning.length, "LEN");
+  color = (els_turning.state == ELS_TURNING_SET_LENGTH ? ILI9481_YELLOW : ILI9481_WHITE);
   tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
-
-  els_sprint_double3(text, sizeof(text), els_turning.zmax, "MAX");
-  color = (els_turning.state == ELS_TURNING_SET_MAX ? ILI9481_YELLOW : ILI9481_WHITE);
-  tft_font_write_bg(&tft, 270, 142, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
 
   if (els_turning.zstop)
     tft_font_write_bg(&tft, 8, 142, "LIMITS ON ", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
@@ -443,21 +391,13 @@ static void els_turning_display_refresh(void) {
       case ELS_TURNING_SET_XAXES:
         tft_font_write_bg(&tft, x, y, "X AXIS", &noto_sans_mono_bold_26, ILI9481_DIANNE, ILI9481_BLACK);
         break;
-      case ELS_TURNING_ZLIM_MIN:
-        tft_font_write_bg(&tft, x, y, "Z MIN", &noto_sans_mono_bold_26, ILI9481_RED, ILI9481_BLACK);
+      case ELS_TURNING_ZLIM:
+        tft_font_write_bg(&tft, x, y, "Z LIMIT", &noto_sans_mono_bold_26, ILI9481_RED, ILI9481_BLACK);
         break;
-      case ELS_TURNING_ZLIM_MAX:
-        tft_font_write_bg(&tft, x, y, "Z MAX", &noto_sans_mono_bold_26, ILI9481_RED, ILI9481_BLACK);
-        break;
-      case ELS_TURNING_SET_MIN:
-        tft_font_write_bg(&tft, x, y, "SET MIN", &noto_sans_mono_bold_26, ILI9481_DIANNE, ILI9481_BLACK);
-        break;
-      case ELS_TURNING_SET_MAX:
-        tft_font_write_bg(&tft, x, y, "SET MAX", &noto_sans_mono_bold_26, ILI9481_DIANNE, ILI9481_BLACK);
+      case ELS_TURNING_SET_LENGTH:
+        tft_font_write_bg(&tft, x, y, "SET LEN", &noto_sans_mono_bold_26, ILI9481_DIANNE, ILI9481_BLACK);
         break;
       default:
-        if (els_turning.state & ELS_TURNING_ZJOG)
-          tft_font_write_bg(&tft, x, y, "Z JOG", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
         break;
     }
   }
@@ -473,15 +413,17 @@ static void els_turning_display_refresh(void) {
   snprintf(text, sizeof(text), "%04d", els_spindle_get_counter());
   tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double33(text, sizeof(text), els_turning.zpos, "Z");
+  els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
   tft_rgb_t color = (els_turning.state == ELS_TURNING_SET_ZAXES ? ILI9481_YELLOW : ILI9481_WHITE);
   tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, color, ILI9481_BLACK);
 
   els_sprint_double33(text, sizeof(text), (els_dro.zpos_um / 1000.0), "Z");
-  tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26,
+    (els_turning.state == ELS_TURNING_SET_ZAXES) ? ILI9481_YELLOW : ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double33(text, sizeof(text), (els_dro.xpos_um / 1000.0), "X");
-  tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26,
+    (els_turning.state == ELS_TURNING_SET_XAXES) ? ILI9481_YELLOW : ILI9481_WHITE, ILI9481_BLACK);
 }
 
 // ----------------------------------------------------------------------------------
@@ -493,13 +435,13 @@ static void els_turning_keypad_process(void) {
       if (els_turning.state == ELS_TURNING_IDLE) {
         els_turning.state = ELS_TURNING_PAUSED;
         els_turning_timer_update(els_turning.timer_feed_um);
-        els_turning_start();
+        els_turning_timer_start();
       }
       break;
     case ELS_KEY_EXIT:
       if (els_turning.state & (ELS_TURNING_PAUSED | ELS_TURNING_ACTIVE)) {
         els_turning.state = ELS_TURNING_IDLE;
-        els_turning_stop();
+        els_turning_timer_stop();
       }
       break;
     case ELS_KEY_SET_FEED:
@@ -512,20 +454,17 @@ static void els_turning_keypad_process(void) {
       if (els_turning.state & (ELS_TURNING_IDLE | ELS_TURNING_PAUSED)) {
         els_turning.state = ELS_TURNING_SET_ZAXES;
         els_turning.encoder_pos = 0;
-        els_turning.stepper_pulse_curr = 0;
-        els_turning.stepper_pulse_pos  = 0;
         els_encoder_reset();
-        ELS_TURNING_TIMER_CHANGE(ELS_TURNING_Z_JOG_FEED_UM);
       }
       break;
     case ELS_KEY_FUN_F1:
-      tft_filled_rectangle(&tft, 74, 142, 168, 40, ILI9481_BLACK);
-      els_turning.zstop = !els_turning.zstop;
+      els_encoder_reset();
+      els_turning.state = ELS_TURNING_SET_LENGTH;
       els_turning_display_axes();
       break;
     case ELS_KEY_FUN_F2:
-      els_encoder_reset();
-      els_turning.state = ELS_TURNING_SET_MIN;
+      tft_filled_rectangle(&tft, 74, 142, 168, 40, ILI9481_BLACK);
+      els_turning.zstop = !els_turning.zstop;
       els_turning_display_axes();
       break;
     default:
@@ -540,24 +479,17 @@ static void els_turning_run(void) {
   int zdir = (els_turning.feed_reverse ? 1 : -1);
 
   switch (els_spindle_get_direction()) {
-    case ELS_S_DIRECTION_CW:
-      if (els_turning.zjog_steps == 0) {
-        if (els_turning.zdir != -zdir) {
-          ELS_TURNING_SET_ZDIR_LR;
-          ELS_TURNING_Z_BACKLASH_FIX;
-        }
-        els_turning.zdir = -zdir;
-      }
-      if (els_turning.state == ELS_TURNING_PAUSED && els_spindle_get_counter() == 0)
-        els_turning.state = ELS_TURNING_ACTIVE;
-      break;
     case ELS_S_DIRECTION_CCW:
-      if (els_turning.zjog_steps == 0) {
-        if (els_turning.zdir != zdir) {
-          ELS_TURNING_SET_ZDIR_RL;
-          ELS_TURNING_Z_BACKLASH_FIX;
+    case ELS_S_DIRECTION_CW:
+      if (!els_stepper->zbusy) {
+        if (els_stepper->zdir != zdir) {
+          els_stepper->zdir = zdir;
+          if (zdir == 1)
+            ELS_TURNING_SET_ZDIR_LR;
+          else
+            ELS_TURNING_SET_ZDIR_RL;
+          els_stepper_z_backlash_fix();
         }
-        els_turning.zdir = zdir;
       }
       if (els_turning.state == ELS_TURNING_PAUSED && els_spindle_get_counter() == 0)
         els_turning.state = ELS_TURNING_ACTIVE;
@@ -606,40 +538,24 @@ static void els_turning_set_feed(void) {
 // Function 3: Z Axis - limits & jogging
 // ----------------------------------------------------------------------------------
 static void els_turning_set_zaxes(void) {
-  els_turning_zjog_sync();
-  els_turning_zjog_pulse();
-
   switch(els_keypad_read()) {
     case ELS_KEY_EXIT:
-      els_turning.state = (els_turning.state & ELS_TURNING_ZJOG) ? ELS_TURNING_SET_ZAXES : ELS_TURNING_IDLE;
-      els_turning.stepper_pulse_pos = els_turning.stepper_pulse_curr = 0;
-      els_turning.zjog_steps = 0;
+      els_turning.state = ELS_TURNING_IDLE;
       ELS_TURNING_TIMER_CHANGE(els_turning.feed_um);
       break;
-    case ELS_KEY_SET_ZX_MIN:
-      if (els_turning.state == ELS_TURNING_SET_ZAXES) {
-        els_turning.zmin = els_turning.zpos;
-        els_turning_display_axes();
-      }
-      break;
-    case ELS_KEY_SET_ZX_MAX:
-      if (els_turning.state == ELS_TURNING_SET_ZAXES) {
-        els_turning.zmax = els_turning.zpos;
-        els_turning_display_axes();
-      }
-      break;
     case ELS_KEY_SET_ZX_ORI:
-      if (els_turning.state == ELS_TURNING_SET_ZAXES) {
-        els_dro_zero_z();
-        els_turning.zpos = 0;
-        els_turning_display_axes();
+      if (els_stepper->zbusy)
+        break;
+      els_dro_zero_z();
+      els_stepper_zero_z();
+      els_turning_display_axes();
+      break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy) {
+        if (els_config->z_closed_loop)
+          els_stepper->zpos = (double)els_dro.zpos_um * 1e-3;
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
       }
-      break;
-    case ELS_KEY_JOG_ZX_MIN:
-      els_turning_zjog_min();
-      break;
-    case ELS_KEY_JOG_ZX_MAX:
-      els_turning_zjog_max();
       break;
     case ELS_KEY_SET_ZX:
       els_turning.state = ELS_TURNING_SET_XAXES;
@@ -672,31 +588,30 @@ static void els_turning_set_xaxes(void) {
   }
 }
 
-static void els_turning_set_min(void) {
-  int32_t encoder_curr;
+static void els_turning_handle_zlim(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
-      els_turning.state = ELS_TURNING_IDLE;
-      els_turning_display_axes();
-      break;
-    case ELS_KEY_FUN_F2:
-      els_turning.state = ELS_TURNING_SET_MAX;
-      els_turning_display_axes();
-      break;
-    default:
-      encoder_curr = els_encoder_read();
-      if (els_turning.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_turning.encoder_pos);
-        els_turning.zmin += (delta * 0.01 * els_turning.encoder_multiplier);
-        els_turning.encoder_pos = encoder_curr;
+      if (!els_stepper->zbusy) {
+        els_turning.state = ELS_TURNING_IDLE;
         els_turning_display_axes();
       }
+      break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy) {
+        if (els_config->z_closed_loop)
+          els_stepper->zpos = (double)els_dro.zpos_um * 1e-3;
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+      }
+      break;
+    default:
+      if (!els_stepper->zbusy && fabs(els_stepper->zpos) <= PRECISION)
+        els_turning.state = ELS_TURNING_IDLE;
       break;
   }
 }
 
-static void els_turning_set_max(void) {
+static void els_turning_set_length(void) {
   int32_t encoder_curr;
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
@@ -704,15 +619,11 @@ static void els_turning_set_max(void) {
       els_turning.state = ELS_TURNING_IDLE;
       els_turning_display_axes();
       break;
-    case ELS_KEY_FUN_F2:
-      els_turning.state = ELS_TURNING_SET_MIN;
-      els_turning_display_axes();
-      break;
     default:
       encoder_curr = els_encoder_read();
       if (els_turning.encoder_pos != encoder_curr) {
         int32_t delta = (encoder_curr - els_turning.encoder_pos);
-        els_turning.zmax += (delta * 0.01 * els_turning.encoder_multiplier);
+        els_turning.length += (delta * 0.01 * els_turning.encoder_multiplier);
         els_turning.encoder_pos = encoder_curr;
         els_turning_display_axes();
       }
@@ -724,139 +635,16 @@ static void els_turning_set_max(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_turning_zjog(void) {
-  double delta;
-  int32_t encoder_curr;
+  double  delta, step;
+  int32_t  encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_turning.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_turning.encoder_pos) * 0.01 * els_turning.encoder_multiplier;
-    els_turning.stepper_pulse_curr += (delta * els_config->z_pulses_per_mm);
+    step = els_turning.encoder_multiplier == 1 ? 0.005 : 0.01 * els_turning.encoder_multiplier;
+    delta = (encoder_curr - els_turning.encoder_pos) * step;
     els_turning.encoder_pos = encoder_curr;
-    els_turning_display_axes();
+    els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
-}
-
-static void els_turning_zjog_sync(void) {
-  if ((els_turning.state & ELS_TURNING_ZJOG) && els_turning.zjog_steps == 0) {
-    els_turning.state &= ~ELS_TURNING_ZJOG;
-
-    if ((els_turning.state & (ELS_TURNING_ZLIM_MIN | ELS_TURNING_ZLIM_MAX)) &&
-        ((els_turning.zpos >= els_turning.zmin || (els_turning.zmin - els_turning.zpos) <= 1e-3) &&
-         (els_turning.zpos <= els_turning.zmax || (els_turning.zpos - els_turning.zmax) <= 1e-3))) {
-
-      ELS_TURNING_TIMER_CHANGE(els_turning.feed_um);
-      els_turning.state = ELS_TURNING_IDLE;
-    }
-  }
-}
-
-static void els_turning_zjog_pulse(void) {
-  bool backlash;
-  int steps, dir = 0;
-
-  if (els_turning.stepper_pulse_pos != els_turning.stepper_pulse_curr) {
-    if (els_turning.stepper_pulse_curr < els_turning.stepper_pulse_pos)
-      dir = -1;
-    else
-      dir = 1;
-
-    if (els_turning.zdir != dir && els_turning.zjog_steps > 0)
-      return;
-
-    if (dir > 0)
-      ELS_TURNING_SET_ZDIR_LR;
-    else
-      ELS_TURNING_SET_ZDIR_RL;
-
-    backlash = (els_turning.zdir != dir);
-    els_turning.zdir = dir;
-    if (backlash)
-      ELS_TURNING_Z_BACKLASH_FIX;
-
-    steps = abs(els_turning.stepper_pulse_curr - els_turning.stepper_pulse_pos);
-    els_turning.stepper_pulse_pos = els_turning.stepper_pulse_curr;
-    els_turning.zjog_steps += steps;
-    els_turning.state |= ELS_TURNING_ZJOG;
-  }
-}
-
-// ----------------------------------------------------------------------------------
-// Auto Jog to Min / Max
-// ----------------------------------------------------------------------------------
-static void els_turning_zjog_auto(double travel) {
-  bool backlash = false;
-
-  if (travel > 0) {
-    ELS_TURNING_SET_ZDIR_LR;
-    backlash = (els_turning.zdir != 1);
-    els_turning.zdir = 1;
-    els_turning.zjog_steps = (int32_t)round(travel * els_config->z_pulses_per_mm);
-    els_turning.state |= ELS_TURNING_ZJOG;
-  }
-  else if (travel < 0) {
-    ELS_TURNING_SET_ZDIR_RL;
-    backlash = (els_turning.zdir != -1);
-    els_turning.zdir = -1;
-    els_turning.zjog_steps = (int32_t)round(-travel * els_config->z_pulses_per_mm);
-    els_turning.state |= ELS_TURNING_ZJOG;
-  }
-
-  if (backlash) {
-    ELS_TURNING_Z_BACKLASH_FIX;
-  }
-}
-
-static void els_turning_zjog_min(void) {
-  double travel = els_turning.zmin - els_turning.zpos;
-
-  if (els_turning.zjog_steps > 0)
-    return;
-
-  ELS_TURNING_TIMER_CHANGE(ELS_TURNING_Z_JOG_FEED_UM);
-
-  els_printf("jog: to min, travel: %.2fmm\n", travel);
-  els_turning_zjog_auto(travel);
-}
-
-static void els_turning_zjog_max(void) {
-  double travel = els_turning.zmax - els_turning.zpos;
-
-  if (els_turning.zjog_steps > 0)
-    return;
-
-  ELS_TURNING_TIMER_CHANGE(ELS_TURNING_Z_JOG_FEED_UM);
-
-  els_printf("jog: to max, travel: %.2fmm\n", travel);
-  els_turning_zjog_auto(travel);
-}
-
-// ----------------------------------------------------------------------------------
-// GPIO: setup pins.
-// ----------------------------------------------------------------------------------
-static void els_turning_configure_gpio(void) {
-  els_gpio_mode_output(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  els_gpio_mode_output(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN);
-  els_gpio_mode_output(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-
-  els_turning_disable_z();
-}
-
-static void els_turning_enable_z(void) {
-  // active low.
-  #if ELS_Z_ENA_ACTIVE_LOW
-    els_gpio_clear(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  #else
-    els_gpio_set(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  #endif
-}
-
-static void els_turning_disable_z(void) {
-  // active low.
-  #if ELS_Z_ENA_ACTIVE_LOW
-    els_gpio_set(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  #else
-    els_gpio_clear(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  #endif
 }
 
 // ----------------------------------------------------------------------------------

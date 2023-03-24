@@ -118,7 +118,7 @@ static struct {
 
   bool     locked;
 
-  uint32_t spring_pass_count;
+  uint32_t finish_pass_count;
 
   double   depth;
   double   length;
@@ -148,8 +148,8 @@ static struct {
   // dro
   bool show_dro;
 
-  // only spring pass
-  bool only_spring_pass;
+  // only finish pass
+  bool only_finish_pass;
 } els_convex_ext_r = {
   .depth_of_cut_um = 200,
   .feed_um = 4000,
@@ -339,9 +339,9 @@ static void els_convex_ext_r_display_setting(void) {
   else
     tft_font_write_bg(&tft, 310, 276, text, &noto_sans_mono_bold_20, ILI9481_WHITE, ILI9481_BLACK);
 
-  if (els_convex_ext_r.only_spring_pass) {
+  if (els_convex_ext_r.only_finish_pass) {
     tft_filled_rectangle(&tft, 227, 149, 73, 25, ILI9481_WHITE);
-    tft_font_write_bg(&tft, 230, 149, "SPRING", &noto_sans_mono_bold_14, ILI9481_BLACK, ILI9481_WHITE);
+    tft_font_write_bg(&tft, 230, 149, "FINISH", &noto_sans_mono_bold_14, ILI9481_BLACK, ILI9481_WHITE);
   }
   else {
     tft_filled_rectangle(&tft, 227, 149, 80, 30, ILI9481_BLACK);
@@ -460,8 +460,8 @@ static void els_convex_ext_r_display_refresh(void) {
   if (els_convex_ext_r.op_state != els_convex_ext_r.prev_op_state) {
     els_convex_ext_r.prev_op_state = els_convex_ext_r.op_state;
     tft_filled_rectangle(&tft, 310, 195, 169, 35, ILI9481_BLACK);
-    if (els_convex_ext_r.op_state == ELS_CONVEX_EXT_OP_TURNING && els_convex_ext_r.spring_pass_count > 0) {
-      tft_font_write_bg(&tft, 310, 190, "SPRING", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
+    if (els_convex_ext_r.op_state == ELS_CONVEX_EXT_OP_TURNING && els_convex_ext_r.finish_pass_count > 0) {
+      tft_font_write_bg(&tft, 310, 190, "FINISH", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
     }
     else {
       const char *label = op_labels[els_convex_ext_r.op_state];
@@ -519,7 +519,7 @@ static void els_convex_ext_r_keypad_process(void) {
       break;
     case ELS_KEY_REV_FEED:
       if (els_convex_ext_r.state & (ELS_CONVEX_EXT_IDLE | ELS_CONVEX_EXT_PAUSED)) {
-        els_convex_ext_r.only_spring_pass = !els_convex_ext_r.only_spring_pass;
+        els_convex_ext_r.only_finish_pass = !els_convex_ext_r.only_finish_pass;
         els_convex_ext_r_display_setting();
       }
       break;
@@ -589,8 +589,8 @@ static void els_convex_ext_r_turn(void) {
       if (els_stepper->xbusy)
         break;
 
-      els_convex_ext_r.spring_pass_count = 0;
-      if (els_convex_ext_r.only_spring_pass) {
+      els_convex_ext_r.finish_pass_count = 0;
+      if (els_convex_ext_r.only_finish_pass) {
         els_stepper_move_x(-els_convex_ext_r.depth - els_stepper->xpos + 0.1, els_config->x_retract_jog_mm_s);
         els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_FEED;
       }
@@ -606,7 +606,7 @@ static void els_convex_ext_r_turn(void) {
       remaining = fabs(els_convex_ext_r.xcurr + els_convex_ext_r.depth);
       xd = MIN(els_convex_ext_r.depth_of_cut_um / 1000.0, remaining);
       if (remaining <= (els_convex_ext_r.depth_of_cut_um / 1000.0))
-        els_convex_ext_r.spring_pass_count++;
+        els_convex_ext_r.finish_pass_count++;
 
       els_stepper_move_x(-xd, els_config->x_retract_jog_mm_s);
       els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_PLAN;
@@ -617,7 +617,7 @@ static void els_convex_ext_r_turn(void) {
 
       els_convex_ext_r.xcurr = els_stepper->xpos;
       els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_TURNING;
-      if (els_convex_ext_r.spring_pass_count > 0) {
+      if (els_convex_ext_r.finish_pass_count > 0) {
         els_stepper_move_arc_q2_cw(
           els_convex_ext_r.arc_center_z,
           els_convex_ext_r.arc_center_x,
@@ -643,7 +643,7 @@ static void els_convex_ext_r_turn(void) {
       if (els_stepper->zbusy)
         break;
 
-      if (els_convex_ext_r.spring_pass_count > 0) {
+      if (els_convex_ext_r.finish_pass_count > 0) {
         els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_DONE;
       }
       else {
@@ -663,7 +663,7 @@ static void els_convex_ext_r_turn(void) {
 
       els_convex_ext_r.op_state = ELS_CONVEX_EXT_OP_IDLE;
       els_convex_ext_r.state = ELS_CONVEX_EXT_IDLE;
-      els_convex_ext_r.spring_pass_count = 0;
+      els_convex_ext_r.finish_pass_count = 0;
       break;
   }
 }
@@ -864,6 +864,10 @@ static void els_convex_ext_r_set_zaxes(void) {
         els_convex_ext_r_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_convex_ext_r.state = ELS_CONVEX_EXT_SET_XAXES;
       els_convex_ext_r_display_axes();
@@ -888,6 +892,10 @@ static void els_convex_ext_r_set_xaxes(void) {
         els_convex_ext_r_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->xbusy)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_convex_ext_r.state = ELS_CONVEX_EXT_SET_ZAXES;
       els_convex_ext_r_display_axes();
@@ -902,24 +910,26 @@ static void els_convex_ext_r_set_xaxes(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_convex_ext_r_zjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_convex_ext_r.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
+    step = els_convex_ext_r.encoder_multiplier == 1 ? 0.005 : 0.01 * els_convex_ext_r.encoder_multiplier;
+    delta = (encoder_curr - els_convex_ext_r.encoder_pos) * step;
     els_convex_ext_r.encoder_pos = encoder_curr;
     els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
 }
 
 static void els_convex_ext_r_xjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_convex_ext_r.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_convex_ext_r.encoder_pos) * (0.01 * els_convex_ext_r.encoder_multiplier);
+    step = els_convex_ext_r.encoder_multiplier == 1 ? 0.005 : 0.01 * els_convex_ext_r.encoder_multiplier;
+    delta = (encoder_curr - els_convex_ext_r.encoder_pos) * step;
     els_convex_ext_r.encoder_pos = encoder_curr;
     els_stepper_move_x(delta, els_config->x_jog_mm_s);
   }

@@ -759,6 +759,10 @@ static void els_facing_set_zaxes(void) {
         els_facing_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_facing.state = ELS_FACING_SET_XAXES;
       els_facing_display_axes();
@@ -783,6 +787,10 @@ static void els_facing_set_xaxes(void) {
         els_facing_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->xbusy)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_facing.state = ELS_FACING_SET_ZAXES;
       els_facing_display_axes();
@@ -798,24 +806,26 @@ static void els_facing_set_xaxes(void) {
 // ----------------------------------------------------------------------------------
 
 static void els_facing_zjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_facing.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_facing.encoder_pos) * (0.01 * els_facing.encoder_multiplier);
+    step = els_facing.encoder_multiplier == 1 ? 0.005 : 0.01 * els_facing.encoder_multiplier;
+    delta = (encoder_curr - els_facing.encoder_pos) * step;
     els_facing.encoder_pos = encoder_curr;
     els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
 }
 
 static void els_facing_xjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_facing.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_facing.encoder_pos) * (0.01 * els_facing.encoder_multiplier);
+    step = els_facing.encoder_multiplier == 1 ? 0.005 : 0.01 * els_facing.encoder_multiplier;
+    delta = (encoder_curr - els_facing.encoder_pos) * step;
     els_facing.encoder_pos = encoder_curr;
     els_stepper_move_x(delta, els_config->x_jog_mm_s);
   }

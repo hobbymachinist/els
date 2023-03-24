@@ -78,7 +78,7 @@ typedef enum {
   ELS_BORE_DIM_OP_ATXLZM  = 7,
   ELS_BORE_DIM_OP_ATX0ZM  = 8,
   ELS_BORE_DIM_OP_FEED_IN = 9,
-  ELS_BORE_DIM_OP_SPRING  = 10,
+  ELS_BORE_DIM_OP_FINISH  = 10,
   ELS_BORE_DIM_OP_DONE    = 11
 } els_bore_dimension_op_state_t;
 
@@ -93,7 +93,7 @@ static const char *op_labels[] = {
   "BACKOFF",
   "RETURN ",
   "FEED IN",
-  "SPRING ",
+  "FINISH ",
   "DONE   "
 };
 
@@ -589,8 +589,8 @@ static void els_bore_dimension_turn(void) {
         els_bore_dimension.op_state = ELS_BORE_DIM_OP_FEED_IN;
       }
       else {
-        // spring pass
-        els_bore_dimension.op_state = ELS_BORE_DIM_OP_SPRING;
+        // finish pass
+        els_bore_dimension.op_state = ELS_BORE_DIM_OP_FINISH;
         els_stepper_move_z(0 - els_stepper->zpos, els_bore_dimension.feed_mm_s);
       }
       break;
@@ -601,7 +601,7 @@ static void els_bore_dimension_turn(void) {
       els_bore_dimension.op_state = ELS_BORE_DIM_OP_ATX0;
       els_stepper_move_x_no_accel(-els_bore_dimension.radius, els_bore_dimension.feed_mm_s);
       break;
-    case ELS_BORE_DIM_OP_SPRING:
+    case ELS_BORE_DIM_OP_FINISH:
       if (els_stepper->zbusy)
         break;
 
@@ -760,6 +760,10 @@ static void els_bore_dimension_set_zaxes(void) {
         els_bore_dimension_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_bore_dimension.state = ELS_BORE_DIM_SET_XAXES;
       els_bore_dimension_display_axes();
@@ -784,6 +788,10 @@ static void els_bore_dimension_set_xaxes(void) {
         els_bore_dimension_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->xbusy)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_bore_dimension.state = ELS_BORE_DIM_SET_ZAXES;
       els_bore_dimension_display_axes();
@@ -799,24 +807,26 @@ static void els_bore_dimension_set_xaxes(void) {
 // ----------------------------------------------------------------------------------
 
 static void els_bore_dimension_zjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_bore_dimension.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_bore_dimension.encoder_pos) * (0.01 * els_bore_dimension.encoder_multiplier);
+    step = els_bore_dimension.encoder_multiplier == 1 ? 0.005 : 0.01 * els_bore_dimension.encoder_multiplier;
+    delta = (encoder_curr - els_bore_dimension.encoder_pos) * step;
     els_bore_dimension.encoder_pos = encoder_curr;
     els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
 }
 
 static void els_bore_dimension_xjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_bore_dimension.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_bore_dimension.encoder_pos) * (0.01 * els_bore_dimension.encoder_multiplier);
+    step = els_bore_dimension.encoder_multiplier == 1 ? 0.005 : 0.01 * els_bore_dimension.encoder_multiplier;
+    delta = (encoder_curr - els_bore_dimension.encoder_pos) * step;
     els_bore_dimension.encoder_pos = encoder_curr;
     els_stepper_move_x(delta, els_config->x_jog_mm_s);
   }

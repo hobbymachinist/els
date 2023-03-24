@@ -31,14 +31,9 @@
 #include "encoder.h"
 #include "spindle.h"
 #include "keypad.h"
+#include "stepper.h"
 #include "threading.h"
 #include "utils.h"
-
-#define ELS_THREADING_TIMER         TIM4
-#define ELS_THREADING_TIMER_IRQ     NVIC_TIM4_IRQ
-#define ELS_THREADING_TIMER_MAX     UINT16_MAX
-#define ELS_THREADING_TIMER_RCC     RCC_TIM4
-#define ELS_THREADING_TIMER_RST     RST_TIM4
 
 #define ELS_THREADING_PITCH_MIN_UM  100
 #define ELS_THREADING_PITCH_MAX_UM  5000
@@ -57,17 +52,14 @@ extern const tft_font_t inconsolata_lgc_bold_14;
 // Config
 //==============================================================================
 typedef enum {
-  ELS_THREADING_IDLE      = 1,
-  ELS_THREADING_PAUSED    = 2,
-  ELS_THREADING_ACTIVE    = 4,
-  ELS_THREADING_SET_PITCH = 8,
-  ELS_THREADING_SET_ZAXES = 16,
-  ELS_THREADING_SET_XAXES = 32,
-  ELS_THREADING_ZLIM_MIN  = 64,
-  ELS_THREADING_ZLIM_MAX  = 128,
-  ELS_THREADING_ZJOG      = 256,
-  ELS_THREADING_SET_MIN   = 512,
-  ELS_THREADING_SET_MAX   = 1024
+  ELS_THREADING_IDLE       = 1,
+  ELS_THREADING_PAUSED     = 2,
+  ELS_THREADING_ACTIVE     = 4,
+  ELS_THREADING_SET_PITCH  = 8,
+  ELS_THREADING_SET_ZAXES  = 16,
+  ELS_THREADING_SET_XAXES  = 32,
+  ELS_THREADING_SET_LENGTH = 64,
+  ELS_THREADING_ZLIM       = 128
 } els_threading_state_t;
 
 typedef enum {
@@ -75,23 +67,10 @@ typedef enum {
   ELS_THREADING_PITCH_ARB = 1
 } els_thread_pitch_t;
 
-#define ELS_THREADING_ZJOG_PULSES         (els_config->z_pulses_per_mm / 10)
+#define ELS_THREADING_SET_ZDIR_LR   els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
+#define ELS_THREADING_SET_ZDIR_RL   els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
 
-#define ELS_THREADING_SET_ZDIR_LR         els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-#define ELS_THREADING_SET_ZDIR_RL         els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-
-#define ELS_THREADING_Z_BACKLASH_FIX      do { \
-                                           if (els_threading.zdir != 0 && els_config->z_backlash_pulses) {   \
-                                             els_printf("backlash compensation\n");                          \
-                                             for (size_t _n = 0; _n < els_config->z_backlash_pulses; _n++) { \
-                                               els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);                  \
-                                               els_delay_microseconds(ELS_BACKLASH_DELAY_US);                \
-                                               els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);                \
-                                               els_delay_microseconds(ELS_BACKLASH_DELAY_US);                \
-                                             }                                                               \
-                                           }                                                                 \
-                                         } while (0)
-
+#define PRECISION                   (1e-2)
 
 //==============================================================================
 // Internal state
@@ -106,22 +85,14 @@ static struct {
   bool     locked;
 
   // z-axis state & config
-  double   zpos;
-  double   zmin;
-  double   zmax;
+  double   length;
   double   zdelta;
-  int      zdir;
 
   // input read for jogging
   int32_t  encoder_pos;
 
   // encoder multiplier
   int16_t encoder_multiplier;
-
-  // jogging
-  int32_t  stepper_pulse_pos;
-  int32_t  stepper_pulse_curr;
-  int32_t  zjog_steps;
 
   // spindle
   els_spindle_direction_t spindle_dir;
@@ -144,9 +115,7 @@ static struct {
   // default to M5
   .pitch_table_index = 4,
   .pitch_um = 800,
-  .zpos = 0,
-  .zmin = 0,
-  .zmax = 0,
+  .length = 10
 };
 
 // #######################################################################################
@@ -219,22 +188,17 @@ static void els_threading_display_header(void);
 static void els_threading_display_encoder_pips(void);
 
 static void els_threading_set_pitch(void);
-static void els_threading_set_min(void);
-static void els_threading_set_max(void);
+static void els_threading_set_length(void);
 
 static void els_threading_set_zaxes(void);
 static void els_threading_set_xaxes(void);
 
+static void els_threading_handle_zlim(void);
+
 static void els_threading_recalculate_pitch_ratio(void);
 
 static void els_threading_configure_gpio(void);
-static void els_threading_configure_timer(void);
 
-static void els_threading_timer_update(int32_t feed_um);
-static void els_threading_timer_start(void);
-static void els_threading_timer_stop(void);
-
-static void els_threading_timer_isr(void) __attribute__ ((interrupt ("IRQ")));
 static void els_threading_encoder_isr(void) __attribute__ ((interrupt ("IRQ")));
 
 static void els_threading_keypad_process(void);
@@ -244,13 +208,6 @@ static void els_threading_disable_z(void);
 
 // manual jogging
 static void els_threading_zjog(void);
-static void els_threading_zjog_sync(void);
-static void els_threading_zjog_pulse(void);
-
-// auto jog to min / max
-static void els_threading_zjog_min(void);
-static void els_threading_zjog_max(void);
-static void els_threading_zjog_auto(double travel);
 
 //==============================================================================
 // API
@@ -263,7 +220,6 @@ void els_threading_start(void) {
   char text[32];
 
   els_threading_configure_gpio();
-  els_threading_configure_timer();
 
   tft_filled_rectangle(&tft, 0,   0, 480, 320, ILI9481_BLACK);
 
@@ -287,18 +243,9 @@ void els_threading_start(void) {
   // reset state
   els_threading.prev_state = 0;
   els_threading.prev_dir = 0;
-  els_threading.zpos = 0;
-  els_threading.zmin = 0;
-  els_threading.zmax = 10; // XXX
-
-  // reset isr
-  els_nvic_irq_set_handler(ELS_THREADING_TIMER_IRQ, els_threading_timer_isr);
 
   // gpio / exti isr
   els_nvic_irq_set_handler(ELS_S_ENCODER2_IRQ, els_threading_encoder_isr);
-
-  els_threading_timer_update(els_config->z_jog_mm_s * 1e3);
-  els_threading_timer_start();
 
   els_threading.state = ELS_THREADING_IDLE;
 
@@ -315,13 +262,16 @@ void els_threading_start(void) {
   nvic_set_priority(ELS_S_ENCODER2_IRQ, 4);
   nvic_enable_irq(ELS_S_ENCODER2_IRQ);
 
-  els_threading_enable_z();
+  els_stepper_start();
+  els_stepper_disable_x();
+
+  // Z-axis movement per pulse in mm.
+  els_threading.zdelta = (1.0 / (double)els_config->z_pulses_per_mm);
 }
 
 void els_threading_stop(void) {
-  els_threading_timer_stop();
   nvic_disable_irq(ELS_S_ENCODER2_IRQ);
-  els_threading_disable_z();
+  els_stepper_stop();
 }
 
 void els_threading_update(void) {
@@ -346,19 +296,19 @@ void els_threading_update(void) {
     case ELS_THREADING_SET_PITCH:
       els_threading_set_pitch();
       break;
-    case ELS_THREADING_SET_MIN:
-      els_threading_set_min();
-      break;
-    case ELS_THREADING_SET_MAX:
-      els_threading_set_max();
+    case ELS_THREADING_SET_LENGTH:
+      els_threading_set_length();
       break;
     case ELS_THREADING_SET_XAXES:
       els_threading_set_xaxes();
       break;
+    case ELS_THREADING_SET_ZAXES:
+      els_threading_set_zaxes();
+      break;
+    case ELS_THREADING_ZLIM:
+      els_threading_handle_zlim();
+      break;
     default:
-      if (els_threading.state &
-         (ELS_THREADING_SET_ZAXES | ELS_THREADING_ZLIM_MIN | ELS_THREADING_ZLIM_MAX | ELS_THREADING_ZJOG))
-        els_threading_set_zaxes();
       break;
   }
 
@@ -377,28 +327,8 @@ void els_threading_update(void) {
 //==============================================================================
 // ISR
 //==============================================================================
-static volatile bool z_pul_state = 0;
-static void els_threading_timer_isr(void) {
-  TIM_SR(ELS_THREADING_TIMER) &= ~TIM_SR_UIF;
-
-  if (els_threading.state & ELS_THREADING_ZJOG) {
-    if (els_threading.zjog_steps > 0) {
-      if (z_pul_state)
-        els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-      else
-        els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-
-      if (!z_pul_state) {
-        els_threading.zpos += (els_threading.zdir * els_threading.zdelta);
-        els_threading.zjog_steps--;
-      }
-
-      z_pul_state = !z_pul_state;
-    }
-  }
-}
-
 static volatile bool reset_pulse_pending = false;
+
 static void els_threading_encoder_isr(void) {
 #if ELS_S_ENCODER2_PINA > GPIO4
   if (exti_get_flag_status(ELS_S_ENCODER2_EXTI)) {
@@ -426,12 +356,14 @@ static void els_threading_encoder_isr(void) {
     if (reset_pulse_pending) {
       els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
       reset_pulse_pending = false;
-      els_threading.zpos += (els_threading.zdir * els_threading.zdelta);
 
-      if (els_threading.zpos <= els_threading.zmin)
-        els_threading.state = ELS_THREADING_ZLIM_MIN;
-      else if (els_threading.zpos >= els_threading.zmax)
-        els_threading.state = ELS_THREADING_ZLIM_MAX;
+      if (els_config->z_closed_loop)
+        els_stepper->zpos = (double)els_dro.zpos_um * 1e-3;
+      else
+        els_stepper->zpos += (els_stepper->zdir * els_threading.zdelta);
+
+      if (els_stepper->zdir * els_stepper->zpos >= els_threading.length)
+        els_threading.state = ELS_THREADING_ZLIM;
     }
 
     els_threading.pitch_curr += els_threading.pitch_n;
@@ -456,11 +388,6 @@ static void els_threading_encoder_isr(void) {
 // ----------------------------------------------------------------------------------
 static void els_threading_display_pitch(void) {
   char text[32];
-
-  if (els_threading.pitch_reverse)
-    tft_font_write_bg(&tft, 220, 102, "R", &noto_sans_mono_bold_26, ILI9481_GREEN, ILI9481_BLACK);
-  else
-    tft_filled_rectangle(&tft, 220, 110, 30, 30, ILI9481_BLACK);
 
   els_sprint_double13(text, sizeof(text), els_threading.pitch_um / 1000.0, "PITCH");
   if (els_threading.state == ELS_THREADING_SET_PITCH)
@@ -488,32 +415,33 @@ static void els_threading_display_pitch_type(void) {
 static void els_threading_display_axes(void) {
   char text[32];
 
-  els_sprint_double33(text, sizeof(text), els_threading.zpos, "Z");
+  els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
   if (els_threading.state & ELS_THREADING_SET_ZAXES)
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double3(text, sizeof(text), els_threading.zmin, "MIN");
-  if (els_threading.state == ELS_THREADING_SET_MIN)
+  els_sprint_double3(text, sizeof(text), els_threading.length, "LEN");
+  if (els_threading.state == ELS_THREADING_SET_LENGTH)
     tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
-
-  els_sprint_double3(text, sizeof(text), els_threading.zmax, "MAX");
-  if (els_threading.state == ELS_THREADING_SET_MAX)
-    tft_font_write_bg(&tft, 270, 142, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
-  else
-    tft_font_write_bg(&tft, 270, 142, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   tft_font_write_bg(&tft, 8, 142, "LIMITS ON", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
 }
 
 static void els_threading_display_header(void) {
-  tft_rgb_t color = els_threading.locked ? ILI9481_RED : ILI9481_FOREST;
+  if (els_threading.pitch_reverse) {
+    tft_rgb_t color = els_threading.locked ? ILI9481_RED : ILI9481_GREEN;
+    tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+    tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING - L", &noto_sans_mono_bold_26, ILI9481_BLACK, color);
+  }
+  else {
+    tft_rgb_t color = els_threading.locked ? ILI9481_RED : ILI9481_FOREST;
+    tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
+    tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING - R", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  }
 
-  tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
-  tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
   els_threading_display_encoder_pips();
 }
 
@@ -522,12 +450,13 @@ static void els_threading_display_encoder_pips(void) {
   size_t pips = els_threading.encoder_multiplier;
   pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
 
+  tft_rgb_t color = (els_threading.pitch_reverse ? ILI9481_BLACK : ILI9481_WHITE);
+
   for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
     tft_filled_rectangle(&tft,
       440, 32 - (n * 10 + spacing * 2),
       15 + n * 10, 10,
-      (n < pips ? ILI9481_WHITE : els_threading.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR2));
-
+      (n < pips ? color : els_threading.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR2));
 }
 
 static void els_threading_display_refresh(void) {
@@ -574,21 +503,13 @@ static void els_threading_display_refresh(void) {
       case ELS_THREADING_SET_XAXES:
         tft_font_write_bg(&tft, x, y, "X AXIS", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
         break;
-      case ELS_THREADING_ZLIM_MIN:
-        tft_font_write_bg(&tft, x, y, "Z MIN", &noto_sans_mono_bold_26, ILI9481_RED, ILI9481_BLACK);
+      case ELS_THREADING_SET_LENGTH:
+        tft_font_write_bg(&tft, x, y, "LENGTH", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
         break;
-      case ELS_THREADING_ZLIM_MAX:
-        tft_font_write_bg(&tft, x, y, "Z MAX", &noto_sans_mono_bold_26, ILI9481_RED, ILI9481_BLACK);
-        break;
-      case ELS_THREADING_SET_MIN:
-        tft_font_write_bg(&tft, x, y, "SET MIN", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
-        break;
-      case ELS_THREADING_SET_MAX:
-        tft_font_write_bg(&tft, x, y, "SET MAX", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
+      case ELS_THREADING_ZLIM:
+        tft_font_write_bg(&tft, x, y, "Z LIMIT", &noto_sans_mono_bold_26, ILI9481_RED, ILI9481_BLACK);
         break;
       default:
-        if (els_threading.state & ELS_THREADING_ZJOG)
-          tft_font_write_bg(&tft, x, y, "Z JOG", &noto_sans_mono_bold_26, ILI9481_GREEN, ILI9481_BLACK);
         break;
     }
   }
@@ -604,17 +525,23 @@ static void els_threading_display_refresh(void) {
   snprintf(text, sizeof(text), "%04d", els_spindle_get_counter());
   tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
-  els_sprint_double33(text, sizeof(text), els_threading.zpos, "Z");
+  els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
   if (els_threading.state & ELS_THREADING_SET_ZAXES)
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double33(text, sizeof(text), (els_dro.zpos_um / 1000.0), "Z");
-  tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  if (els_threading.state & ELS_THREADING_SET_ZAXES)
+    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  else
+    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double33(text, sizeof(text), (els_dro.xpos_um / 1000.0), "X");
-  tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  if (els_threading.state & ELS_THREADING_SET_XAXES)
+    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  else
+    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 }
 
 // ----------------------------------------------------------------------------------
@@ -643,14 +570,12 @@ static void els_threading_keypad_process(void) {
         els_threading.state = ELS_THREADING_SET_ZAXES;
         els_encoder_set_rotation_debounce(25e3);
         els_threading.encoder_pos = 0;
-        els_threading.stepper_pulse_curr = 0;
-        els_threading.stepper_pulse_pos  = 0;
         els_encoder_reset();
       }
       break;
-    case ELS_KEY_FUN_F2:
+    case ELS_KEY_FUN_F1:
       els_encoder_reset();
-      els_threading.state = ELS_THREADING_SET_MIN;
+      els_threading.state = ELS_THREADING_SET_LENGTH;
       els_threading_display_axes();
       break;
     default:
@@ -664,30 +589,31 @@ static void els_threading_keypad_process(void) {
 static void els_threading_run(void) {
   int zdir = (els_threading.pitch_reverse ? 1 : -1);
 
-  if (els_threading.zjog_steps == 0) {
-    if (els_threading.zdir != zdir) {
-      if (zdir == 1) {
-        ELS_THREADING_SET_ZDIR_LR;
-        ELS_THREADING_Z_BACKLASH_FIX;
-      }
-      else {
-        ELS_THREADING_SET_ZDIR_RL;
-        ELS_THREADING_Z_BACKLASH_FIX;
-      }
-      els_threading.zdir = zdir;
-    }
-  }
+  switch (els_threading.spindle_dir) {
+    case ELS_S_DIRECTION_CCW:
+    case ELS_S_DIRECTION_CW:
+      if (els_stepper->zbusy)
+        break;
 
-  if (els_threading.spindle_dir != ELS_S_DIRECTION_IDLE) {
-    if (els_threading.state == ELS_THREADING_PAUSED && els_spindle_get_counter() == 0) {
-      els_threading.pitch_curr = 0;
-      els_threading.state = ELS_THREADING_ACTIVE;
-    }
-  }
-  else {
-   els_threading.zdir = 0;
-   if (els_threading.state == ELS_THREADING_ACTIVE)
-      els_threading.state = ELS_THREADING_PAUSED;
+      if (els_stepper->zdir != zdir) {
+        els_stepper->zdir = zdir;
+        if (zdir == 1)
+          ELS_THREADING_SET_ZDIR_LR;
+        else
+          ELS_THREADING_SET_ZDIR_RL;
+        els_stepper_z_backlash_fix();
+      }
+
+      if (els_threading.state == ELS_THREADING_PAUSED && els_spindle_get_counter() == 0) {
+        els_threading.pitch_curr = 0;
+        els_threading.state = ELS_THREADING_ACTIVE;
+      }
+      break;
+
+    default:
+      if (els_threading.state == ELS_THREADING_ACTIVE)
+        els_threading.state = ELS_THREADING_PAUSED;
+      break;
   }
 }
 
@@ -723,6 +649,8 @@ static void els_threading_set_pitch(void) {
     case ELS_KEY_REV_FEED:
       els_threading.pitch_reverse = !els_threading.pitch_reverse;
       els_threading_display_pitch();
+      els_threading_display_header();
+      els_threading_display_encoder_pips();
       break;
     default:
       encoder_curr = els_encoder_read();
@@ -761,40 +689,27 @@ static void els_threading_set_pitch(void) {
 // Function 3: Z Axis - limits & jogging
 // ----------------------------------------------------------------------------------
 static void els_threading_set_zaxes(void) {
-  els_threading_zjog_sync();
-  els_threading_zjog_pulse();
-
   switch(els_keypad_read()) {
     case ELS_KEY_EXIT:
-      els_threading.state = (els_threading.state & ELS_THREADING_ZJOG) ? ELS_THREADING_SET_ZAXES : ELS_THREADING_IDLE;
-      els_threading.stepper_pulse_pos = els_threading.stepper_pulse_curr = 0;
-      els_threading.zjog_steps = 0;
+      els_threading.state = ELS_THREADING_IDLE;
       break;
-    case ELS_KEY_SET_ZX_MIN:
-      if (els_threading.state == ELS_THREADING_SET_ZAXES) {
-        els_threading.zmin = els_threading.zpos;
-        els_threading_display_axes();
-      }
-      break;
-    case ELS_KEY_SET_ZX_MAX:
-      if (els_threading.state == ELS_THREADING_SET_ZAXES) {
-        els_threading.zmax = els_threading.zpos;
-        els_threading_display_axes();
-      }
-      break;
+
     case ELS_KEY_SET_ZX_ORI:
-      if (els_threading.state == ELS_THREADING_SET_ZAXES) {
-        els_dro_zero_z();
-        els_threading.zpos = 0;
-        els_threading_display_axes();
+      if (els_stepper->zbusy)
+        break;
+      els_dro_zero_z();
+      els_stepper_zero_z();
+      els_threading_display_axes();
+      break;
+
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy) {
+        if (els_config->z_closed_loop)
+          els_stepper->zpos = (double)els_dro.zpos_um * 1e-3;
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
       }
       break;
-    case ELS_KEY_JOG_ZX_MIN:
-      els_threading_zjog_min();
-      break;
-    case ELS_KEY_JOG_ZX_MAX:
-      els_threading_zjog_max();
-      break;
+
     case ELS_KEY_SET_ZX:
       els_threading.state = ELS_THREADING_SET_XAXES;
       els_threading_display_axes();
@@ -826,32 +741,30 @@ static void els_threading_set_xaxes(void) {
   }
 }
 
-
-static void els_threading_set_min(void) {
-  int32_t encoder_curr;
+static void els_threading_handle_zlim(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
-      els_threading.state = ELS_THREADING_IDLE;
-      els_threading_display_axes();
-      break;
-    case ELS_KEY_FUN_F2:
-      els_threading.state = ELS_THREADING_SET_MAX;
-      els_threading_display_axes();
-      break;
-    default:
-      encoder_curr = els_encoder_read();
-      if (els_threading.encoder_pos != encoder_curr) {
-        int32_t delta = (encoder_curr - els_threading.encoder_pos);
-        els_threading.zmin += (delta * 0.01 * els_threading.encoder_multiplier);
-        els_threading.encoder_pos = encoder_curr;
+      if (!els_stepper->zbusy) {
+        els_threading.state = ELS_THREADING_IDLE;
         els_threading_display_axes();
       }
+      break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy) {
+        if (els_config->z_closed_loop)
+          els_stepper->zpos = (double)els_dro.zpos_um * 1e-3;
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+      }
+      break;
+    default:
+      if (!els_stepper->zbusy && fabs(els_stepper->zpos) <= PRECISION)
+        els_threading.state = ELS_THREADING_IDLE;
       break;
   }
 }
 
-static void els_threading_set_max(void) {
+static void els_threading_set_length(void) {
   int32_t encoder_curr;
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
@@ -859,15 +772,11 @@ static void els_threading_set_max(void) {
       els_threading.state = ELS_THREADING_IDLE;
       els_threading_display_axes();
       break;
-    case ELS_KEY_FUN_F2:
-      els_threading.state = ELS_THREADING_SET_MIN;
-      els_threading_display_axes();
-      break;
     default:
       encoder_curr = els_encoder_read();
       if (els_threading.encoder_pos != encoder_curr) {
         int32_t delta = (encoder_curr - els_threading.encoder_pos);
-        els_threading.zmax += (delta * 0.01 * els_threading.encoder_multiplier);
+        els_threading.length += (delta * 0.01 * els_threading.encoder_multiplier);
         els_threading.encoder_pos = encoder_curr;
         els_threading_display_axes();
       }
@@ -879,109 +788,22 @@ static void els_threading_set_max(void) {
 // Manual Jog
 // ----------------------------------------------------------------------------------
 static void els_threading_zjog(void) {
-  double delta;
-  int32_t encoder_curr;
+  double  delta, step;
+  int32_t  encoder_curr;
 
   encoder_curr = els_encoder_read();
   if (els_threading.encoder_pos != encoder_curr) {
-    // ----------------------------------------------------------------------------------
-    // Jog pulse calculation
-    // ----------------------------------------------------------------------------------
-    delta = (encoder_curr - els_threading.encoder_pos) * 0.01 * els_threading.encoder_multiplier;
-    els_threading.stepper_pulse_curr += (delta * els_config->z_pulses_per_mm);
+    step = els_threading.encoder_multiplier == 1 ? 0.005 : 0.01 * els_threading.encoder_multiplier;
+    delta = (encoder_curr - els_threading.encoder_pos) * step;
     els_threading.encoder_pos = encoder_curr;
-    els_threading_display_axes();
+    els_stepper_move_z(delta, els_config->z_jog_mm_s);
   }
-}
-
-static void els_threading_zjog_sync(void) {
-  if ((els_threading.state & ELS_THREADING_ZJOG) && els_threading.zjog_steps == 0) {
-    els_threading.state &= ~ELS_THREADING_ZJOG;
-
-    if ((els_threading.state & (ELS_THREADING_ZLIM_MIN | ELS_THREADING_ZLIM_MAX)) &&
-        ((els_threading.zpos >= els_threading.zmin || (els_threading.zmin - els_threading.zpos) <= 1e-3) &&
-         (els_threading.zpos <= els_threading.zmax || (els_threading.zpos - els_threading.zmax) <= 1e-3))) {
-      els_threading.state = ELS_THREADING_IDLE;
-    }
-  }
-}
-
-static void els_threading_zjog_pulse(void) {
-  bool backlash;
-  int steps, dir = 0;
-
-  if (els_threading.stepper_pulse_pos != els_threading.stepper_pulse_curr) {
-    if (els_threading.stepper_pulse_curr < els_threading.stepper_pulse_pos)
-      dir = -1;
-    else
-      dir = 1;
-
-    if (els_threading.zdir != dir && els_threading.zjog_steps > 0)
-      return;
-
-    if (dir > 0)
-      ELS_THREADING_SET_ZDIR_LR;
-    else
-      ELS_THREADING_SET_ZDIR_RL;
-
-    backlash = (els_threading.zdir != dir);
-    els_threading.zdir = dir;
-    if (backlash) {
-      ELS_THREADING_Z_BACKLASH_FIX;
-    }
-
-    steps = abs(els_threading.stepper_pulse_curr - els_threading.stepper_pulse_pos);
-    els_threading.stepper_pulse_pos = els_threading.stepper_pulse_curr;
-    els_threading.zjog_steps += steps;
-    els_threading.state |= ELS_THREADING_ZJOG;
-  }
-}
-
-// ----------------------------------------------------------------------------------
-// Auto Jog to Min / Max
-// ----------------------------------------------------------------------------------
-static void els_threading_zjog_auto(double travel) {
-  if (travel > 0) {
-    ELS_THREADING_SET_ZDIR_LR;
-    if (els_threading.zdir != 1)
-      ELS_THREADING_Z_BACKLASH_FIX;
-    els_threading.zdir = 1;
-    els_threading.zjog_steps = (int32_t)round(travel * els_config->z_pulses_per_mm);
-    els_threading.state |= ELS_THREADING_ZJOG;
-  }
-  else if (travel < 0) {
-    ELS_THREADING_SET_ZDIR_RL;
-    if (els_threading.zdir != -1)
-      ELS_THREADING_Z_BACKLASH_FIX;
-    els_threading.zdir = -1;
-    els_threading.zjog_steps = (int32_t)round(-travel * els_config->z_pulses_per_mm);
-    els_threading.state |= ELS_THREADING_ZJOG;
-  }
-}
-
-static void els_threading_zjog_min(void) {
-  double travel = els_threading.zmin - els_threading.zpos;
-  els_printf("jog: to min, travel: %.2fmm\n", travel);
-  els_threading_zjog_auto(travel);
-}
-
-static void els_threading_zjog_max(void) {
-  double travel = els_threading.zmax - els_threading.zpos;
-
-  els_printf("jog: to max, travel: %.2fmm\n", travel);
-  els_threading_zjog_auto(travel);
 }
 
 // ----------------------------------------------------------------------------------
 // GPIO: setup pins.
 // ----------------------------------------------------------------------------------
 static void els_threading_configure_gpio(void) {
-  els_gpio_mode_output(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  els_gpio_mode_output(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN);
-  els_gpio_mode_output(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-
-  els_threading_disable_z();
-
   gpio_mode_setup(ELS_S_ENCODER2_PORTA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, ELS_S_ENCODER2_PINA);
   gpio_mode_setup(ELS_S_ENCODER2_PORTB, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, ELS_S_ENCODER2_PINB);
 
@@ -990,81 +812,6 @@ static void els_threading_configure_gpio(void) {
   exti_enable_request(ELS_S_ENCODER2_EXTI);
 }
 
-static void els_threading_enable_z(void) {
-  // active low.
-  #if ELS_Z_ENA_ACTIVE_LOW
-    els_gpio_clear(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  #else
-    els_gpio_set(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  #endif
-}
-
-static void els_threading_disable_z(void) {
-  // active low.
-  #if ELS_Z_ENA_ACTIVE_LOW
-    els_gpio_set(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  #else
-    els_gpio_clear(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
-  #endif
-}
-
-// ----------------------------------------------------------------------------------
-// Timer functions.
-// ----------------------------------------------------------------------------------
-//
-// Clock setup.
-static void els_threading_configure_timer(void) {
-  rcc_periph_clock_enable(ELS_THREADING_TIMER_RCC);
-  rcc_periph_reset_pulse(ELS_THREADING_TIMER_RST);
-
-  // clock division 0, alignment edge, count up.
-  timer_set_mode(ELS_THREADING_TIMER, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
-
-  // 10us counter, ~100KHz
-  timer_set_prescaler(ELS_THREADING_TIMER, ((rcc_apb1_frequency * 2) / 100e3) - 1);
-
-  // disable preload
-  timer_disable_preload(ELS_THREADING_TIMER);
-  timer_continuous_mode(ELS_THREADING_TIMER);
-
-  nvic_set_priority(ELS_THREADING_TIMER_IRQ, 4);
-  nvic_enable_irq(ELS_THREADING_TIMER_IRQ);
-  timer_enable_update_event(ELS_THREADING_TIMER);
-}
-
-static void els_threading_timer_start(void) {
-  timer_enable_counter(ELS_THREADING_TIMER);
-  timer_enable_irq(ELS_THREADING_TIMER, TIM_DIER_UIE);
-}
-
-static void els_threading_timer_stop(void) {
-  timer_disable_irq(ELS_THREADING_TIMER, TIM_DIER_UIE);
-  timer_disable_counter(ELS_THREADING_TIMER);
-}
-
 bool els_threading_busy(void) {
   return els_threading.state != ELS_THREADING_IDLE;
 }
-
-// Update timer frequency for required feed rate.
-static void els_threading_timer_update(int32_t feed_um) {
-  uint32_t res;
-
-  // Z-axis movement per pulse in mm.
-  els_threading.zdelta = (1.0 / (double)els_config->z_pulses_per_mm);
-
-  // Figure out how many pulses per second is required for the feed speed.
-  // Ignore rounding errors, we don't need to be super accurate here.
-  //
-  res = (feed_um * els_config->z_pulses_per_mm) / 1000;
-  // We need to clock at twice the rate to toggle the gpio.
-  res = res * 2;
-
-  // Clock's at 100Khz, figure out the period
-  // TODO: check if period is 0 - 65535
-  res = 100e3 / res;
-
-  els_threading_timer_stop();
-  timer_set_period(ELS_THREADING_TIMER, res);
-}
-

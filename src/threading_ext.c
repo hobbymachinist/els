@@ -608,11 +608,13 @@ static void els_threading_ext_display_encoder_pips(void) {
   size_t pips = els_threading_ext.encoder_multiplier;
   pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
 
+  tft_rgb_t color = (els_threading_ext.pitch_reverse ? ILI9481_BLACK : ILI9481_WHITE);
+
   for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
     tft_filled_rectangle(&tft,
       440, 32 - (n * 10 + spacing * 2),
       15 + n * 10, 10,
-      (n < pips ? ILI9481_WHITE : els_threading_ext.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR2));
+      (n < pips ? color : els_threading_ext.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR2));
 }
 
 static void els_threading_ext_display_refresh(void) {
@@ -792,6 +794,7 @@ static void els_threading_ext_thread(void) {
       break;
     case ELS_THREADING_OP_ATZ0:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
+        els_threading_ext_set_zdir();
         if (els_spindle_get_counter() == 0)
           els_threading_ext.op_state = ELS_THREADING_OP_THREAD;
       }
@@ -818,8 +821,9 @@ static void els_threading_ext_thread(void) {
       break;
     case ELS_THREADING_OP_ATZ0XM:
       if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_threading_ext_set_zdir();
-        if ((els_threading_ext.depth + els_stepper->xpos) > PRECISION) {
+        if (els_threading_ext.spring_pass_count > 0)
+          els_threading_ext.op_state = ELS_THREADING_OP_SPRING;
+        else if ((els_threading_ext.depth + els_stepper->xpos) > PRECISION) {
           double xd, zd;
 
           xd = MIN(
@@ -914,6 +918,7 @@ static void els_threading_ext_set_pitch(void) {
     case ELS_KEY_REV_FEED:
       els_threading_ext.pitch_reverse = !els_threading_ext.pitch_reverse;
       els_threading_ext_display_header();
+      els_threading_ext_display_encoder_pips();
       tft_filled_rectangle(&tft, 0, 200, 300, 120, ILI9481_BLACK);
       if (els_threading_ext.show_dro)
         els_threading_ext_display_axes();
@@ -1061,6 +1066,10 @@ static void els_threading_ext_set_zaxes(void) {
         els_threading_ext_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_threading_ext.state = ELS_THREADING_SET_XAXES;
       els_threading_ext_display_axes();
@@ -1085,6 +1094,10 @@ static void els_threading_ext_set_xaxes(void) {
         els_threading_ext_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->xbusy)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_threading_ext.state = ELS_THREADING_SET_ZAXES;
       els_threading_ext_display_axes();
@@ -1100,13 +1113,14 @@ static void els_threading_ext_set_xaxes(void) {
 // ----------------------------------------------------------------------------------
 
 static void els_threading_ext_zjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   els_threading_ext_zjog_sync();
   encoder_curr = els_encoder_read();
   if (els_threading_ext.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_threading_ext.encoder_pos) * 0.01 * els_threading_ext.encoder_multiplier;
+    step = els_threading_ext.encoder_multiplier == 1 ? 0.005 : 0.01 * els_threading_ext.encoder_multiplier;
+    delta = (encoder_curr - els_threading_ext.encoder_pos) * step;
     els_threading_ext.state |= ELS_THREADING_ZJOG;
     els_stepper_move_z(delta, els_config->z_jog_mm_s);
     els_threading_ext.encoder_pos = encoder_curr;
@@ -1121,13 +1135,14 @@ static void els_threading_ext_zjog_sync(void) {
 }
 
 static void els_threading_ext_xjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   els_threading_ext_xjog_sync();
   encoder_curr = els_encoder_read();
   if (els_threading_ext.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_threading_ext.encoder_pos) * 0.01 * els_threading_ext.encoder_multiplier;
+    step = els_threading_ext.encoder_multiplier == 1 ? 0.005 : 0.01 * els_threading_ext.encoder_multiplier;
+    delta = (encoder_curr - els_threading_ext.encoder_pos) * step;
     els_threading_ext.state |= ELS_THREADING_XJOG;
     els_stepper_move_x(delta, els_config->x_jog_mm_s);
     els_threading_ext.encoder_pos = encoder_curr;

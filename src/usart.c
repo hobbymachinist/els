@@ -36,14 +36,14 @@ static uint8_t usart_scancode_table[] = {
   0x33, // H = Thread
   0x43, // I = Z/X
   0x3b, // J = 0
-  0x42, // K = LO LIM
-  0x4b, // L = HI LIM
+  0x42, // K = JOG 0
+  0x4b, // L = UNUSED
   0x16, // M = Lock / Unlock
   0x1e, // N = Encoder Multiplier
   0x26, // O = STOP / EXIT
   0x25, // P = READY / OK
-  0x2e, // Q = LO JOG
-  0x36  // R = HI JOG
+  0x2e, // Q = UNUSED
+  0x36  // R = UNUSED
 };
 
 //------------------------------------------------------------------------------

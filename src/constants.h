@@ -139,10 +139,10 @@ extern "C" {
 #define ELS_KEY_SET_ZX        0x43
 
 #define ELS_KEY_SET_ZX_ORI    0x3b
-#define ELS_KEY_SET_ZX_MIN    0x42
-#define ELS_KEY_SET_ZX_MAX    0x4b
-#define ELS_KEY_JOG_ZX_MIN    0x2e
-#define ELS_KEY_JOG_ZX_MAX    0x36
+#define ELS_KEY_JOG_ZX_ORI    0x42
+#define ELS_KEY_UNUSED_1      0x4b
+#define ELS_KEY_UNUSED_2      0x2e
+#define ELS_KEY_UNUSED_3      0x36
 
 #define ELS_KEY_LOCK          0x16
 #define ELS_KEY_ENC_MULT      0x1e

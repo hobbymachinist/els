@@ -37,6 +37,9 @@ void els_stepper_move_arc_q4_ccw(double arc_center_z, double arc_center_x, doubl
 void els_stepper_zero_x(void);
 void els_stepper_zero_z(void);
 
+void els_stepper_disable_x(void);
+void els_stepper_disable_z(void);
+
 typedef struct {
   double xpos;
   double zpos;

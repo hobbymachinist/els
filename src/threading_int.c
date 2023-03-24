@@ -1011,6 +1011,10 @@ static void els_threading_int_set_zaxes(void) {
         els_threading_int_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->zbusy)
+        els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_threading_int.state = ELS_THREADING_SET_XAXES;
       els_threading_int_display_axes();
@@ -1035,6 +1039,10 @@ static void els_threading_int_set_xaxes(void) {
         els_threading_int_display_axes();
       }
       break;
+    case ELS_KEY_JOG_ZX_ORI:
+      if (!els_stepper->xbusy)
+        els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
+      break;
     case ELS_KEY_SET_ZX:
       els_threading_int.state = ELS_THREADING_SET_ZAXES;
       els_threading_int_display_axes();
@@ -1050,13 +1058,14 @@ static void els_threading_int_set_xaxes(void) {
 // ----------------------------------------------------------------------------------
 
 static void els_threading_int_zjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   els_threading_int_zjog_sync();
   encoder_curr = els_encoder_read();
   if (els_threading_int.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_threading_int.encoder_pos) * 0.01 * els_threading_int.encoder_multiplier;
+    step = els_threading_int.encoder_multiplier == 1 ? 0.005 : 0.01 * els_threading_int.encoder_multiplier;
+    delta = (encoder_curr - els_threading_int.encoder_pos) * step;
     els_threading_int.state |= ELS_THREADING_ZJOG;
     els_stepper_move_z(delta, els_config->z_jog_mm_s);
     els_threading_int.encoder_pos = encoder_curr;
@@ -1071,13 +1080,14 @@ static void els_threading_int_zjog_sync(void) {
 }
 
 static void els_threading_int_xjog(void) {
-  double delta;
+  double delta, step;
   int32_t encoder_curr;
 
   els_threading_int_xjog_sync();
   encoder_curr = els_encoder_read();
   if (els_threading_int.encoder_pos != encoder_curr) {
-    delta = (encoder_curr - els_threading_int.encoder_pos) * 0.01 * els_threading_int.encoder_multiplier;
+    step = els_threading_int.encoder_multiplier == 1 ? 0.005 : 0.01 * els_threading_int.encoder_multiplier;
+    delta = (encoder_curr - els_threading_int.encoder_pos) * step;
     els_threading_int.state |= ELS_THREADING_XJOG;
     els_stepper_move_x(delta, els_config->x_jog_mm_s);
     els_threading_int.encoder_pos = encoder_curr;

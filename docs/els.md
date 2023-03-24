@@ -234,10 +234,10 @@ Keymap, left to right.
 ### Row 3
 1. Z/X axis setting
 2. Zero Z / X axis
-3. Set position as minimum limit (only for manual turning)
-4. Set position as maximum limit (only for manual turning)
-5. Jog to minimum (only available in manual operations)
-6. Jog to maximum (only available in manual operations)
+3. Jog to origin (depending on choice of Z or X axis setup)
+4. Unused
+5. Unused
+6. Unused
 
 ## Lathe Functions
 
@@ -313,11 +313,11 @@ Steps:
 1. Move tool to Z/X origin as required
 2. Zero out Z and X axis optionally for DRO.
 3. Set feed
-4. Set min and max Z positions, turn on soft limits if needed
+4. Set length and enable soft limit (optional)
 5. Turn on spindle
 6. Press Ready to start
-7. When the tool reaches the soft limit, it will stop.
-8. Back off tool, jog to max (or min if reverse direction is chosen)
+7. If soft limit is enabled, when the tool reaches the soft limit the feed will stop.
+8. Back off tool, jog to Z origin.
 9. Feed in tool and press Ready again
 
 ![](images/manual-turning.png)
@@ -328,12 +328,12 @@ Set feed. The feed rate is independent of the spindle RPM at mm/s.
 
 #### Reverse direction
 
-Reverses feed direction. The usual direction is right to left towards spindle with counter clockwise rotation of spindle.
+Reverses feed direction. The usual direction is right to left towards spindle.
 
 #### Z/X
 
-1. Set Z axis, jogging and setting min / max positions for virtual stop.
-2. Pressing the button again switches to X axis setting, only used for zeroing the DRO reading.
+1. Set Z axis, jogging
+2. Pressing the button again switches to X axis setting, only used for zeroing the DRO reading (if available).
 
 #### 0
 
@@ -341,27 +341,15 @@ Zero Z axis or X axis (DRO)
 
 #### F1
 
-Turns on / off soft limits. This will stop Z drive when the position reaches Z min.
+Set the length to turn, Z soft limit target.
 
 #### F2
 
-Manually set the Z axis min and max values.
+Turns on / off soft limits. This will stop Z drive when the position reaches Z min.
 
-#### Minimum Limit
+#### Jog to Z origin
 
-You can jog Z using the input pulse encoder to a specific position and set the position as the minimum limit.
-
-#### Maximum Limit
-
-You can jog Z using the input pulse encoder to a specific position and set the position as the maximum limit.
-
-#### Jog Z to minimum
-
-Jog Z axis to minimum position. Only availble in the set Z axis mode or during turning when soft limit is reached.
-
-#### Jog Z to maximum
-
-Jog Z axis to maximum position. Only availble in the set Z axis mode or during turning when soft limit is reached.
+Jog Z axis to origin position
 
 ### Manual Threading
 
@@ -375,14 +363,15 @@ Steps:
 1. Move tool to Z/X origin as required
 2. Zero out Z and X axis
 3. Set pitch
-4. Set min and max Z positions
+4. Set length
 5. Turn on spindle
 6. Press Ready to start
 7. When the tool reaches the soft limit, it will stop.
-8. Back off tool, jog to max
+8. Back off tool, press Jog to origin
 9. Feed in tool and press Ready again
 
-![](images/manual-threading.png)
+![](images/manual-threading-r.png)
+![](images/manual-threading-l.png)
 
 #### F/P
 
@@ -393,7 +382,7 @@ an arbitrary pitch value. This can be used to turn approximate imperial threads.
 
 #### Reverse direction
 
-Reverses feed direction. The usual direction is right to left towards spindle with counter clockwise rotation of spindle.
+While in pitch settings, pressing reverse feed direction allows you cut left hand threads or right hand threads.
 
 #### Z/X
 
@@ -406,27 +395,15 @@ Zero Z axis or X axis (DRO)
 
 #### F1
 
-N/A
+Set length
 
 #### F2
 
-Manually set the Z axis min and max values. This controls the length of the thread.
+Unused
 
-#### Minimum Limit
+#### Jog Z to Origin
 
-You can jog Z using the input pulse encoder to a specific position and set the position as the minimum limit.
-
-#### Maximum Limit
-
-You can jog Z using the input pulse encoder to a specific position and set the position as the maximum limit.
-
-#### Jog Z to minimum
-
-Jog Z axis to minimum position. Only availble in the set Z axis mode or during turning when soft limit is reached.
-
-#### Jog Z to maximum
-
-Jog Z axis to maximum position. Only availble in the set Z axis mode or during turning when soft limit is reached.
+Jog Z axis to 0 position
 
 ### Turning
 
@@ -434,8 +411,8 @@ Steps:
 
 1. Move tool to Z/X origin as required
 2. Zero out Z and X axis
-3. Set roughing feed and feed for spring pass
-4. Set the roughing depth of cut and depth of cut for spring pass
+3. Set roughing feed and feed for finish pass
+4. Set the roughing depth of cut and depth of cut for finish pass
 4. Set length and turning depth
 5. Turn on spindle
 6. Press Ready to start
