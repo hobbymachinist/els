@@ -120,7 +120,7 @@ thread pitch you can turn in threading operations. There is currently no warning
 than the minimum required PPR.
 
 * Spindle Encoder: Optical 600PPR, https://www.aliexpress.com/item/4000392086291.html
-* Hand wheel Encoder / pulser 100PPR, https://www.aliexpress.com/item/32949618549.html
+* Hand wheel Encoder / pulser 100PPR 5v 4pin, https://www.aliexpress.com/item/32949618549.html
 
 ### Stepper motor & controller
 
