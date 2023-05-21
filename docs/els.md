@@ -53,20 +53,24 @@ jumper changes and soldering to permit the firmware to use the required GPIO pin
 Refer to the GPIO pins listed below in the GPIO Map, the solder bridges for these pins should be setup correctly. See Nucleo 446RE
 documentation UM1724, Section 6.9 on Solder Bridges for more details. A quick summary for jumper settings and changes I've made.
 
-| Jumper / Pad | State      | Function                   |
-|--------------|------------|----------------------------|
-| SB13         | REMOVE     | PA2 for LCD                |
-| SB14         | REMOVE     | PA3 for LCD                |
-| SB21         | REMOVE     | PA5 for LCD                |
-| SB62         | ADD        | Connects PA2 to D1 on CN9† |
-| SB63         | ADD        | Connects PA3 to D0 on CN9† |
-| R35          | ADD        | 0R or solder bridge        |
-| R37          | ADD        | 0R or solder bridge        |
-| C33          | ADD        | 18-22pF X7R Capacitor      |
-| C34          | ADD        | 18-22pF X7R Capacitor      |
-| X3           | ADD        | 8MHz HSE Crystal           |
-| D2 (CN9)     | WIRE       | CN3 TX for USART2          |
-| D8 (CN5)     | WIRE       | CN3 RX for USART2          |
+| Jumper / Pad | State      | Function                    |
+|--------------|------------|-----------------------------|
+| SB13         | REMOVE     | PA2 for LCD                 |
+| SB14         | REMOVE     | PA3 for LCD                 |
+| SB16         | REMOVE     | HSE                         |
+| SB21         | REMOVE     | PA5 for LCD                 |
+| SB50         | REMOVE     | HSE                         |
+| SB54         | REMOVE     | HSE                         |
+| SB55         | REMOVE     | HSE                         |
+| SB62         | ADD        | Connects PA2 to D1 on CN9†  |
+| SB63         | ADD        | Connects PA3 to D0 on CN9†  |
+| R35          | ADD        | HSE, 0R or solder bridge    |
+| R37          | ADD        | HSE, 0R or solder bridge    |
+| C33          | ADD        | HSE, 18-22pF X7R Capacitor  |
+| C34          | ADD        | HSE, 18-22pF X7R Capacitor  |
+| X3           | ADD        | HSE, 8MHz HSE Crystal       |
+| D2 (CN9)     | WIRE       | CN3 TX for USART2           |
+| D8 (CN5)     | WIRE       | CN3 RX for USART2           |
 
 †  - May not be needed
 
