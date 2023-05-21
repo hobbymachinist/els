@@ -62,8 +62,8 @@ documentation UM1724, Section 6.9 on Solder Bridges for more details. A quick su
 | SB50         | REMOVE     | HSE                         |
 | SB54         | REMOVE     | HSE                         |
 | SB55         | REMOVE     | HSE                         |
-| SB62         | ADD        | Connects PA2 to D1 on CN9†  |
-| SB63         | ADD        | Connects PA3 to D0 on CN9†  |
+| SB62         | ADD        | Connects PA2 to D1 on CN9   |
+| SB63         | ADD        | Connects PA3 to D0 on CN9   |
 | R35          | ADD        | HSE, 0R or solder bridge    |
 | R37          | ADD        | HSE, 0R or solder bridge    |
 | C33          | ADD        | HSE, 18-22pF X7R Capacitor  |
@@ -72,7 +72,6 @@ documentation UM1724, Section 6.9 on Solder Bridges for more details. A quick su
 | D2 (CN9)     | WIRE       | Wire To CN3 TX for USART2   |
 | D8 (CN5)     | WIRE       | Wire to CN3 RX for USART2   |
 
-†  - May not be needed
 
 #### Using main board without USB hub & USB UART
 
