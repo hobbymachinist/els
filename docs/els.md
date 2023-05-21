@@ -45,6 +45,8 @@ Kicad files in hw/els
 * CH340C USB UART
 * FT24C64A EEPROM
 
+#### Solder Bridge Changes and Modifications Needed to Nucleo64 446RE
+
 The Nucleo 64 is connected to the main board USB hub with a small cable. Nucleo 446RE will need a fair few
 jumper changes and soldering to permit the firmware to use the required GPIO pins.
 
