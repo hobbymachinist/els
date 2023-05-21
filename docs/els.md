@@ -69,8 +69,8 @@ documentation UM1724, Section 6.9 on Solder Bridges for more details. A quick su
 | C33          | ADD        | HSE, 18-22pF X7R Capacitor  |
 | C34          | ADD        | HSE, 18-22pF X7R Capacitor  |
 | X3           | ADD        | HSE, 8MHz HSE Crystal       |
-| D2 (CN9)     | WIRE       | CN3 TX for USART2           |
-| D8 (CN5)     | WIRE       | CN3 RX for USART2           |
+| D2 (CN9)     | WIRE       | Wire To CN3 TX for USART2   |
+| D8 (CN5)     | WIRE       | Wire to CN3 RX for USART2   |
 
 †  - May not be needed
 
