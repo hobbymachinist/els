@@ -18,6 +18,12 @@ void els_delay_microseconds(uint32_t microseconds) {
   while (DWT_CYCCNT < end_ticks);
 }
 
+void els_delay_milliseconds(uint32_t milliseconds) {
+  DWT_CYCCNT = 0;
+  uint32_t end_ticks = (milliseconds * 1000 * RCC_CLOCK_BASE);
+  while (DWT_CYCCNT < end_ticks);
+}
+
 void els_delay_ticks(uint32_t ticks) {
   DWT_CYCCNT = 0;
   while (DWT_CYCCNT < ticks);

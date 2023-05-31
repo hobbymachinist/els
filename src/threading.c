@@ -37,6 +37,7 @@
 
 #define ELS_THREADING_PITCH_MIN_UM  100
 #define ELS_THREADING_PITCH_MAX_UM  5000
+#define PRECISION                   (1e-2)
 
 //==============================================================================
 // Externs
@@ -66,11 +67,6 @@ typedef enum {
   ELS_THREADING_PITCH_STD = 0,
   ELS_THREADING_PITCH_ARB = 1
 } els_thread_pitch_t;
-
-#define ELS_THREADING_SET_ZDIR_LR   els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-#define ELS_THREADING_SET_ZDIR_RL   els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-
-#define PRECISION                   (1e-2)
 
 //==============================================================================
 // Internal state
@@ -598,9 +594,9 @@ static void els_threading_run(void) {
       if (els_stepper->zdir != zdir) {
         els_stepper->zdir = zdir;
         if (zdir == 1)
-          ELS_THREADING_SET_ZDIR_LR;
+          els_stepper_set_zdir_incr();
         else
-          ELS_THREADING_SET_ZDIR_RL;
+          els_stepper_set_zdir_decr();
         els_stepper_z_backlash_fix();
       }
 

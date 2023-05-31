@@ -36,6 +36,10 @@
 #include "threading_ext.h"
 #include "utils.h"
 
+#define ELS_THREADING_DOC_MIN   (10)
+#define ELS_THREADING_DOC_MAX   (2000)
+#define PRECISION               (1e-2)
+
 //==============================================================================
 // Externs
 //==============================================================================
@@ -190,19 +194,9 @@ static const char *pitch_table_label[] = {
   "M27"
 };
 
-#define ELS_THREADING_SET_ZDIR_LR          els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-#define ELS_THREADING_SET_ZDIR_RL          els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-
-#define ELS_THREADING_SET_XDIR_BT          els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
-#define ELS_THREADING_SET_XDIR_TB          els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
-
-#define PRECISION                          (1e-2)
 //==============================================================================
 // Internal state
 //==============================================================================
-#define ELS_THREADING_DOC_MIN   (10)
-#define ELS_THREADING_DOC_MAX   (2000)
-
 static struct {
   int32_t  pitch_um;
   bool     pitch_reverse;
@@ -389,6 +383,12 @@ void els_threading_ext_update(void) {
 
   if (els_threading_ext.state & (ELS_THREADING_IDLE | ELS_THREADING_PAUSED | ELS_THREADING_ACTIVE))
     els_threading_ext_keypad_process();
+
+  if (els_threading_ext.state &
+     (ELS_THREADING_PAUSED | ELS_THREADING_ACTIVE | ELS_THREADING_SET_XAXES | ELS_THREADING_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
 
   switch (els_threading_ext.state) {
     case ELS_THREADING_PAUSED:
@@ -735,14 +735,14 @@ static void els_threading_ext_set_zdir(void) {
   int zdir = (els_threading_ext.pitch_reverse ? 1 : -1);
 
   if (zdir == 1) {
-    ELS_THREADING_SET_ZDIR_LR;
+    els_stepper_set_zdir_incr();
     if (els_stepper->zdir != zdir) {
       els_stepper->zdir = zdir;
       els_stepper_z_backlash_fix();
     }
   }
   else {
-    ELS_THREADING_SET_ZDIR_RL;
+    els_stepper_set_zdir_decr();
     if (els_stepper->zdir != zdir) {
       els_stepper->zdir = zdir;
       els_stepper_z_backlash_fix();
@@ -764,7 +764,6 @@ static void els_threading_ext_run(void) {
 
 // main control loop
 static void els_threading_ext_thread(void) {
-
   switch (els_threading_ext.op_state) {
     case ELS_THREADING_OP_NA:
       break;
@@ -804,7 +803,7 @@ static void els_threading_ext_thread(void) {
       break;
     case ELS_THREADING_OP_THREADL:
       els_threading_ext.xpos_prev = els_stepper->xpos;
-      els_stepper_move_x(2 - els_stepper->xpos, els_config->x_jog_mm_s);
+      els_stepper_move_x(0.5 - els_stepper->xpos, els_config->x_jog_mm_s);
       els_threading_ext.op_state = ELS_THREADING_OP_ATZL;
       break;
     case ELS_THREADING_OP_ATZL:
@@ -875,10 +874,11 @@ static void els_threading_ext_thread(void) {
       break;
     case ELS_THREADING_OP_DONE:
       // beer time
-      if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_threading_ext.op_state = ELS_THREADING_OP_IDLE;
-        els_threading_ext.state = ELS_THREADING_IDLE;
-      }
+      if (els_stepper->xbusy || els_stepper->zbusy)
+        break;
+
+      els_threading_ext.op_state = ELS_THREADING_OP_IDLE;
+      els_threading_ext.state = ELS_THREADING_IDLE;
       break;
   }
 }

@@ -245,6 +245,11 @@ void els_facing_update(void) {
   if (els_facing.state & (ELS_FACING_IDLE | ELS_FACING_PAUSED | ELS_FACING_ACTIVE))
     els_facing_keypad_process();
 
+  if (els_facing.state & (ELS_FACING_PAUSED | ELS_FACING_ACTIVE | ELS_FACING_SET_XAXES | ELS_FACING_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
+
   switch (els_facing.state) {
     case ELS_FACING_PAUSED:
     case ELS_FACING_ACTIVE:
@@ -609,6 +614,8 @@ static void els_facing_turn(void) {
       break;
     case ELS_FACING_OP_DONE:
       // beer time
+      if (els_stepper->xbusy || els_stepper->zbusy)
+        break;
       els_facing.state = ELS_FACING_IDLE;
       break;
   }

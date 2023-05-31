@@ -13,6 +13,17 @@ STM32F446 = 1
 
 #CFLAGS   += -DELS_DEBUG=1
 
+################################################################################
+# TFT
+# ------------------------------------------------------------------------------
+#
+# Uncomment the display used and comment the rest, defaults to ILI9481
+#
+################################################################################
+CFLAGS   += -DTFT_ILI9481
+#CFLAGS   += -DTFT_ILI9486
+#CFLAGS   += -DTFT_ILI9488
+
 CFLAGS   += -DGIT_SHA=\"$(GIT_SHA)\" -DBUILD_TS=\"$(BUILD_TS)\"
 CFLAGS   += -Isrc -DVERBOSE=$(VERBOSE)
 CFLAGS   += -std=gnu99 -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16

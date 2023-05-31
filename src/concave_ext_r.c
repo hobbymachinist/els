@@ -256,6 +256,12 @@ void els_concave_ext_r_update(void) {
   if (els_concave_ext_r.state & (ELS_CONCAVE_EXT_IDLE | ELS_CONCAVE_EXT_PAUSED | ELS_CONCAVE_EXT_ACTIVE))
     els_concave_ext_r_keypad_process();
 
+  if (els_concave_ext_r.state &
+     (ELS_CONCAVE_EXT_PAUSED | ELS_CONCAVE_EXT_ACTIVE | ELS_CONCAVE_EXT_SET_XAXES | ELS_CONCAVE_EXT_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
+
   switch (els_concave_ext_r.state) {
     case ELS_CONCAVE_EXT_PAUSED:
     case ELS_CONCAVE_EXT_ACTIVE:

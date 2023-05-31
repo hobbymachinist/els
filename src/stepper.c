@@ -33,25 +33,30 @@
 #define ELS_TIMER_RCC                 RCC_TIM7
 #define ELS_TIMER_RST                 RST_TIM7
 
-#define ELS_SET_ZDIR_LR               els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-#define ELS_SET_ZDIR_RL               els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-
-#define ELS_SET_XDIR_BT               els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
-#define ELS_SET_XDIR_TB               els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
-
-// at 100khz, 50 pulses per second.
+// at 100khz, 100 pulses per second.
 #define ELS_TIMER_RELOAD_MAX          500
-#define ELS_TIMER_DECEL_STEPS         250
+
+#define ELS_TIMER_DECEL_STEPS         200
 
 #define ELS_TIMER_ACCEL_X             2
-#define ELS_TIMER_DECEL_X             1
+#define ELS_TIMER_DECEL_X             2
 
 #define ELS_TIMER_ACCEL_Z             3
-#define ELS_TIMER_DECEL_Z             1
+#define ELS_TIMER_DECEL_Z             4
+
+#define DEBUG_POSITION_LOG            0
+#define DEBUG_POSITION_LOG_X          0
+#define DEBUG_POSITION_LOG_Z          0
+#define DEBUG_POSITION_LOG_XZ         0
 
 //==============================================================================
 // Internal State
 //==============================================================================
+
+#if DEBUG_POSITION_LOG
+static double _tsx[40], _tsz[40], _tdx[40], _tdz[40];
+static size_t _tidx = 0, _tn = 0;
+#endif
 
 typedef enum {
   STEPPER_OP_NA,
@@ -88,6 +93,8 @@ static struct {
   uint32_t zfeed_um;
   stepper_op_t zop;
 
+  volatile uint32_t xticks, zticks;
+
   // linear zx movement
   int32_t zx_line_n;
   int32_t zx_line_d;
@@ -107,7 +114,15 @@ static struct {
 
   uint32_t xreload_target;
   uint32_t zreload_target;
-} stepper;
+
+  bool x_enabled;
+  bool z_enabled;
+} stepper = {
+  .x_enabled = false,
+  .z_enabled = false,
+  .xticks = 0,
+  .zticks = 0
+};
 
 //==============================================================================
 // Exported constant
@@ -120,9 +135,6 @@ els_stepper_t *els_stepper = &stepper.pos;
 static void els_stepper_configure_gpio(void);
 static void els_stepper_configure_timer(void);
 static void els_stepper_configure_axes(void);
-
-static void els_stepper_enable_x(void);
-static void els_stepper_enable_z(void);
 
 static void els_stepper_timer_start(void);
 static void els_stepper_timer_stop(void);
@@ -149,8 +161,7 @@ void els_stepper_start(void) {
   // reset isr
   els_nvic_irq_set_handler(ELS_TIMER_IRQ, els_stepper_timer_isr);
 
-  els_stepper_enable_z();
-  els_stepper_enable_x();
+  els_stepper_enable();
 
   // default
   timer_set_period(ELS_TIMER, ELS_TIMER_RELOAD_MAX);
@@ -163,8 +174,7 @@ void els_stepper_start(void) {
 
 void els_stepper_stop(void) {
   els_stepper_timer_stop();
-  els_stepper_disable_z();
-  els_stepper_disable_x();
+  els_stepper_disable();
 }
 
 void els_stepper_sync(void) {
@@ -173,6 +183,34 @@ void els_stepper_sync(void) {
 
   if (els_config->z_closed_loop)
     stepper.pos.zpos = els_dro.zpos_um * 1e-3;
+}
+
+void els_stepper_set_xdir_incr(void) {
+  if (els_config->x_dir_invert)
+    els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN);
+  else
+    els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN);
+}
+
+void els_stepper_set_xdir_decr(void) {
+  if (els_config->x_dir_invert)
+    els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN);
+  else
+    els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN);
+}
+
+void els_stepper_set_zdir_incr(void) {
+  if (els_config->z_dir_invert)
+    els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN);
+  else
+    els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN);
+}
+
+void els_stepper_set_zdir_decr(void) {
+  if (els_config->z_dir_invert)
+    els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN);
+  else
+    els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN);
 }
 
 void els_stepper_move_x(double mm, double speed_mm_s) {
@@ -203,7 +241,7 @@ static void els_stepper_move_x_accel(double mm, double speed_mm_s, bool accel) {
   els_stepper_timer_x_update(speed_mm_s * 1000, accel);
   if (mm < 0) {
     int32_t delta = els_dro.xpos_um;
-    ELS_SET_XDIR_BT;
+    els_stepper_set_xdir_decr();
     if (stepper.pos.xdir != -1) {
       stepper.pos.xdir = -1;
       els_stepper_x_backlash_fix();
@@ -216,11 +254,11 @@ static void els_stepper_move_x_accel(double mm, double speed_mm_s, bool accel) {
     }
 
     stepper.pos.xbusy = true;
-    stepper.xsteps += (int32_t)round(-mm * els_config->z_pulses_per_mm);
+    stepper.xsteps += (int32_t)round(-mm * els_config->x_pulses_per_mm);
   }
   else if (mm > 0) {
     int32_t delta = els_dro.xpos_um;
-    ELS_SET_XDIR_TB;
+    els_stepper_set_xdir_incr();
     if (stepper.pos.xdir != 1) {
       stepper.pos.xdir = 1;
       els_stepper_x_backlash_fix();
@@ -235,7 +273,14 @@ static void els_stepper_move_x_accel(double mm, double speed_mm_s, bool accel) {
     stepper.pos.xbusy = true;
     stepper.xsteps += (int32_t)round(mm * els_config->x_pulses_per_mm);
   }
+
   stepper.xop = STEPPER_OP_LINE_X;
+
+  #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_X
+  printf("--------------- line x -------------------\n");
+  _tidx = 0;
+  _tn = 0;
+  #endif
 }
 
 void els_stepper_move_z(double mm, double speed_mm_s) {
@@ -266,7 +311,7 @@ static void els_stepper_move_z_accel(double mm, double speed_mm_s, bool accel) {
   els_stepper_timer_z_update(speed_mm_s * 1000, accel);
   if (mm < 0) {
     int32_t delta = els_dro.zpos_um;
-    ELS_SET_ZDIR_RL;
+    els_stepper_set_zdir_decr();
     if (stepper.pos.zdir != -1) {
       stepper.pos.zdir = -1;
       els_stepper_z_backlash_fix();
@@ -283,7 +328,7 @@ static void els_stepper_move_z_accel(double mm, double speed_mm_s, bool accel) {
   }
   else if (mm > 0) {
     int32_t delta = els_dro.zpos_um;
-    ELS_SET_ZDIR_LR;
+    els_stepper_set_zdir_incr();
     if (stepper.pos.zdir != 1) {
       stepper.pos.zdir = 1;
       els_stepper_z_backlash_fix();
@@ -299,6 +344,12 @@ static void els_stepper_move_z_accel(double mm, double speed_mm_s, bool accel) {
     stepper.zsteps += (int32_t)round(mm * els_config->z_pulses_per_mm);
   }
   stepper.zop = STEPPER_OP_LINE_Z;
+
+  #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_Z
+  printf("--------------- line z -------------------\n");
+  _tidx = 0;
+  _tn = 0;
+  #endif
 }
 
 void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
@@ -312,7 +363,7 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
 
   if (x_mm < 0) {
     stepper.xsteps = (-x_mm * els_config->x_pulses_per_mm);
-    ELS_SET_XDIR_BT;
+    els_stepper_set_xdir_decr();
     if (stepper.pos.xdir != -1) {
       stepper.pos.xdir = -1;
       els_stepper_x_backlash_fix();
@@ -320,7 +371,7 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
   }
   else {
     stepper.xsteps = (x_mm * els_config->x_pulses_per_mm);
-    ELS_SET_XDIR_TB;
+    els_stepper_set_xdir_incr();
     if (stepper.pos.xdir != 1) {
       stepper.pos.xdir = 1;
       els_stepper_x_backlash_fix();
@@ -329,7 +380,7 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
 
   if (z_mm < 0) {
     stepper.zsteps = (-z_mm * els_config->z_pulses_per_mm);
-    ELS_SET_ZDIR_RL;
+    els_stepper_set_zdir_decr();
     if (stepper.pos.zdir != -1) {
       stepper.pos.zdir = -1;
       els_stepper_z_backlash_fix();
@@ -337,7 +388,7 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
   }
   else {
     stepper.zsteps = (z_mm * els_config->z_pulses_per_mm);
-    ELS_SET_ZDIR_LR;
+    els_stepper_set_zdir_incr();
     if (stepper.pos.zdir != 1) {
       stepper.pos.zdir = 1;
       els_stepper_z_backlash_fix();
@@ -348,7 +399,7 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
   els_stepper_z_backlash_fix();
 
   uint32_t gcd = els_gcd(stepper.xsteps, stepper.zsteps);
-  if (stepper.zsteps > stepper.xsteps) {
+  if (stepper.zsteps >= stepper.xsteps) {
     stepper.zx_line_n = stepper.xsteps / gcd;
     stepper.zx_line_d = stepper.zsteps / gcd;
     stepper.zx_line_err = 0;
@@ -362,6 +413,15 @@ void els_stepper_move_xz(double x_mm, double z_mm, double speed_mm_s) {
     els_stepper_timer_x_update(speed_mm_s * 1000, false);
     stepper.xop = STEPPER_OP_LINE_XZ;
   }
+
+  #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_XZ
+  if (stepper.xop == STEPPER_OP_LINE_XZ)
+    printf("--------------- line xz ------------------\n");
+  else
+    printf("--------------- line zx ------------------\n");
+  _tidx = 0;
+  _tn = 0;
+  #endif
 }
 
 // Assumptions:
@@ -385,13 +445,13 @@ void els_stepper_move_arc_q2_cw(double cz, double cx, double radius, double xd, 
     return;
 
   els_stepper_timer_x_update(speed_mm_s * 1000, false);
-  ELS_SET_XDIR_TB;
+  els_stepper_set_xdir_incr();
   if (stepper.pos.xdir != 1) {
     stepper.pos.xdir = 1;
     els_stepper_x_backlash_fix();
   }
 
-  ELS_SET_ZDIR_RL;
+  els_stepper_set_zdir_decr();
   if (stepper.pos.zdir != -1) {
     stepper.pos.zdir = -1;
     els_stepper_z_backlash_fix();
@@ -426,13 +486,13 @@ void els_stepper_move_arc_q3_ccw(double cz, double cx, double radius, double xd,
     return;
 
   els_stepper_timer_x_update(speed_mm_s * 1000, false);
-  ELS_SET_XDIR_TB;
+  els_stepper_set_xdir_incr();
   if (stepper.pos.xdir != 1) {
     stepper.pos.xdir = 1;
     els_stepper_x_backlash_fix();
   }
 
-  ELS_SET_ZDIR_LR;
+  els_stepper_set_zdir_incr();
   if (stepper.pos.zdir != 1) {
     stepper.pos.zdir = 1;
     els_stepper_z_backlash_fix();
@@ -467,13 +527,13 @@ void els_stepper_move_arc_q4_ccw(double cz, double cx, double radius, double xd,
     return;
 
   els_stepper_timer_x_update(speed_mm_s * 1000, false);
-  ELS_SET_XDIR_TB;
+  els_stepper_set_xdir_incr();
   if (stepper.pos.xdir != 1) {
     stepper.pos.xdir = 1;
     els_stepper_x_backlash_fix();
   }
 
-  ELS_SET_ZDIR_RL;
+  els_stepper_set_zdir_decr();
   if (stepper.pos.zdir != -1) {
     stepper.pos.zdir = -1;
     els_stepper_z_backlash_fix();
@@ -563,6 +623,7 @@ static void els_stepper_timer_z_line(void) {
   static volatile bool z_pul_state = 0;
 
   bool pending = false;
+  uint32_t ticks = els_timer_elapsed_milliseconds();
   if (els_config->z_closed_loop) {
     pending = (stepper.pos.zdir * (stepper.ztarget - els_dro.zpos_um)) >= 5;
     // TODO: overshot target, technically should flag this as an error.
@@ -573,7 +634,7 @@ static void els_stepper_timer_z_line(void) {
     pending = stepper.zsteps > 0;
   }
 
-  if (pending || z_pul_state) {
+  if (stepper.z_enabled && (pending || z_pul_state)) {
     if (z_pul_state)
       els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
     else
@@ -584,7 +645,8 @@ static void els_stepper_timer_z_line(void) {
       stepper.zsteps--;
 
       // accelerate or constant velocity
-      if (stepper.z_accel) {
+      if (stepper.z_accel && (ticks - stepper.zticks) >= 4) {
+        stepper.zticks = ticks;
         if (stepper.zsteps > ELS_TIMER_DECEL_STEPS && TIM_ARR(ELS_TIMER) != stepper.zreload_target) {
           if (TIM_ARR(ELS_TIMER) > stepper.zreload_target)
             TIM_ARR(ELS_TIMER) = MAX(TIM_ARR(ELS_TIMER) - ELS_TIMER_ACCEL_Z, stepper.zreload_target);
@@ -596,6 +658,25 @@ static void els_stepper_timer_z_line(void) {
           TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_Z, ELS_TIMER_RELOAD_MAX);
         }
       }
+
+      #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_Z
+      _tn++;
+      if (_tn == 10) {
+        _tsx[_tidx] = stepper.pos.xpos;
+        _tsz[_tidx] = stepper.pos.zpos;
+        _tdx[_tidx] = els_dro.xpos_um * 1e-3;
+        _tdz[_tidx] = els_dro.zpos_um * 1e-3;
+        _tidx++;
+
+        if (_tidx == 40) {
+          for (size_t n = 0; n < 40; n++)
+            printf("sx %.2f sz %.2f dx %.2f dz %.2f\n", _tsx[n], _tsz[n], _tdx[n], _tdz[n]);
+          _tidx = 0;
+        }
+
+        _tn = 0;
+      }
+      #endif
     }
 
     z_pul_state = !z_pul_state;
@@ -629,7 +710,7 @@ static void els_stepper_timer_x_line(void) {
     pending = stepper.xsteps > 0;
   }
 
-  if (pending || x_pul_state) {
+  if (stepper.x_enabled && (pending || x_pul_state)) {
     if (x_pul_state)
       els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
     else
@@ -652,6 +733,25 @@ static void els_stepper_timer_x_line(void) {
           TIM_ARR(ELS_TIMER) = MIN(TIM_ARR(ELS_TIMER) + ELS_TIMER_DECEL_X, ELS_TIMER_RELOAD_MAX);
         }
       }
+
+      #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_X
+      _tn++;
+      if (_tn == 10) {
+        _tsx[_tidx] = stepper.pos.xpos;
+        _tsz[_tidx] = stepper.pos.zpos;
+        _tdx[_tidx] = els_dro.xpos_um * 1e-3;
+        _tdz[_tidx] = els_dro.zpos_um * 1e-3;
+        _tidx++;
+
+        if (_tidx == 40) {
+          for (size_t n = 0; n < 40; n++)
+            printf("sx %.2f sz %.2f dx %.2f dz %.2f\n", _tsx[n], _tsz[n], _tdx[n], _tdz[n]);
+          _tidx = 0;
+        }
+
+        _tn = 0;
+      }
+      #endif
     }
 
     x_pul_state = !x_pul_state;
@@ -674,46 +774,68 @@ static void els_stepper_timer_x_line(void) {
 static void els_stepper_timer_zx_line(void) {
   static volatile bool z_pul_state = 0;
   static volatile bool x_pul_state = 0;
-  static volatile bool pul_pending = 0;
+  static volatile bool x_pul_pending = 0;
 
   if (stepper.zsteps > 0) {
-    if (z_pul_state)
-      els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-    else
-      els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-
     if (z_pul_state) {
+      els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
       stepper.pos.zpos += (stepper.pos.zdir * stepper.zdelta);
       stepper.zsteps--;
       stepper.zx_line_err += stepper.zx_line_n;
+      #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_XZ
+      _tn++;
+      #endif
+    }
+    else {
+      els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
     }
 
     z_pul_state = !z_pul_state;
   }
 
   if (stepper.xsteps > 0) {
-    if ((stepper.zx_line_err + stepper.zx_line_n) > stepper.zx_line_d ||
-         pul_pending || !stepper.zsteps) {
-      if (stepper.zx_line_err + stepper.zx_line_n > stepper.zx_line_d)
+    if ((stepper.zx_line_err >= stepper.zx_line_d) || x_pul_pending || !stepper.zsteps) {
+      if (stepper.zx_line_err >= stepper.zx_line_d)
         stepper.zx_line_err -= stepper.zx_line_d;
 
       if (x_pul_state) {
         els_gpio_clear(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
-        pul_pending = 0;
+        x_pul_pending = 0;
+        stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
+        stepper.xsteps--;
       }
       else {
         els_gpio_set(ELS_X_PUL_PORT, ELS_X_PUL_PIN);
-        pul_pending = 1;
-      }
-
-      if (x_pul_state) {
-        stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
-        stepper.xsteps--;
+        x_pul_pending = 1;
       }
 
       x_pul_state = !x_pul_state;
     }
   }
+
+  #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_XZ
+  if (_tn == 10) {
+    _tsx[_tidx] = stepper.pos.xpos;
+    _tsz[_tidx] = stepper.pos.zpos;
+    _tdx[_tidx] = els_dro.xpos_um * 1e-3;
+    _tdz[_tidx] = els_dro.zpos_um * 1e-3;
+    _tidx++;
+
+    if (_tidx == 40) {
+      for (size_t n = 0; n < 40; n++)
+        printf("sx %.2f sz %.2f dx %.2f dz %.2f\n", _tsx[n], _tsz[n], _tdx[n], _tdz[n]);
+      _tidx = 0;
+    }
+
+    _tn = 0;
+  }
+  #endif
+
+  if (!stepper.x_enabled)
+    stepper.xsteps = 0;
+
+  if (!stepper.z_enabled)
+    stepper.zsteps = 0;
 
   if (stepper.xsteps == 0 && stepper.zsteps == 0) {
     if (els_config->x_closed_loop)
@@ -728,15 +850,18 @@ static void els_stepper_timer_zx_line(void) {
     x_pul_state = z_pul_state = 0;
     stepper.pos.xbusy = stepper.pos.zbusy = false;
 
-    stepper.xop = STEPPER_OP_NA;
-    stepper.zop = STEPPER_OP_NA;
+    x_pul_pending = 0;
+    z_pul_state   = 0;
+    x_pul_state   = 0;
+    stepper.xop   = STEPPER_OP_NA;
+    stepper.zop   = STEPPER_OP_NA;
   }
 }
 
 static void els_stepper_timer_xz_line(void) {
   static volatile bool z_pul_state = 0;
   static volatile bool x_pul_state = 0;
-  static volatile bool pul_pending = 0;
+  static volatile bool z_pul_pending = 0;
 
   if (stepper.xsteps > 0) {
     if (x_pul_state)
@@ -748,23 +873,26 @@ static void els_stepper_timer_xz_line(void) {
       stepper.pos.xpos += (stepper.pos.xdir * stepper.xdelta);
       stepper.xsteps--;
       stepper.xz_line_err += stepper.xz_line_n;
+      #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_XZ
+      _tn++;
+      #endif
     }
 
     x_pul_state = !x_pul_state;
   }
 
   if (stepper.zsteps > 0) {
-    if (stepper.xz_line_err >= stepper.xz_line_d || pul_pending || !stepper.xsteps) {
+    if ((stepper.xz_line_err  >= stepper.xz_line_d) || z_pul_pending || !stepper.xsteps) {
       if (stepper.xz_line_err >= stepper.xz_line_d)
         stepper.xz_line_err -= stepper.xz_line_d;
 
       if (z_pul_state) {
         els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-        pul_pending = 0;
+        z_pul_pending = 0;
       }
       else {
         els_gpio_set(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
-        pul_pending = 1;
+        z_pul_pending = 1;
       }
 
       if (z_pul_state) {
@@ -775,6 +903,30 @@ static void els_stepper_timer_xz_line(void) {
       z_pul_state = !z_pul_state;
     }
   }
+
+  #if DEBUG_POSITION_LOG && DEBUG_POSITION_LOG_XZ
+  if (_tn == 10) {
+    _tsx[_tidx] = stepper.pos.xpos;
+    _tsz[_tidx] = stepper.pos.zpos;
+    _tdx[_tidx] = els_dro.xpos_um * 1e-3;
+    _tdz[_tidx] = els_dro.zpos_um * 1e-3;
+    _tidx++;
+
+    if (_tidx == 40) {
+      for (size_t n = 0; n < 40; n++)
+        printf("sx %.2f sz %.2f dx %.2f dz %.2f\n", _tsx[n], _tsz[n], _tdx[n], _tdz[n]);
+      _tidx = 0;
+    }
+
+    _tn = 0;
+  }
+  #endif
+
+  if (!stepper.x_enabled)
+    stepper.xsteps = 0;
+
+  if (!stepper.z_enabled)
+    stepper.zsteps = 0;
 
   if (stepper.xsteps == 0 && stepper.zsteps == 0) {
     if (els_config->x_closed_loop)
@@ -789,14 +941,20 @@ static void els_stepper_timer_xz_line(void) {
     x_pul_state = z_pul_state = 0;
     stepper.pos.xbusy = stepper.pos.zbusy = false;
 
-    stepper.xop = STEPPER_OP_NA;
-    stepper.zop = STEPPER_OP_NA;
+    z_pul_pending = 0;
+    z_pul_state   = 0;
+    x_pul_state   = 0;
+    stepper.xop   = STEPPER_OP_NA;
+    stepper.zop   = STEPPER_OP_NA;
   }
 }
 
 static void els_stepper_timer_arc_q2_cw(void) {
   static volatile bool z_pul_state = 0;
   static volatile bool x_pul_state = 0;
+
+  if (!stepper.x_enabled || !stepper.z_enabled)
+    goto done_arc_q2_cw;
 
   if (z_pul_state) {
     els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
@@ -823,6 +981,7 @@ static void els_stepper_timer_arc_q2_cw(void) {
     x_pul_state = 1;
   }
   else {
+    done_arc_q2_cw:
     if (els_config->x_closed_loop)
       stepper.pos.xpos = els_dro.xpos_um * 1e-3;
 
@@ -843,6 +1002,9 @@ static void els_stepper_timer_arc_q2_cw(void) {
 static void els_stepper_timer_arc_q3_ccw(void) {
   static volatile bool z_pul_state = 0;
   static volatile bool x_pul_state = 0;
+
+  if (!stepper.x_enabled || !stepper.z_enabled)
+    goto done_arc_q3_ccw;
 
   if (z_pul_state) {
     els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
@@ -869,6 +1031,7 @@ static void els_stepper_timer_arc_q3_ccw(void) {
     x_pul_state = 1;
   }
   else {
+    done_arc_q3_ccw:
     if (els_config->x_closed_loop)
       stepper.pos.xpos = els_dro.xpos_um * 1e-3;
 
@@ -889,6 +1052,9 @@ static void els_stepper_timer_arc_q3_ccw(void) {
 static void els_stepper_timer_arc_q4_ccw(void) {
   static volatile bool z_pul_state = 0;
   static volatile bool x_pul_state = 0;
+
+  if (!stepper.x_enabled || !stepper.z_enabled)
+    goto done_arc_q4_ccw;
 
   if (z_pul_state) {
     els_gpio_clear(ELS_Z_PUL_PORT, ELS_Z_PUL_PIN);
@@ -915,6 +1081,7 @@ static void els_stepper_timer_arc_q4_ccw(void) {
     x_pul_state = 1;
   }
   else {
+    done_arc_q4_ccw:
     if (els_config->x_closed_loop)
       stepper.pos.xpos = els_dro.xpos_um * 1e-3;
 
@@ -994,7 +1161,11 @@ static void els_stepper_configure_axes(void) {
   stepper.xdelta  = (1.0 / (double)els_config->x_pulses_per_mm);
 }
 
-static void els_stepper_enable_z(void) {
+static inline void _els_stepper_enable_z(void) {
+  if (stepper.z_enabled)
+    return;
+  stepper.z_enabled = true;
+
   // active low.
   #if ELS_Z_ENA_ACTIVE_LOW
     els_gpio_clear(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
@@ -1003,7 +1174,11 @@ static void els_stepper_enable_z(void) {
   #endif
 }
 
-void els_stepper_disable_z(void) {
+static inline void _els_stepper_disable_z(void) {
+  if (!stepper.z_enabled)
+    return;
+  stepper.z_enabled = false;
+
   // active low.
   #if ELS_Z_ENA_ACTIVE_LOW
     els_gpio_set(ELS_Z_ENA_PORT, ELS_Z_ENA_PIN);
@@ -1012,7 +1187,11 @@ void els_stepper_disable_z(void) {
   #endif
 }
 
-void els_stepper_enable_x(void) {
+static inline void _els_stepper_enable_x(void) {
+  if (stepper.x_enabled)
+    return;
+  stepper.x_enabled = true;
+
   // active low.
   #if ELS_X_ENA_ACTIVE_LOW
     els_gpio_clear(ELS_X_ENA_PORT, ELS_X_ENA_PIN);
@@ -1021,13 +1200,33 @@ void els_stepper_enable_x(void) {
   #endif
 }
 
-void els_stepper_disable_x(void) {
+static inline void _els_stepper_disable_x(void) {
+  if (!stepper.x_enabled)
+    return;
+  stepper.x_enabled = false;
+
   // active low.
   #if ELS_X_ENA_ACTIVE_LOW
     els_gpio_set(ELS_X_ENA_PORT, ELS_X_ENA_PIN);
   #else
     els_gpio_clear(ELS_X_ENA_PORT, ELS_X_ENA_PIN);
   #endif
+}
+
+void els_stepper_enable_x(void) { _els_stepper_enable_x(); }
+void els_stepper_enable_z(void) { _els_stepper_enable_z(); }
+
+void els_stepper_disable_x(void) { _els_stepper_disable_x(); }
+void els_stepper_disable_z(void) { _els_stepper_disable_z(); }
+
+void els_stepper_enable(void) {
+  _els_stepper_enable_x();
+  _els_stepper_enable_z();
+}
+
+void els_stepper_disable(void) {
+  _els_stepper_disable_x();
+  _els_stepper_disable_z();
 }
 
 // ----------------------------------------------------------------------------------

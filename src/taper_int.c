@@ -53,32 +53,32 @@ extern const tft_font_t inconsolata_lgc_bold_14;
 // Config
 //==============================================================================
 typedef enum {
-  ELS_TAPER_EXT_IDLE      = 1,
-  ELS_TAPER_EXT_PAUSED    = 2,
-  ELS_TAPER_EXT_ACTIVE    = 4,
-  ELS_TAPER_EXT_SET_ZAXES = 8,
-  ELS_TAPER_EXT_ZJOG      = 16,
-  ELS_TAPER_EXT_SET_XAXES = 32,
-  ELS_TAPER_EXT_XJOG      = 64,
-  ELS_TAPER_EXT_SET_FEED  = 128,
-  ELS_TAPER_EXT_SET_DOC   = 256,
-  ELS_TAPER_EXT_SET_LEN   = 512,
-  ELS_TAPER_EXT_SET_DEPTH = 1024
+  ELS_TAPER_INT_IDLE      = 1,
+  ELS_TAPER_INT_PAUSED    = 2,
+  ELS_TAPER_INT_ACTIVE    = 4,
+  ELS_TAPER_INT_SET_ZAXES = 8,
+  ELS_TAPER_INT_ZJOG      = 16,
+  ELS_TAPER_INT_SET_XAXES = 32,
+  ELS_TAPER_INT_XJOG      = 64,
+  ELS_TAPER_INT_SET_FEED  = 128,
+  ELS_TAPER_INT_SET_DOC   = 256,
+  ELS_TAPER_INT_SET_LEN   = 512,
+  ELS_TAPER_INT_SET_DEPTH = 1024
 } els_taper_int_state_t;
 
 typedef enum {
-  ELS_TAPER_EXT_OP_NA      = -1,
-  ELS_TAPER_EXT_OP_IDLE    = 0,
-  ELS_TAPER_EXT_OP_READY   = 1,
-  ELS_TAPER_EXT_OP_MOVEZ0  = 2,
-  ELS_TAPER_EXT_OP_MOVEX0  = 3,
-  ELS_TAPER_EXT_OP_START   = 4,
-  ELS_TAPER_EXT_OP_FEED    = 5,
-  ELS_TAPER_EXT_OP_PLAN    = 6,
-  ELS_TAPER_EXT_OP_TURNING = 7,
-  ELS_TAPER_EXT_OP_RESETZ  = 8,
-  ELS_TAPER_EXT_OP_RESETX  = 9,
-  ELS_TAPER_EXT_OP_DONE    = 10
+  ELS_TAPER_INT_OP_NA      = -1,
+  ELS_TAPER_INT_OP_IDLE    = 0,
+  ELS_TAPER_INT_OP_READY   = 1,
+  ELS_TAPER_INT_OP_MOVEZ0  = 2,
+  ELS_TAPER_INT_OP_MOVEX0  = 3,
+  ELS_TAPER_INT_OP_START   = 4,
+  ELS_TAPER_INT_OP_FEED    = 5,
+  ELS_TAPER_INT_OP_PLAN    = 6,
+  ELS_TAPER_INT_OP_TURNING = 7,
+  ELS_TAPER_INT_OP_RESETZ  = 8,
+  ELS_TAPER_INT_OP_RESETX  = 9,
+  ELS_TAPER_INT_OP_DONE    = 10
 } els_taper_int_op_state_t;
 
 static const char *op_labels[] = {
@@ -99,11 +99,11 @@ static const char *op_labels[] = {
 //==============================================================================
 // Internal state
 //==============================================================================
-#define ELS_TAPER_EXT_FEED_MIN  (100)
-#define ELS_TAPER_EXT_FEED_MAX  (6000)
+#define ELS_TAPER_INT_FEED_MIN  (100)
+#define ELS_TAPER_INT_FEED_MAX  (6000)
 
-#define ELS_TAPER_EXT_DOC_MIN   (10)
-#define ELS_TAPER_EXT_DOC_MAX   (2000)
+#define ELS_TAPER_INT_DOC_MIN   (10)
+#define ELS_TAPER_INT_DOC_MAX   (2000)
 
 static struct {
   int32_t  feed_um;
@@ -148,7 +148,7 @@ static struct {
   bool only_finish_pass;
 } els_taper_int = {
   .depth_of_cut_um = 200,
-  .feed_um = 4000,
+  .feed_um = 1000,
   .length = 10,
   .depth = 2,
   .encoder_multiplier = 1
@@ -218,9 +218,9 @@ void els_taper_int_start(void) {
   els_taper_int.prev_dir = 0;
   els_taper_int.feed_mm_s = els_taper_int.feed_um / 1000.0;
 
-  els_taper_int.state = ELS_TAPER_EXT_IDLE;
-  els_taper_int.op_state = ELS_TAPER_EXT_OP_IDLE;
-  els_taper_int.prev_op_state = ELS_TAPER_EXT_OP_NA;
+  els_taper_int.state = ELS_TAPER_INT_IDLE;
+  els_taper_int.op_state = ELS_TAPER_INT_OP_IDLE;
+  els_taper_int.prev_op_state = ELS_TAPER_INT_OP_NA;
 
   els_taper_int_display_setting();
   els_taper_int_display_axes();
@@ -234,7 +234,7 @@ void els_taper_int_stop(void) {
 }
 
 bool els_taper_int_busy(void) {
-  return els_taper_int.state != ELS_TAPER_EXT_IDLE;
+  return els_taper_int.state != ELS_TAPER_INT_IDLE;
 }
 
 void els_taper_int_update(void) {
@@ -248,30 +248,36 @@ void els_taper_int_update(void) {
     els_taper_int_display_header();
   }
 
-  if (els_taper_int.state & (ELS_TAPER_EXT_IDLE | ELS_TAPER_EXT_PAUSED | ELS_TAPER_EXT_ACTIVE))
+  if (els_taper_int.state & (ELS_TAPER_INT_IDLE | ELS_TAPER_INT_PAUSED | ELS_TAPER_INT_ACTIVE))
     els_taper_int_keypad_process();
 
+  if (els_taper_int.state &
+     (ELS_TAPER_INT_PAUSED | ELS_TAPER_INT_ACTIVE | ELS_TAPER_INT_SET_XAXES | ELS_TAPER_INT_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
+
   switch (els_taper_int.state) {
-    case ELS_TAPER_EXT_PAUSED:
-    case ELS_TAPER_EXT_ACTIVE:
+    case ELS_TAPER_INT_PAUSED:
+    case ELS_TAPER_INT_ACTIVE:
       els_taper_int_run();
       break;
-    case ELS_TAPER_EXT_SET_FEED:
+    case ELS_TAPER_INT_SET_FEED:
       els_taper_int_set_feed();
       break;
-    case ELS_TAPER_EXT_SET_DOC:
+    case ELS_TAPER_INT_SET_DOC:
       els_taper_int_set_depth_of_cut();
       break;
-    case ELS_TAPER_EXT_SET_LEN:
+    case ELS_TAPER_INT_SET_LEN:
       els_taper_int_set_length();
       break;
-    case ELS_TAPER_EXT_SET_DEPTH:
+    case ELS_TAPER_INT_SET_DEPTH:
       els_taper_int_set_depth();
       break;
     default:
-      if (els_taper_int.state & (ELS_TAPER_EXT_SET_ZAXES | ELS_TAPER_EXT_ZJOG))
+      if (els_taper_int.state & (ELS_TAPER_INT_SET_ZAXES | ELS_TAPER_INT_ZJOG))
         els_taper_int_set_zaxes();
-      else if (els_taper_int.state & (ELS_TAPER_EXT_SET_XAXES | ELS_TAPER_EXT_XJOG))
+      else if (els_taper_int.state & (ELS_TAPER_INT_SET_XAXES | ELS_TAPER_INT_XJOG))
         els_taper_int_set_xaxes();
       break;
   }
@@ -299,25 +305,25 @@ static void els_taper_int_display_setting(void) {
   char text[32];
 
   els_sprint_double2(text, sizeof(text), els_taper_int.feed_um / 1000.0, "Zf");
-  if (els_taper_int.state == ELS_TAPER_EXT_SET_FEED)
+  if (els_taper_int.state == ELS_TAPER_INT_SET_FEED)
     tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double2(text, sizeof(text), els_taper_int.depth_of_cut_um / 1000.0, "Xs");
-  if (els_taper_int.state == ELS_TAPER_EXT_SET_DOC)
+  if (els_taper_int.state == ELS_TAPER_INT_SET_DOC)
     tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_taper_int.length, "L");
-  if (els_taper_int.state == ELS_TAPER_EXT_SET_LEN)
+  if (els_taper_int.state == ELS_TAPER_INT_SET_LEN)
     tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_taper_int.depth, "D");
-  if (els_taper_int.state == ELS_TAPER_EXT_SET_DEPTH)
+  if (els_taper_int.state == ELS_TAPER_INT_SET_DEPTH)
     tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
@@ -335,13 +341,13 @@ static void els_taper_int_display_axes(void) {
   char text[32];
 
   els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
-  if (els_taper_int.state & ELS_TAPER_EXT_SET_ZAXES)
+  if (els_taper_int.state & ELS_TAPER_INT_SET_ZAXES)
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
 
   els_sprint_double33(text, sizeof(text), els_stepper->xpos, "X");
-  if (els_taper_int.state & ELS_TAPER_EXT_SET_XAXES)
+  if (els_taper_int.state & ELS_TAPER_INT_SET_XAXES)
     tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
   else
     tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
@@ -444,7 +450,7 @@ static void els_taper_int_display_refresh(void) {
   if (els_taper_int.op_state != els_taper_int.prev_op_state) {
     els_taper_int.prev_op_state = els_taper_int.op_state;
     tft_filled_rectangle(&tft, 310, 195, 169, 35, ILI9481_BLACK);
-    if (els_taper_int.op_state == ELS_TAPER_EXT_OP_TURNING && els_taper_int.finish_pass_count > 0) {
+    if (els_taper_int.op_state == ELS_TAPER_INT_OP_TURNING && els_taper_int.finish_pass_count > 0) {
       tft_font_write_bg(&tft, 310, 190, "FINISH", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
     }
     else {
@@ -460,34 +466,34 @@ static void els_taper_int_display_refresh(void) {
 static void els_taper_int_keypad_process(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
-      if (els_taper_int.state == ELS_TAPER_EXT_IDLE) {
+      if (els_taper_int.state == ELS_TAPER_INT_IDLE) {
         if (els_taper_int.length > 0 && els_taper_int.depth > 0) {
-          els_taper_int.state = ELS_TAPER_EXT_PAUSED;
-          els_taper_int.op_state = ELS_TAPER_EXT_OP_READY;
+          els_taper_int.state = ELS_TAPER_INT_PAUSED;
+          els_taper_int.op_state = ELS_TAPER_INT_OP_READY;
         }
         else {
-          els_taper_int.state = ELS_TAPER_EXT_SET_LEN;
+          els_taper_int.state = ELS_TAPER_INT_SET_LEN;
           els_taper_int_display_setting();
         }
       }
       break;
     case ELS_KEY_EXIT:
-      if (els_taper_int.state & (ELS_TAPER_EXT_PAUSED | ELS_TAPER_EXT_ACTIVE)) {
-        els_taper_int.state = ELS_TAPER_EXT_IDLE;
-        els_taper_int.op_state = ELS_TAPER_EXT_OP_IDLE;
+      if (els_taper_int.state & (ELS_TAPER_INT_PAUSED | ELS_TAPER_INT_ACTIVE)) {
+        els_taper_int.state = ELS_TAPER_INT_IDLE;
+        els_taper_int.op_state = ELS_TAPER_INT_OP_IDLE;
       }
       break;
     case ELS_KEY_SET_FEED:
-      if (els_taper_int.state & (ELS_TAPER_EXT_IDLE | ELS_TAPER_EXT_PAUSED)) {
-        els_taper_int.state = ELS_TAPER_EXT_SET_FEED;
+      if (els_taper_int.state & (ELS_TAPER_INT_IDLE | ELS_TAPER_INT_PAUSED)) {
+        els_taper_int.state = ELS_TAPER_INT_SET_FEED;
         els_taper_int.encoder_pos = 0;
         els_taper_int_display_setting();
         els_encoder_reset();
       }
       break;
     case ELS_KEY_FUN_F1:
-      if (els_taper_int.state & (ELS_TAPER_EXT_IDLE | ELS_TAPER_EXT_PAUSED)) {
-        els_taper_int.state = ELS_TAPER_EXT_SET_LEN;
+      if (els_taper_int.state & (ELS_TAPER_INT_IDLE | ELS_TAPER_INT_PAUSED)) {
+        els_taper_int.state = ELS_TAPER_INT_SET_LEN;
         els_taper_int.encoder_pos = 0;
         els_taper_int_display_setting();
         els_encoder_reset();
@@ -502,14 +508,14 @@ static void els_taper_int_keypad_process(void) {
         els_taper_int_display_diagram();
       break;
     case ELS_KEY_REV_FEED:
-      if (els_taper_int.state & (ELS_TAPER_EXT_IDLE | ELS_TAPER_EXT_PAUSED)) {
+      if (els_taper_int.state & (ELS_TAPER_INT_IDLE | ELS_TAPER_INT_PAUSED)) {
         els_taper_int.only_finish_pass = !els_taper_int.only_finish_pass;
         els_taper_int_display_setting();
       }
       break;
     case ELS_KEY_SET_ZX:
-      if (els_taper_int.state & (ELS_TAPER_EXT_IDLE | ELS_TAPER_EXT_PAUSED)) {
-        els_taper_int.state = ELS_TAPER_EXT_SET_ZAXES;
+      if (els_taper_int.state & (ELS_TAPER_INT_IDLE | ELS_TAPER_INT_PAUSED)) {
+        els_taper_int.state = ELS_TAPER_INT_SET_ZAXES;
         els_taper_int.encoder_pos = 0;
         els_taper_int_display_axes();
         els_encoder_reset();
@@ -527,16 +533,16 @@ static void els_taper_int_run(void) {
   switch (els_spindle_get_direction()) {
     case ELS_S_DIRECTION_CW:
     case ELS_S_DIRECTION_CCW:
-      if (els_taper_int.state == ELS_TAPER_EXT_PAUSED && els_spindle_get_counter() == 0)
-        els_taper_int.state = ELS_TAPER_EXT_ACTIVE;
+      if (els_taper_int.state == ELS_TAPER_INT_PAUSED && els_spindle_get_counter() == 0)
+        els_taper_int.state = ELS_TAPER_INT_ACTIVE;
       break;
     default:
-      if (els_taper_int.state == ELS_TAPER_EXT_ACTIVE)
-        els_taper_int.state = ELS_TAPER_EXT_PAUSED;
+      if (els_taper_int.state == ELS_TAPER_INT_ACTIVE)
+        els_taper_int.state = ELS_TAPER_INT_PAUSED;
       break;
   }
 
-  if (els_taper_int.state == ELS_TAPER_EXT_ACTIVE)
+  if (els_taper_int.state == ELS_TAPER_INT_ACTIVE)
     els_taper_int_turn();
 }
 
@@ -544,25 +550,25 @@ static void els_taper_int_turn(void) {
   double xd, remaining;
 
   switch (els_taper_int.op_state) {
-    case ELS_TAPER_EXT_OP_NA:
-    case ELS_TAPER_EXT_OP_IDLE:
+    case ELS_TAPER_INT_OP_NA:
+    case ELS_TAPER_INT_OP_IDLE:
       break;
-    case ELS_TAPER_EXT_OP_READY:
-      els_taper_int.op_state = ELS_TAPER_EXT_OP_MOVEZ0;
+    case ELS_TAPER_INT_OP_READY:
+      els_taper_int.op_state = ELS_TAPER_INT_OP_MOVEZ0;
       els_stepper_sync();
       break;
-    case ELS_TAPER_EXT_OP_MOVEZ0:
+    case ELS_TAPER_INT_OP_MOVEZ0:
       if (els_stepper->zbusy)
         break;
 
       if (fabs(els_stepper->zpos) > PRECISION)
         els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
       else
-        els_taper_int.op_state = ELS_TAPER_EXT_OP_MOVEX0;
+        els_taper_int.op_state = ELS_TAPER_INT_OP_MOVEX0;
       break;
-    case ELS_TAPER_EXT_OP_MOVEX0:
+    case ELS_TAPER_INT_OP_MOVEX0:
       if (els_taper_int.only_finish_pass) {
-        els_taper_int.op_state = ELS_TAPER_EXT_OP_START;
+        els_taper_int.op_state = ELS_TAPER_INT_OP_START;
         break;
       }
 
@@ -572,20 +578,20 @@ static void els_taper_int_turn(void) {
       if (fabs(els_stepper->xpos) > PRECISION)
         els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
       else
-        els_taper_int.op_state = ELS_TAPER_EXT_OP_START;
+        els_taper_int.op_state = ELS_TAPER_INT_OP_START;
       break;
-    case ELS_TAPER_EXT_OP_START:
+    case ELS_TAPER_INT_OP_START:
       if (els_stepper->xbusy)
         break;
 
       els_taper_int.slope = (els_taper_int.length / els_taper_int.depth);
-      els_taper_int.op_state = ELS_TAPER_EXT_OP_FEED;
+      els_taper_int.op_state = ELS_TAPER_INT_OP_FEED;
       els_taper_int.finish_pass_count = 0;
 
       if (els_taper_int.only_finish_pass)
         els_stepper_move_x(els_taper_int.depth - els_stepper->xpos - 0.1, els_config->x_retract_jog_mm_s);
       break;
-    case ELS_TAPER_EXT_OP_FEED:
+    case ELS_TAPER_INT_OP_FEED:
       if (els_stepper->xbusy)
         break;
 
@@ -594,7 +600,7 @@ static void els_taper_int_turn(void) {
       if (remaining <= PRECISION) {
         els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
         els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
-        els_taper_int.op_state = ELS_TAPER_EXT_OP_DONE;
+        els_taper_int.op_state = ELS_TAPER_INT_OP_DONE;
       }
       else {
         if (remaining >= (2 * els_taper_int.depth_of_cut_um) / 1000.0)
@@ -608,52 +614,52 @@ static void els_taper_int_turn(void) {
         }
 
         els_stepper_move_x(xd, els_config->x_retract_jog_mm_s);
-        els_taper_int.op_state = ELS_TAPER_EXT_OP_PLAN;
+        els_taper_int.op_state = ELS_TAPER_INT_OP_PLAN;
       }
       break;
-    case ELS_TAPER_EXT_OP_PLAN:
+    case ELS_TAPER_INT_OP_PLAN:
       if (els_stepper->xbusy)
         break;
 
       els_taper_int.xcurr = els_stepper->xpos;
-      els_taper_int.op_state = ELS_TAPER_EXT_OP_TURNING;
+      els_taper_int.op_state = ELS_TAPER_INT_OP_TURNING;
       els_stepper_move_xz(
         0 - els_stepper->xpos,
         -els_stepper->xpos * els_taper_int.slope,
         (els_taper_int.finish_pass_count > 0 ? els_taper_int.feed_mm_s / 4 : els_taper_int.feed_mm_s)
       );
       break;
-    case ELS_TAPER_EXT_OP_TURNING:
+    case ELS_TAPER_INT_OP_TURNING:
       if (els_stepper->xbusy || els_stepper->zbusy)
         break;
 
-      els_taper_int.op_state = ELS_TAPER_EXT_OP_RESETZ;
+      els_taper_int.op_state = ELS_TAPER_INT_OP_RESETZ;
       els_stepper_move_z(0 - els_stepper->zpos, els_config->z_retract_jog_mm_s);
       break;
-    case ELS_TAPER_EXT_OP_RESETZ:
+    case ELS_TAPER_INT_OP_RESETZ:
       if (els_stepper->zbusy)
         break;
 
       if (fabs(-els_taper_int.xcurr + els_taper_int.depth) > PRECISION) {
         els_stepper_move_x(els_taper_int.xcurr - els_stepper->xpos, els_config->x_retract_jog_mm_s);
-        els_taper_int.op_state = ELS_TAPER_EXT_OP_RESETX;
+        els_taper_int.op_state = ELS_TAPER_INT_OP_RESETX;
       }
       else {
-        els_taper_int.op_state = ELS_TAPER_EXT_OP_DONE;
+        els_taper_int.op_state = ELS_TAPER_INT_OP_DONE;
       }
       break;
-    case ELS_TAPER_EXT_OP_RESETX:
+    case ELS_TAPER_INT_OP_RESETX:
       if (els_stepper->xbusy)
         break;
-      els_taper_int.op_state = ELS_TAPER_EXT_OP_FEED;
+      els_taper_int.op_state = ELS_TAPER_INT_OP_FEED;
       break;
-    case ELS_TAPER_EXT_OP_DONE:
+    case ELS_TAPER_INT_OP_DONE:
       // beer time
       if (els_stepper->xbusy || els_stepper->zbusy)
         break;
 
-      els_taper_int.op_state = ELS_TAPER_EXT_OP_IDLE;
-      els_taper_int.state = ELS_TAPER_EXT_IDLE;
+      els_taper_int.op_state = ELS_TAPER_INT_OP_IDLE;
+      els_taper_int.state = ELS_TAPER_INT_IDLE;
       els_taper_int.finish_pass_count = 0;
       break;
   }
@@ -667,11 +673,11 @@ static void els_taper_int_set_feed(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
-      els_taper_int.state = ELS_TAPER_EXT_IDLE;
+      els_taper_int.state = ELS_TAPER_INT_IDLE;
       els_taper_int_display_setting();
       break;
     case ELS_KEY_SET_FEED:
-      els_taper_int.state = ELS_TAPER_EXT_SET_DOC;
+      els_taper_int.state = ELS_TAPER_INT_SET_DOC;
       els_taper_int_display_setting();
       break;
     case ELS_KEY_REV_FEED:
@@ -682,10 +688,10 @@ static void els_taper_int_set_feed(void) {
       encoder_curr = els_encoder_read();
       if (els_taper_int.encoder_pos != encoder_curr) {
         int32_t delta = (encoder_curr - els_taper_int.encoder_pos) * 10 * els_taper_int.encoder_multiplier;
-        if (els_taper_int.feed_um + delta <= ELS_TAPER_EXT_FEED_MIN)
-          els_taper_int.feed_um = ELS_TAPER_EXT_FEED_MIN;
-        else if (els_taper_int.feed_um + delta >= ELS_TAPER_EXT_FEED_MAX)
-          els_taper_int.feed_um = ELS_TAPER_EXT_FEED_MAX;
+        if (els_taper_int.feed_um + delta <= ELS_TAPER_INT_FEED_MIN)
+          els_taper_int.feed_um = ELS_TAPER_INT_FEED_MIN;
+        else if (els_taper_int.feed_um + delta >= ELS_TAPER_INT_FEED_MAX)
+          els_taper_int.feed_um = ELS_TAPER_INT_FEED_MAX;
         else
           els_taper_int.feed_um += delta;
         els_taper_int.encoder_pos = encoder_curr;
@@ -704,21 +710,21 @@ static void els_taper_int_set_depth_of_cut(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
-      els_taper_int.state = ELS_TAPER_EXT_IDLE;
+      els_taper_int.state = ELS_TAPER_INT_IDLE;
       els_taper_int_display_setting();
       break;
     case ELS_KEY_SET_FEED:
-      els_taper_int.state = ELS_TAPER_EXT_SET_FEED;
+      els_taper_int.state = ELS_TAPER_INT_SET_FEED;
       els_taper_int_display_setting();
       break;
     default:
       encoder_curr = els_encoder_read();
       if (els_taper_int.encoder_pos != encoder_curr) {
         int32_t delta = (encoder_curr - els_taper_int.encoder_pos) * 10 * els_taper_int.encoder_multiplier;
-        if (els_taper_int.depth_of_cut_um + delta <= ELS_TAPER_EXT_DOC_MIN)
-          els_taper_int.depth_of_cut_um = ELS_TAPER_EXT_DOC_MIN;
-        else if (els_taper_int.depth_of_cut_um + delta >= ELS_TAPER_EXT_DOC_MAX)
-          els_taper_int.depth_of_cut_um = ELS_TAPER_EXT_DOC_MAX;
+        if (els_taper_int.depth_of_cut_um + delta <= ELS_TAPER_INT_DOC_MIN)
+          els_taper_int.depth_of_cut_um = ELS_TAPER_INT_DOC_MIN;
+        else if (els_taper_int.depth_of_cut_um + delta >= ELS_TAPER_INT_DOC_MAX)
+          els_taper_int.depth_of_cut_um = ELS_TAPER_INT_DOC_MAX;
         else
           els_taper_int.depth_of_cut_um += delta;
         els_taper_int.encoder_pos = encoder_curr;
@@ -733,11 +739,11 @@ void els_taper_int_set_length(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
-      els_taper_int.state = ELS_TAPER_EXT_IDLE;
+      els_taper_int.state = ELS_TAPER_INT_IDLE;
       els_taper_int_display_setting();
       break;
     case ELS_KEY_FUN_F1:
-      els_taper_int.state = ELS_TAPER_EXT_SET_DEPTH;
+      els_taper_int.state = ELS_TAPER_INT_SET_DEPTH;
       els_taper_int_display_setting();
       break;
     default:
@@ -762,11 +768,11 @@ void els_taper_int_set_depth(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
-      els_taper_int.state = ELS_TAPER_EXT_IDLE;
+      els_taper_int.state = ELS_TAPER_INT_IDLE;
       els_taper_int_display_setting();
       break;
     case ELS_KEY_FUN_F1:
-      els_taper_int.state = ELS_TAPER_EXT_SET_LEN;
+      els_taper_int.state = ELS_TAPER_INT_SET_LEN;
       els_taper_int_display_setting();
       break;
     default:
@@ -793,11 +799,11 @@ static void els_taper_int_set_zaxes(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
-      els_taper_int.state = (els_taper_int.state & ELS_TAPER_EXT_ZJOG) ? ELS_TAPER_EXT_SET_ZAXES : ELS_TAPER_EXT_IDLE;
+      els_taper_int.state = (els_taper_int.state & ELS_TAPER_INT_ZJOG) ? ELS_TAPER_INT_SET_ZAXES : ELS_TAPER_INT_IDLE;
       els_taper_int_display_axes();
       break;
     case ELS_KEY_SET_ZX_ORI:
-      if (els_taper_int.state == ELS_TAPER_EXT_SET_ZAXES) {
+      if (els_taper_int.state == ELS_TAPER_INT_SET_ZAXES) {
         els_stepper_zero_z();
         els_dro_zero_z();
         els_taper_int_display_axes();
@@ -808,7 +814,7 @@ static void els_taper_int_set_zaxes(void) {
         els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
       break;
     case ELS_KEY_SET_ZX:
-      els_taper_int.state = ELS_TAPER_EXT_SET_XAXES;
+      els_taper_int.state = ELS_TAPER_INT_SET_XAXES;
       els_taper_int_display_axes();
       break;
     default:
@@ -821,11 +827,11 @@ static void els_taper_int_set_xaxes(void) {
   switch(els_keypad_read()) {
     case ELS_KEY_OK:
     case ELS_KEY_EXIT:
-      els_taper_int.state = ELS_TAPER_EXT_IDLE;
+      els_taper_int.state = ELS_TAPER_INT_IDLE;
       els_taper_int_display_axes();
       break;
     case ELS_KEY_SET_ZX_ORI:
-      if (els_taper_int.state == ELS_TAPER_EXT_SET_XAXES) {
+      if (els_taper_int.state == ELS_TAPER_INT_SET_XAXES) {
         els_stepper_zero_x();
         els_dro_zero_x();
         els_taper_int_display_axes();
@@ -836,7 +842,7 @@ static void els_taper_int_set_xaxes(void) {
         els_stepper_move_x(0 - els_stepper->xpos, els_config->x_jog_mm_s);
       break;
     case ELS_KEY_SET_ZX:
-      els_taper_int.state = ELS_TAPER_EXT_SET_ZAXES;
+      els_taper_int.state = ELS_TAPER_INT_SET_ZAXES;
       els_taper_int_display_axes();
       break;
     default:

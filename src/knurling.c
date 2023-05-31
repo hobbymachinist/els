@@ -112,19 +112,12 @@ static const char *op_labels[] = {
 #define ELS_KNURLING_TIMER_RCC            RCC_TIM5
 #define ELS_KNURLING_TIMER_RST            RST_TIM5
 
-#define ELS_KNURLING_SET_ZDIR_LR          els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-#define ELS_KNURLING_SET_ZDIR_RL          els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-
-#define ELS_KNURLING_SET_XDIR_BT          els_gpio_set(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
-#define ELS_KNURLING_SET_XDIR_TB          els_gpio_clear(ELS_X_DIR_PORT, ELS_X_DIR_PIN)
-
+#define ELS_KNURLING_DEPTH_MIN            (0.05)
+#define ELS_KNURLING_DEPTH_MAX            (1.00)
 #define PRECISION                         (1e-2)
 //==============================================================================
 // Internal state
 //==============================================================================
-#define ELS_KNURLING_DEPTH_MIN            (0.05)
-#define ELS_KNURLING_DEPTH_MAX            (1.00)
-
 static struct {
   int32_t  timer_feed_um;
 
@@ -327,6 +320,11 @@ void els_knurling_update(void) {
 
   if (els_knurling.state & (ELS_KNURLING_IDLE | ELS_KNURLING_PAUSED | ELS_KNURLING_ACTIVE))
     els_knurling_keypad_process();
+
+  if (els_knurling.state & (ELS_KNURLING_PAUSED | ELS_KNURLING_ACTIVE | ELS_KNURLING_SET_XAXES | ELS_KNURLING_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
 
   switch (els_knurling.state) {
     case ELS_KNURLING_PAUSED:
@@ -756,24 +754,25 @@ static void els_knurling_thread_stage1(void) {
       els_knurling.op_state = ELS_KNURLING_OP_ATZ0XM;
       break;
     case ELS_KNURLING_OP_ATZ0:
-      if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        if (els_knurling.spindle_dir == ELS_S_DIRECTION_CW) {
-          ELS_KNURLING_SET_ZDIR_LR;
-          if (els_stepper->zdir != -zdir)
-            els_stepper_z_backlash_fix();
-          els_stepper->zdir = -zdir;
-        }
-        else {
-          ELS_KNURLING_SET_ZDIR_RL;
-          if (els_stepper->zdir != zdir)
-            els_stepper_z_backlash_fix();
-          els_stepper->zdir = zdir;
-        }
-        if (els_spindle_get_counter() == els_knurling.phase_offset) {
-          els_knurling.ztarget = 0;
-          els_knurling.zcurrent = 0;
-          els_knurling.op_state = ELS_KNURLING_OP_KNURL;
-        }
+      if (els_stepper->xbusy || els_stepper->zbusy)
+        break;
+
+      if (els_knurling.spindle_dir == ELS_S_DIRECTION_CW) {
+        els_stepper_set_zdir_incr();
+        if (els_stepper->zdir != -zdir)
+          els_stepper_z_backlash_fix();
+        els_stepper->zdir = -zdir;
+      }
+      else {
+        els_stepper_set_zdir_decr();
+        if (els_stepper->zdir != zdir)
+          els_stepper_z_backlash_fix();
+        els_stepper->zdir = zdir;
+      }
+      if (els_spindle_get_counter() == els_knurling.phase_offset) {
+        els_knurling.ztarget = 0;
+        els_knurling.zcurrent = 0;
+        els_knurling.op_state = ELS_KNURLING_OP_KNURL;
       }
       break;
     case ELS_KNURLING_OP_KNURL:
@@ -825,13 +824,14 @@ static void els_knurling_thread_stage1(void) {
         els_knurling.op_state = ELS_KNURLING_OP_ATZ0;
       break;
     case ELS_KNURLING_OP_DONE:
-      if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_knurling.op_stage = ELS_KNURLING_OP_STAGE2;
-        els_knurling.op_state = ELS_KNURLING_OP_READY;
-        els_knurling.state = ELS_KNURLING_ACTIVE;
-        els_knurling.phase_offset = 0;
-        els_knurling_display_setting();
-      }
+      if (els_stepper->xbusy || els_stepper->zbusy)
+        break;
+
+      els_knurling.op_stage = ELS_KNURLING_OP_STAGE2;
+      els_knurling.op_state = ELS_KNURLING_OP_READY;
+      els_knurling.state = ELS_KNURLING_ACTIVE;
+      els_knurling.phase_offset = 0;
+      els_knurling_display_setting();
       break;
     default:
       break;
@@ -874,24 +874,26 @@ static void els_knurling_thread_stage2(void) {
       els_knurling.op_state = ELS_KNURLING_OP_ATZLXM;
       break;
     case ELS_KNURLING_OP_ATZL:
-      if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        if (els_knurling.spindle_dir == ELS_S_DIRECTION_CW) {
-          ELS_KNURLING_SET_ZDIR_RL;
-          if (els_stepper->zdir != -zdir)
-            els_stepper_z_backlash_fix();
-          els_stepper->zdir = -zdir;
-        }
-        else {
-          ELS_KNURLING_SET_ZDIR_LR;
-          if (els_stepper->zdir != zdir)
-            els_stepper_z_backlash_fix();
-          els_stepper->zdir = zdir;
-        }
-        if (els_spindle_get_counter() == els_knurling.phase_offset) {
-          els_knurling.ztarget = 0;
-          els_knurling.zcurrent = 0;
-          els_knurling.op_state = ELS_KNURLING_OP_KNURL;
-        }
+      if (els_stepper->xbusy || els_stepper->zbusy)
+        break;
+
+      if (els_knurling.spindle_dir == ELS_S_DIRECTION_CW) {
+        els_stepper_set_zdir_decr();
+        if (els_stepper->zdir != -zdir)
+          els_stepper_z_backlash_fix();
+        els_stepper->zdir = -zdir;
+      }
+      else {
+        els_stepper_set_zdir_incr();
+        if (els_stepper->zdir != zdir)
+          els_stepper_z_backlash_fix();
+        els_stepper->zdir = zdir;
+      }
+
+      if (els_spindle_get_counter() == els_knurling.phase_offset) {
+        els_knurling.ztarget = 0;
+        els_knurling.zcurrent = 0;
+        els_knurling.op_state = ELS_KNURLING_OP_KNURL;
       }
       break;
     case ELS_KNURLING_OP_KNURL:
@@ -944,13 +946,14 @@ static void els_knurling_thread_stage2(void) {
         els_knurling.op_state = ELS_KNURLING_OP_ATZL;
       break;
     case ELS_KNURLING_OP_DONE:
-      if (!els_stepper->xbusy && !els_stepper->zbusy) {
-        els_knurling.op_state = ELS_KNURLING_OP_IDLE;
-        els_knurling.state = ELS_KNURLING_IDLE;
-        els_knurling.op_stage = ELS_KNURLING_OP_STAGE1;
-        els_knurling.phase_offset = 0;
-        els_knurling_display_setting();
-      }
+      if (els_stepper->xbusy || els_stepper->zbusy)
+        break;
+
+      els_knurling.op_state = ELS_KNURLING_OP_IDLE;
+      els_knurling.state = ELS_KNURLING_IDLE;
+      els_knurling.op_stage = ELS_KNURLING_OP_STAGE1;
+      els_knurling.phase_offset = 0;
+      els_knurling_display_setting();
       break;
     default:
       break;

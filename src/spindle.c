@@ -66,7 +66,7 @@ void els_spindle_update(void) {
   uint64_t elapsed = els_timer_elapsed_microseconds();
 
   if (delta >= 4) {
-    spindle.rpm = (spindle.rpm * 0.6) + (((delta * 60e6) / (elapsed - spindle.last_updated_at)) * 0.4);
+    spindle.rpm = (uint32_t)((spindle.rpm * 0.6) + (((delta * 60e6) / (elapsed - spindle.last_updated_at)) * 0.4)) % 10000;
     spindle.last_rotations = spindle.rotations;
     spindle.last_updated_at = elapsed;
   }

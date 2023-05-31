@@ -14,6 +14,7 @@ extern "C" {
 #include "delay.h"
 
 #define tft_delay_microseconds(us) els_delay_microseconds(us)
+#define tft_delay_milliseconds(ms) els_delay_milliseconds(ms)
 
 #ifdef __cplusplus
 }

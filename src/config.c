@@ -51,15 +51,20 @@ typedef enum {
   ELS_CONFIG_Z_CLOSED_LOOP        = 10,
   ELS_CONFIG_X_DRO_INVERT         = 11,
   ELS_CONFIG_Z_DRO_INVERT         = 12,
+  ELS_CONFIG_X_DIR_INVERT         = 13,
+  ELS_CONFIG_Z_DIR_INVERT         = 14,
 } els_config_setting_t;
 
 static struct {
   bool locked;
   int32_t encoder_curr;
+  int16_t encoder_multiplier;
   els_config_setting_t setting;
   bool edit;
   uint32_t value;
-} config;
+} config = {
+  .encoder_multiplier = 1
+};
 
 const char *settings[] = {
   "X PULSES PER MM",
@@ -74,7 +79,9 @@ const char *settings[] = {
   "X CLOSED LOOP",
   "Z CLOSED LOOP",
   "X DRO INVERT",
-  "Z DRO INVERT"
+  "Z DRO INVERT",
+  "X DIR INVERT",
+  "Z DIR INVERT",
 };
 
 #define ELS_CONFIG_SETTING_MAX (sizeof(settings) / sizeof(settings[0]))
@@ -88,6 +95,7 @@ static void     els_config_menu_display_header(void);
 static void     els_config_menu_display_refresh(void);
 static uint32_t els_config_get(size_t n);
 static void     els_config_set(size_t n, uint32_t value);
+static void     els_config_display_encoder_pips(void);
 
 //==============================================================================
 // API
@@ -166,6 +174,9 @@ void els_config_setup(void) {
   els_kv_read(ELS_KV_X_DRO_INVERT, &_els_config.x_dro_invert, sizeof(_els_config.x_dro_invert));
   els_kv_read(ELS_KV_Z_DRO_INVERT, &_els_config.z_dro_invert, sizeof(_els_config.z_dro_invert));
 
+  els_kv_read(ELS_KV_X_DIR_INVERT, &_els_config.x_dir_invert, sizeof(_els_config.x_dir_invert));
+  els_kv_read(ELS_KV_Z_DIR_INVERT, &_els_config.z_dir_invert, sizeof(_els_config.z_dir_invert));
+
   printf("x pulses per mm = %lu\n", _els_config.x_pulses_per_mm);
   printf("z pulses per mm = %lu\n", _els_config.z_pulses_per_mm);
   printf("x backlash um = %lu\n", _els_config.x_backlash_um);
@@ -179,6 +190,8 @@ void els_config_setup(void) {
   printf("z closed loop = %d\n", _els_config.z_closed_loop);
   printf("x dro invert = %d\n", _els_config.x_dro_invert);
   printf("z dro invert = %d\n", _els_config.z_dro_invert);
+  printf("x dir invert = %d\n", _els_config.x_dir_invert);
+  printf("z dir invert = %d\n", _els_config.z_dir_invert);
 }
 
 void els_config_start(void) {
@@ -189,6 +202,7 @@ void els_config_start(void) {
   els_config_menu_display_init();
   els_config_menu_display_header();
   els_config_menu_display_refresh();
+  els_config_display_encoder_pips();
 }
 
 void els_config_update(void) {
@@ -200,13 +214,22 @@ void els_config_update(void) {
     els_config_menu_display_header();
   }
 
+  int16_t em = els_encoder_get_multiplier();
+  if (em != config.encoder_multiplier) {
+    config.encoder_multiplier = em;
+    els_config_display_encoder_pips();
+  }
+
   //----------------------------------------------------------------------------------------------
   // function scroll
   //----------------------------------------------------------------------------------------------
   enc = els_encoder_read();
   if (config.edit) {
-    if (enc < config.encoder_curr && config.value > 0) {
-      config.value--;
+    if (enc < config.encoder_curr) {
+      if (config.value >= (uint32_t)config.encoder_multiplier)
+        config.value -= config.encoder_multiplier;
+      else
+        config.value = 0;
       els_config_menu_display_refresh();
     }
     else if (enc > config.encoder_curr) {
@@ -215,10 +238,12 @@ void els_config_update(void) {
         case ELS_CONFIG_Z_CLOSED_LOOP:
         case ELS_CONFIG_X_DRO_INVERT:
         case ELS_CONFIG_Z_DRO_INVERT:
+        case ELS_CONFIG_X_DIR_INVERT:
+        case ELS_CONFIG_Z_DIR_INVERT:
           config.value = 1;
           break;
         default:
-          config.value++;
+          config.value += config.encoder_multiplier;
           break;
       }
       els_config_menu_display_refresh();
@@ -271,6 +296,19 @@ void els_config_stop(void) {
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
+static void els_config_display_encoder_pips(void) {
+  // multiplier is 100, 10 or 1
+  size_t pips = config.encoder_multiplier;
+  pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
+
+  for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
+    tft_filled_rectangle(&tft,
+      440, 32 - (n * 10 + spacing * 2),
+      15 + n * 10, 10,
+      (n < pips ? ILI9481_WHITE : ILI9481_BGCOLOR1));
+
+}
+
 static uint32_t els_config_get(size_t setting) {
   switch (setting) {
     case ELS_CONFIG_X_PULSES_PER_MM:
@@ -299,6 +337,10 @@ static uint32_t els_config_get(size_t setting) {
       return _els_config.x_dro_invert;
     case ELS_CONFIG_Z_DRO_INVERT:
       return _els_config.z_dro_invert;
+    case ELS_CONFIG_X_DIR_INVERT:
+      return _els_config.x_dir_invert;
+    case ELS_CONFIG_Z_DIR_INVERT:
+      return _els_config.z_dir_invert;
     default:
       return 0;
   }
@@ -316,10 +358,12 @@ static void els_config_set(size_t setting, uint32_t value) {
       break;
     case ELS_CONFIG_X_BACKLASH_UM:
       _els_config.x_backlash_um = value;
+      _els_config.x_backlash_pulses = (_els_config.x_backlash_um * _els_config.x_pulses_per_mm) / 1000;
       els_kv_write(ELS_KV_X_BACKLASH_UM, &value, sizeof(value));
       break;
     case ELS_CONFIG_Z_BACKLASH_UM:
       _els_config.z_backlash_um = value;
+      _els_config.z_backlash_pulses = (_els_config.z_backlash_um * _els_config.z_pulses_per_mm) / 1000;
       els_kv_write(ELS_KV_Z_BACKLASH_UM, &value, sizeof(value));
       break;
     case ELS_CONFIG_SPINDLE_ENCODER_PPR:
@@ -358,6 +402,14 @@ static void els_config_set(size_t setting, uint32_t value) {
       _els_config.z_dro_invert = value > 0 ? true : false;
       els_kv_write(ELS_KV_Z_DRO_INVERT, &_els_config.z_dro_invert, sizeof(_els_config.z_dro_invert));
       break;
+    case ELS_CONFIG_X_DIR_INVERT:
+      _els_config.x_dir_invert = value > 0 ? true : false;
+      els_kv_write(ELS_KV_X_DIR_INVERT, &_els_config.x_dir_invert, sizeof(_els_config.x_dir_invert));
+      break;
+    case ELS_CONFIG_Z_DIR_INVERT:
+      _els_config.z_dir_invert = value > 0 ? true : false;
+      els_kv_write(ELS_KV_Z_DIR_INVERT, &_els_config.z_dir_invert, sizeof(_els_config.z_dir_invert));
+      break;
     default:
       break;
   }
@@ -376,15 +428,12 @@ static void els_config_menu_display_header(void) {
   if (config.locked) {
     tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
     tft_font_write_bg(&tft, 8, 0, "SETTINGS", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
   }
   else {
     tft_filled_rectangle(&tft, 0,   0, 480,  50, ILI9481_DIANNE);
-    tft_filled_rectangle(&tft, 0,  50, 480,   1, ILI9481_LITEGRAY);
-
     tft_font_write_bg(&tft, 8, 0, "SETTINGS", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_DIANNE);
-    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_DIANNE);
   }
+  tft_filled_rectangle(&tft, 0,  50, 480,   1, ILI9481_LITEGRAY);
 }
 
 static void els_config_menu_display_refresh(void) {
@@ -401,6 +450,8 @@ static void els_config_menu_display_refresh(void) {
       case ELS_CONFIG_Z_CLOSED_LOOP:
       case ELS_CONFIG_X_DRO_INVERT:
       case ELS_CONFIG_Z_DRO_INVERT:
+      case ELS_CONFIG_X_DIR_INVERT:
+      case ELS_CONFIG_Z_DIR_INVERT:
         snprintf(value_text, sizeof(value_text), "%s",
           (config.edit && row == 0 ? config.value : els_config_get(n)) ? "ON" : "OFF");
         break;

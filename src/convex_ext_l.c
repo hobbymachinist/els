@@ -259,6 +259,17 @@ void els_convex_ext_l_update(void) {
   if (els_convex_ext_l.state & (ELS_CONVEX_EXT_IDLE | ELS_CONVEX_EXT_PAUSED | ELS_CONVEX_EXT_ACTIVE))
     els_convex_ext_l_keypad_process();
 
+  if (els_convex_ext_l.state &
+     (ELS_CONVEX_EXT_PAUSED | ELS_CONVEX_EXT_ACTIVE | ELS_CONVEX_EXT_SET_XAXES | ELS_CONVEX_EXT_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
+
+  if (els_convex_ext_l.state == ELS_CONVEX_EXT_IDLE)
+    els_stepper_disable();
+  else
+    els_stepper_enable();
+
   switch (els_convex_ext_l.state) {
     case ELS_CONVEX_EXT_PAUSED:
     case ELS_CONVEX_EXT_ACTIVE:

@@ -68,9 +68,6 @@ typedef enum {
 
 } els_turning_state_t;
 
-#define ELS_TURNING_SET_ZDIR_LR          els_gpio_set(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-#define ELS_TURNING_SET_ZDIR_RL          els_gpio_clear(ELS_Z_DIR_PORT, ELS_Z_DIR_PIN)
-
 #define ELS_TURNING_TIMER_CHANGE(feed)   do {                                                              \
                                            if (els_turning.timer_feed_um != feed) {                        \
                                              els_turning_timer_update(feed);                               \
@@ -485,9 +482,9 @@ static void els_turning_run(void) {
         if (els_stepper->zdir != zdir) {
           els_stepper->zdir = zdir;
           if (zdir == 1)
-            ELS_TURNING_SET_ZDIR_LR;
+            els_stepper_set_zdir_incr();
           else
-            ELS_TURNING_SET_ZDIR_RL;
+            els_stepper_set_zdir_decr();
           els_stepper_z_backlash_fix();
         }
       }

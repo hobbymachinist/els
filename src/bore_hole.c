@@ -245,6 +245,11 @@ void els_bore_hole_update(void) {
   if (els_bore_hole.state & (ELS_BORE_HOLE_IDLE | ELS_BORE_HOLE_PAUSED | ELS_BORE_HOLE_ACTIVE))
     els_bore_hole_keypad_process();
 
+  if (els_bore_hole.state & (ELS_BORE_HOLE_PAUSED | ELS_BORE_HOLE_ACTIVE | ELS_BORE_HOLE_SET_XAXES | ELS_BORE_HOLE_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
+
   switch (els_bore_hole.state) {
     case ELS_BORE_HOLE_PAUSED:
     case ELS_BORE_HOLE_ACTIVE:
@@ -610,6 +615,8 @@ static void els_bore_hole_turn(void) {
       els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
       break;
     case ELS_BORE_HOLE_OP_DONE:
+      if (els_stepper->xbusy || els_stepper->zbusy)
+        break;
       // beer time
       els_bore_hole.state = ELS_BORE_HOLE_IDLE;
       break;

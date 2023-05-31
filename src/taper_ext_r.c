@@ -147,7 +147,7 @@ static struct {
   bool only_finish_pass;
 } els_taper_ext_r = {
   .depth_of_cut_um = 200,
-  .feed_um = 4000,
+  .feed_um = 1000,
   .length = 10,
   .depth = 2,
   .encoder_multiplier = 1
@@ -249,6 +249,12 @@ void els_taper_ext_r_update(void) {
 
   if (els_taper_ext_r.state & (ELS_TAPER_EXT_IDLE | ELS_TAPER_EXT_PAUSED | ELS_TAPER_EXT_ACTIVE))
     els_taper_ext_r_keypad_process();
+
+  if (els_taper_ext_r.state &
+     (ELS_TAPER_EXT_PAUSED | ELS_TAPER_EXT_ACTIVE | ELS_TAPER_EXT_SET_XAXES | ELS_TAPER_EXT_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
 
   switch (els_taper_ext_r.state) {
     case ELS_TAPER_EXT_PAUSED:
@@ -617,7 +623,7 @@ static void els_taper_ext_r_turn(void) {
       els_stepper_move_xz(
         0 - els_stepper->xpos,
         els_stepper->xpos * els_taper_ext_r.slope,
-        (els_taper_ext_r.finish_pass_count > 0 ? els_taper_ext_r.feed_mm_s / 4 : els_taper_ext_r.feed_mm_s)
+        (els_taper_ext_r.finish_pass_count > 0 ? els_taper_ext_r.feed_mm_s : els_taper_ext_r.feed_mm_s)
       );
       break;
     case ELS_TAPER_EXT_OP_TURNING:

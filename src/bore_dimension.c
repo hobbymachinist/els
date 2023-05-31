@@ -245,6 +245,11 @@ void els_bore_dimension_update(void) {
   if (els_bore_dimension.state & (ELS_BORE_DIM_IDLE | ELS_BORE_DIM_PAUSED | ELS_BORE_DIM_ACTIVE))
     els_bore_dimension_keypad_process();
 
+  if (els_bore_dimension.state & (ELS_BORE_DIM_PAUSED | ELS_BORE_DIM_ACTIVE | ELS_BORE_DIM_SET_ZAXES | ELS_BORE_DIM_SET_XAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
+
   switch (els_bore_dimension.state) {
     case ELS_BORE_DIM_PAUSED:
     case ELS_BORE_DIM_ACTIVE:
@@ -609,6 +614,8 @@ static void els_bore_dimension_turn(void) {
       els_stepper_move_x(0 - els_stepper->xpos, els_config->x_retract_jog_mm_s);
       break;
     case ELS_BORE_DIM_OP_DONE:
+      if (els_stepper->xbusy || els_stepper->zbusy)
+        break;
       // beer time
       els_bore_dimension.state = ELS_BORE_DIM_IDLE;
       break;

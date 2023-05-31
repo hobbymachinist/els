@@ -20,6 +20,10 @@ static void tft_write_bus(const tft_device_t *tft, uint8_t data) {
   tft_gpio_clear(tft->ili9481.wr.port, tft->ili9481.wr.pin);
   __asm("nop");
   __asm("nop");
+  #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+  __asm("nop");
+  __asm("nop");
+  #endif
   tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
 }
 
@@ -129,12 +133,12 @@ void tft_init(const tft_device_t *tft) {
   tft_gpio_set(tft->ili9481.rs.port, tft->ili9481.rs.pin);
   tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
   tft_gpio_set(tft->ili9481.rst.port, tft->ili9481.rst.pin);
-  tft_delay_microseconds(1000);
+  tft_delay_milliseconds(1);
 
   tft_gpio_clear(tft->ili9481.rst.port, tft->ili9481.rst.pin);
-  tft_delay_microseconds(1000);
+  tft_delay_milliseconds(1);
   tft_gpio_set(tft->ili9481.rst.port, tft->ili9481.rst.pin);
-  tft_delay_microseconds(1000);
+  tft_delay_milliseconds(1);
 
   // unlock E0 F0
   tft_write_comm_data(tft, 0xB0, 0x0000);
@@ -148,11 +152,9 @@ void tft_init(const tft_device_t *tft) {
   tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
   tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
 
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
-
   // soft reset
   tft_write_comm8(tft, 0x01);
-  tft_delay_microseconds(25000);
+  tft_delay_milliseconds(25);
 
   // display off
   tft_write_comm8(tft, 0x28);
@@ -203,7 +205,7 @@ void tft_init(const tft_device_t *tft) {
   tft_write_data8(tft, 0x01);
   tft_write_data8(tft, 0x02);
 
-  //Panel Driving BGR for 1581 [10 3B 00 02 11]
+  // Panel Driving BGR for 1581 [10 3B 00 02 11]
   tft_write_comm8(tft, 0xC0);
   tft_write_data8(tft, 0x12);
   tft_write_data8(tft, 0x3B);
@@ -217,11 +219,11 @@ void tft_init(const tft_device_t *tft) {
   tft_write_data8(tft, 0x10);
   tft_write_data8(tft, 0x88);
 
-  //Frame Rate [03]
+  // Frame Rate [03]
   tft_write_comm8(tft, 0xC5);
   tft_write_data8(tft, 0x03);
 
-  //Interface Control [02]
+  // Interface Control [02]
   tft_write_comm8(tft, 0xC6);
   tft_write_data8(tft, 0x02);
   tft_write_comm8(tft, 0xC8);
@@ -238,13 +240,13 @@ void tft_init(const tft_device_t *tft) {
   tft_write_data8(tft, 0x0C);
   tft_write_data8(tft, 0x00);
 
-  //Panel Control [00]
+  // Panel Control [00]
   tft_write_comm8(tft, 0xCC);
   tft_write_data8(tft, 0x00);
 
   // sleep out
   tft_write_comm8(tft, 0x11);
-  tft_delay_microseconds(25000);
+  tft_delay_milliseconds(25);
 
   // display on
   tft_write_comm8(tft, 0x29);
@@ -413,9 +415,17 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
     for (uint32_t i = 0; i < count; i++) {
       // cvalue_hi
       tft_gpio_clear(tft->ili9481.wr.port, tft->ili9481.wr.pin);
+      #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+      __asm("nop");
+      __asm("nop");
+      #endif
       tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
       // cvalue_lo
       tft_gpio_clear(tft->ili9481.wr.port, tft->ili9481.wr.pin);
+      #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+      __asm("nop");
+      __asm("nop");
+      #endif
       tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
     }
   }

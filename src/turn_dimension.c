@@ -270,6 +270,11 @@ void els_turn_dimension_update(void) {
   if (els_turn_dimension.state & (ELS_TURN_DIM_IDLE | ELS_TURN_DIM_PAUSED | ELS_TURN_DIM_ACTIVE))
     els_turn_dimension_keypad_process();
 
+  if (els_turn_dimension.state & (ELS_TURN_DIM_PAUSED | ELS_TURN_DIM_ACTIVE | ELS_TURN_DIM_SET_XAXES | ELS_TURN_DIM_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
+
   switch (els_turn_dimension.state) {
     case ELS_TURN_DIM_PAUSED:
     case ELS_TURN_DIM_ACTIVE:
@@ -610,7 +615,7 @@ static void els_turn_dimension_turn(void) {
 
       // backoff
       els_turn_dimension.xpos_prev = els_stepper->xpos;
-      els_stepper_move_x_no_accel(BACKOFF_DEPTH, els_turn_dimension.feed_mm_s);
+      els_stepper_move_x_no_accel(BACKOFF_DEPTH, els_turn_dimension.finish_feed_mm_s);
       els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZLB;
       break;
     case ELS_TURN_DIM_OP_ATZLB:
@@ -620,7 +625,7 @@ static void els_turn_dimension_turn(void) {
       els_stepper_move_z(0 - els_stepper->zpos, els_config->z_jog_mm_s);
 
       if (els_turn_dimension.finish_pass_count >= els_turn_dimension.finish_passes) {
-        els_stepper_move_x(0 - els_stepper->xpos, els_turn_dimension.feed_mm_s);
+        els_stepper_move_x(0 - els_stepper->xpos, els_turn_dimension.finish_feed_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_DONE;
       }
       else {
@@ -632,7 +637,7 @@ static void els_turn_dimension_turn(void) {
         break;
 
       if (fabs(els_stepper->xpos - els_turn_dimension.xpos_prev) >= PRECISION)
-        els_stepper_move_x(els_turn_dimension.xpos_prev - els_stepper->xpos, els_turn_dimension.feed_mm_s);
+        els_stepper_move_x(els_turn_dimension.xpos_prev - els_stepper->xpos, els_turn_dimension.finish_feed_mm_s);
       else
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_ATZ0;
       break;
@@ -643,17 +648,17 @@ static void els_turn_dimension_turn(void) {
       remaining = fabs(els_turn_dimension.depth + els_stepper->xpos);
       if (remaining >= (els_turn_dimension.depth_of_cut_um + els_turn_dimension.finish_depth_um) / 1000.0) {
         xd = (els_turn_dimension.depth_of_cut_um / 1000.0);
-        els_stepper_move_x(-xd, els_turn_dimension.feed_mm_s);
+        els_stepper_move_x(-xd, els_turn_dimension.finish_feed_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FEED_IN;
       }
       else if (remaining > (els_turn_dimension.finish_depth_um / 1000.0) + (PRECISION * 5)) {
         xd = (remaining - (els_turn_dimension.finish_depth_um / 1000.0));
-        els_stepper_move_x(-xd, els_turn_dimension.feed_mm_s);
+        els_stepper_move_x(-xd, els_turn_dimension.finish_feed_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FEED_IN;
       }
       else if (remaining > PRECISION) {
         xd = remaining;
-        els_stepper_move_x(-xd, els_turn_dimension.feed_mm_s);
+        els_stepper_move_x(-xd, els_turn_dimension.finish_feed_mm_s);
         els_turn_dimension.op_state = ELS_TURN_DIM_OP_FINISH;
       }
       else {
@@ -687,7 +692,7 @@ static void els_turn_dimension_turn(void) {
       }
       break;
     case ELS_TURN_DIM_OP_DONE:
-      if (els_stepper->xbusy)
+      if (els_stepper->xbusy || els_stepper->zbusy)
         break;
 
       // beer time

@@ -242,6 +242,11 @@ void els_parting_update(void) {
   if (els_parting.state & (ELS_PARTING_IDLE | ELS_PARTING_PAUSED | ELS_PARTING_ACTIVE))
     els_parting_keypad_process();
 
+  if (els_parting.state & (ELS_PARTING_PAUSED | ELS_PARTING_ACTIVE | ELS_PARTING_SET_XAXES | ELS_PARTING_SET_ZAXES))
+    els_stepper_enable();
+  else
+    els_stepper_disable();
+
   switch (els_parting.state) {
     case ELS_PARTING_PAUSED:
     case ELS_PARTING_ACTIVE:
@@ -577,7 +582,7 @@ static void els_parting_turn(void) {
       }
       break;
     case ELS_PARTING_OP_DONE:
-      if (els_stepper->xbusy)
+      if (els_stepper->xbusy || els_stepper->zbusy)
         break;
 
       // beer time
