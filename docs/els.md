@@ -323,6 +323,23 @@ If DRO is connected, then uses a simple closed loop traversal for linear movemen
 
 If DRO is connected, then uses a simple closed loop traversal for linear movements on Z axis.
 
+#### X DRO Invert
+
+Invert direction for DRO on X Axis
+
+#### Z DRO Invert
+
+Invert direction for DRO on Z Axis
+
+#### X DIR Invert
+
+Invert stepper direction on X Axis
+
+#### Z DIR Invert
+
+Invert stepper direction on Z Axis
+
+
 ### Manual Turning
 
 **NOTE**
