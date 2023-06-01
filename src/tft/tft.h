@@ -12,33 +12,35 @@ extern "C" {
 
 // colorspaces
 //
-// ILI9481
-#define ILI9481_RMAX 31
-#define ILI9481_GMAX 63
-#define ILI9481_BMAX 31
+// ILI9481, ILI9486, ILI9488 16-bit colorspace
+#if defined(TFT_ILI9481) || defined(TFT_ILI9486) || defined(TFT_ILI9488)
+  #define ILI948x_RMAX 31
+  #define ILI948x_GMAX 63
+  #define ILI948x_BMAX 31
 
-#define ILI9481_RED       (tft_rgb_t){.r = ILI9481_RMAX}
-#define ILI9481_GREEN     (tft_rgb_t){.g = ILI9481_GMAX}
-#define ILI9481_BLUE      (tft_rgb_t){.b = ILI9481_BMAX}
-#define ILI9481_YELLOW    (tft_rgb_t){.r = ILI9481_BMAX, .g = ILI9481_GMAX}
-#define ILI9481_CYAN      (tft_rgb_t){.g = ILI9481_GMAX, .b = ILI9481_BMAX}
-#define ILI9481_MAGENTA   (tft_rgb_t){.r = ILI9481_RMAX, .b = ILI9481_BMAX}
-#define ILI9481_WHITE     (tft_rgb_t){.r = ILI9481_RMAX, .g = ILI9481_GMAX, .b = ILI9481_BMAX}
-#define ILI9481_ORANGE    (tft_rgb_t){.r = ILI9481_RMAX, .g = 20}
-#define ILI9481_BLACK     (tft_rgb_t){.r = 0,  .g = 0, .b = 0}
-#define ILI9481_CERULEAN  (tft_rgb_t){.r = 0,  .g = 30, .b = 20}
-#define ILI9481_DIANNE    (tft_rgb_t){.r = 2,  .g = 18, .b = 12}
-#define ILI9481_FROG      (tft_rgb_t){.r = 2,  .g = 25, .b = 2}
-#define ILI9481_GRAY      (tft_rgb_t){.r = 7,  .g = 14, .b = 7}
-#define ILI9481_LITEGRAY  (tft_rgb_t){.r = 14, .g = 28, .b = 14}
-#define ILI9481_FOREST    (tft_rgb_t){.r = 1,  .g = 25, .b = 4}
-#define ILI9481_TURF      (tft_rgb_t){.r = 5,  .g = 13, .b = 3}
-#define ILI9481_BLUE1     (tft_rgb_t){.r = 0,  .g = 4,  .b = 5}
-#define ILI9481_BLUE2     (tft_rgb_t){.r = 0,  .g = 16, .b = 8}
+  #define TFT_COLOR_RED       (tft_rgb_t){.r = ILI948x_RMAX}
+  #define TFT_COLOR_GREEN     (tft_rgb_t){.g = ILI948x_GMAX}
+  #define TFT_COLOR_BLUE      (tft_rgb_t){.b = ILI948x_BMAX}
+  #define TFT_COLOR_YELLOW    (tft_rgb_t){.r = ILI948x_BMAX, .g = ILI948x_GMAX}
+  #define TFT_COLOR_CYAN      (tft_rgb_t){.g = ILI948x_GMAX, .b = ILI948x_BMAX}
+  #define TFT_COLOR_MAGENTA   (tft_rgb_t){.r = ILI948x_RMAX, .b = ILI948x_BMAX}
+  #define TFT_COLOR_WHITE     (tft_rgb_t){.r = ILI948x_RMAX, .g = ILI948x_GMAX, .b = ILI948x_BMAX}
+  #define TFT_COLOR_ORANGE    (tft_rgb_t){.r = ILI948x_RMAX, .g = 20}
+  #define TFT_COLOR_BLACK     (tft_rgb_t){.r = 0,  .g = 0, .b = 0}
+  #define TFT_COLOR_CERULEAN  (tft_rgb_t){.r = 0,  .g = 30, .b = 20}
+  #define TFT_COLOR_DIANNE    (tft_rgb_t){.r = 2,  .g = 18, .b = 12}
+  #define TFT_COLOR_FROG      (tft_rgb_t){.r = 2,  .g = 25, .b = 2}
+  #define TFT_COLOR_GRAY      (tft_rgb_t){.r = 7,  .g = 14, .b = 7}
+  #define TFT_COLOR_LITEGRAY  (tft_rgb_t){.r = 14, .g = 28, .b = 14}
+  #define TFT_COLOR_FOREST    (tft_rgb_t){.r = 1,  .g = 25, .b = 4}
+  #define TFT_COLOR_TURF      (tft_rgb_t){.r = 5,  .g = 13, .b = 3}
+  #define TFT_COLOR_BLUE1     (tft_rgb_t){.r = 0,  .g = 4,  .b = 5}
+  #define TFT_COLOR_BLUE2     (tft_rgb_t){.r = 0,  .g = 16, .b = 8}
 
-#define ILI9481_BGCOLOR1  (tft_rgb_t){.r = 10, .g = 40, .b = 30}
-#define ILI9481_BGCOLOR2  (tft_rgb_t){.r = 4,  .g = 30, .b = 8}
-#define ILI9481_BGCOLOR3  (tft_rgb_t){.r = 27, .g = 10}
+  #define TFT_COLOR_BGCOLOR1  (tft_rgb_t){.r = 10, .g = 40, .b = 30}
+  #define TFT_COLOR_BGCOLOR2  (tft_rgb_t){.r = 4,  .g = 30, .b = 8}
+  #define TFT_COLOR_BGCOLOR3  (tft_rgb_t){.r = 27, .g = 10}
+#endif
 
 typedef struct {
   uint32_t port;
@@ -64,7 +66,7 @@ typedef union {
     tft_gpio_t rd;
     tft_gpio_t rst;
     tft_gpio_t data; // pin is ignored, uses pin 0 - pin 7.
-  } ili9481;
+  } ili948x;
 } tft_device_t;
 
 // ------------------------------------------------------------------------------------------------------------------

@@ -181,24 +181,24 @@ void els_parting_setup(void) {
 void els_parting_start(void) {
   char text[32];
 
-  tft_filled_rectangle(&tft, 0,   0, 480, 320, ILI9481_BLACK);
+  tft_filled_rectangle(&tft, 0,   0, 480, 320, TFT_COLOR_BLACK);
 
-  tft_filled_rectangle(&tft, 0,  50, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0,  50, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0,  50, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0,  50, 480,   1, TFT_COLOR_LITEGRAY);
 
-  tft_filled_rectangle(&tft, 0, 100, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0, 100, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0, 100, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0, 100, 480,   1, TFT_COLOR_LITEGRAY);
 
-  tft_filled_rectangle(&tft, 0, 190, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0, 190, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0, 190, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0, 190, 480,   1, TFT_COLOR_LITEGRAY);
 
   els_parting_display_header();
 
   // angle symbol
-  tft_font_write_bg(&tft, 165,  62, "J", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 165,  62, "J", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   // pulse symbol
-  tft_font_write_bg(&tft, 355,  58, "K", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 355,  58, "K", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   // reset state
   els_parting.feed_mm_s = els_parting.feed_um / 1000.0;
@@ -293,21 +293,21 @@ static void els_parting_display_setting(void) {
 
   els_sprint_double2(text, sizeof(text), els_parting.feed_um / 1000.0, "Xf");
   if (els_parting.state == ELS_PARTING_SET_FEED)
-    tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double2(text, sizeof(text), els_parting.retract_per_mm, "Rx");
   if (els_parting.state == ELS_PARTING_SET_RETR)
-    tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_parting.depth, "D");
   if (els_parting.state == ELS_PARTING_SET_DEPTH)
-    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 }
 
 static void els_parting_display_axes(void) {
@@ -316,24 +316,24 @@ static void els_parting_display_axes(void) {
   els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
 
   if (els_parting.state & ELS_PARTING_SET_ZAXES)
-    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double33(text, sizeof(text), els_stepper->xpos, "X");
   if (els_parting.state & ELS_PARTING_SET_XAXES)
-    tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   if (els_parting.show_dro) {
-    tft_font_write_bg(&tft, 8, 190, "DRO", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 190, "DRO", &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
     els_sprint_double33(text, sizeof(text), (els_dro.zpos_um / 1000.0), "Z");
-    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
     els_sprint_double33(text, sizeof(text), (els_dro.xpos_um / 1000.0), "X");
-    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
   }
 }
 
@@ -341,28 +341,28 @@ static void els_parting_display_diagram(void) {
   // ----------------------------------------------------------------------------------------------
   // diagram
   // ----------------------------------------------------------------------------------------------
-  tft_filled_rectangle(&tft, 100, 220, 156, 80, ILI9481_WHITE);
-  tft_filled_rectangle(&tft, 240, 220,  16, 80, ILI9481_ORANGE);
-  tft_filled_rectangle(&tft, 80,  258, 200,  4, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 100, 220, 156, 80, TFT_COLOR_WHITE);
+  tft_filled_rectangle(&tft, 240, 220,  16, 80, TFT_COLOR_ORANGE);
+  tft_filled_rectangle(&tft, 80,  258, 200,  4, TFT_COLOR_LITEGRAY);
 
-  tft_font_write_bg(&tft, 260, 184, "D", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 265, 226, "D", &inconsolata_lgc_bold_14, ILI9481_WHITE, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 260, 250, "B", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 260, 184, "D", &noto_sans_mono_bold_arrows_24, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
+  tft_font_write_bg(&tft, 265, 226, "D", &inconsolata_lgc_bold_14, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
+  tft_font_write_bg(&tft, 260, 250, "B", &noto_sans_mono_bold_arrows_24, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   // origin
-  tft_font_write(&tft, 230, 265, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW);
+  tft_font_write(&tft, 230, 265, ".", &noto_sans_mono_bold_26, TFT_COLOR_YELLOW);
 
   // legend
-  tft_font_write_bg(&tft, 8, 200, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 26, 220, "(0,0)", &inconsolata_lgc_bold_14, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 8, 200, ".", &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
+  tft_font_write_bg(&tft, 26, 220, "(0,0)", &inconsolata_lgc_bold_14, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
   // ----------------------------------------------------------------------------------------------
 }
 
 static void els_parting_display_header(void) {
-  tft_rgb_t color = (els_parting.locked ? ILI9481_RED : ILI9481_CERULEAN);
+  tft_rgb_t color = (els_parting.locked ? TFT_COLOR_RED : TFT_COLOR_CERULEAN);
 
   tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
-  tft_font_write_bg(&tft, 8, 0, "PARTING", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  tft_font_write_bg(&tft, 8, 0, "PARTING", &noto_sans_mono_bold_26, TFT_COLOR_WHITE, color);
   els_parting_display_encoder_pips();
 }
 
@@ -375,40 +375,40 @@ static void els_parting_display_encoder_pips(void) {
     tft_filled_rectangle(&tft,
       440, 32 - (n * 10 + spacing * 2),
       15 + n * 10, 10,
-      (n < pips ? ILI9481_WHITE : els_parting.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR1));
+      (n < pips ? TFT_COLOR_WHITE : els_parting.locked ? TFT_COLOR_LITEGRAY : TFT_COLOR_BGCOLOR1));
 }
 
 static void els_parting_display_refresh(void) {
   els_spindle_direction_t dir = els_spindle_get_direction();
   if (dir != els_parting.prev_dir) {
     els_parting.prev_dir = dir;
-    tft_filled_rectangle(&tft, 0, 55, 60, 45, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 0, 55, 60, 45, TFT_COLOR_BLACK);
     switch (dir) {
       case ELS_S_DIRECTION_CW:
         // cw symbol
-        tft_font_write_bg(&tft, 5, 62, "A", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 5, 62, "A", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
       case ELS_S_DIRECTION_CCW:
         // ccw symbol
-        tft_font_write_bg(&tft, 5, 62, "B", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 5, 62, "B", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
       default:
         // spindle symbol
-        tft_font_write_bg(&tft, 3, 52, "N", &gears_regular_50, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 3, 52, "N", &gears_regular_50, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
     }
   }
 
   char text[32];
   snprintf(text, sizeof(text), "%04d", els_spindle_get_rpm());
-  tft_font_write_bg(&tft, 62, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 62, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   double angle = els_spindle_get_angle();
   snprintf(text, sizeof(text), "%03d.%02d", (int)angle, (int)((angle - (int)angle) * 100));
-  tft_font_write_bg(&tft, 200, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 200, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   snprintf(text, sizeof(text), "%04d", els_spindle_get_counter());
-  tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_parting_display_axes();
 
@@ -416,8 +416,8 @@ static void els_parting_display_refresh(void) {
     els_parting.prev_op_state = els_parting.op_state;
 
     const char *label = op_labels[els_parting.op_state];
-    tft_filled_rectangle(&tft, 310, 195, 169, 35, ILI9481_BLACK);
-    tft_font_write_bg(&tft, 310, 190, label, &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 310, 195, 169, 35, TFT_COLOR_BLACK);
+    tft_font_write_bg(&tft, 310, 190, label, &noto_sans_mono_bold_26, TFT_COLOR_CERULEAN, TFT_COLOR_BLACK);
   }
 }
 
@@ -462,7 +462,7 @@ static void els_parting_keypad_process(void) {
       break;
     case ELS_KEY_FUN_F2:
       els_parting.show_dro = !els_parting.show_dro;
-      tft_filled_rectangle(&tft, 0, 200, 300, 120, ILI9481_BLACK);
+      tft_filled_rectangle(&tft, 0, 200, 300, 120, TFT_COLOR_BLACK);
       if (els_parting.show_dro)
         els_parting_display_axes();
       else

@@ -452,23 +452,23 @@ static void els_function_menu_update(void) {
 // Menu Module Display
 //------------------------------------------------------------------------------
 static void els_function_menu_display_init(void) {
-  tft_filled_rectangle(&tft, 0,   0, 480, 320, ILI9481_BLACK);
+  tft_filled_rectangle(&tft, 0,   0, 480, 320, TFT_COLOR_BLACK);
   els_function_menu_display_header();
   els_function_menu_display_refresh();
 }
 
 static void els_function_menu_display_header(void) {
   if (els_function.locked) {
-    tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
-    tft_font_write_bg(&tft, 8, 0, "FUNCTIONS", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
+    tft_filled_rectangle(&tft, 0, 0, 480, 50, TFT_COLOR_RED);
+    tft_font_write_bg(&tft, 8, 0, "FUNCTIONS", &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_RED);
+    tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_RED);
   }
   else {
-    tft_filled_rectangle(&tft, 0,   0, 480,  50, ILI9481_DIANNE);
-    tft_filled_rectangle(&tft, 0,  50, 480,   1, ILI9481_LITEGRAY);
+    tft_filled_rectangle(&tft, 0,   0, 480,  50, TFT_COLOR_DIANNE);
+    tft_filled_rectangle(&tft, 0,  50, 480,   1, TFT_COLOR_LITEGRAY);
 
-    tft_font_write_bg(&tft, 8, 0, "FUNCTIONS", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_DIANNE);
-    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_DIANNE);
+    tft_font_write_bg(&tft, 8, 0, "FUNCTIONS", &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_DIANNE);
+    tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_DIANNE);
   }
 }
 
@@ -482,27 +482,27 @@ static void els_function_menu_display_refresh(void) {
     snprintf(text, sizeof(text), "%d", id);
 
     if (row == 0) {
-      tft_filled_rectangle(&tft, 0, y, 480, 50, ILI9481_WHITE);
-      tft_font_write_bg(&tft, 8, y, text, &noto_sans_mono_bold_26, ILI9481_BLACK, ILI9481_WHITE);
-      tft_font_write_bg_xadv(&tft, 64, y, function_type_labels[f], &noto_sans_mono_bold_26, ILI9481_BLACK, ILI9481_WHITE, 14);
+      tft_filled_rectangle(&tft, 0, y, 480, 50, TFT_COLOR_WHITE);
+      tft_font_write_bg(&tft, 8, y, text, &noto_sans_mono_bold_26, TFT_COLOR_BLACK, TFT_COLOR_WHITE);
+      tft_font_write_bg_xadv(&tft, 64, y, function_type_labels[f], &noto_sans_mono_bold_26, TFT_COLOR_BLACK, TFT_COLOR_WHITE, 14);
     }
     else {
-      tft_filled_rectangle(&tft, 0, y, 480, 50, ILI9481_BLACK);
-      tft_font_write_bg(&tft, 8, y, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
-      tft_font_write_bg_xadv(&tft, 64, y, function_type_labels[f], &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK, 14);
+      tft_filled_rectangle(&tft, 0, y, 480, 50, TFT_COLOR_BLACK);
+      tft_font_write_bg(&tft, 8, y, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
+      tft_font_write_bg_xadv(&tft, 64, y, function_type_labels[f], &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK, 14);
     }
     row++;
   }
 
   for (size_t n = row; n < 5; n++)
-    tft_filled_rectangle(&tft, 0, y_start + n * 50, 480, 50, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 0, y_start + n * 50, 480, 50, TFT_COLOR_BLACK);
 }
 
 //------------------------------------------------------------------------------
 // Default TODO Display
 //------------------------------------------------------------------------------
 static void els_function_not_implemented_start(void) {
-  tft_filled_rectangle(&tft, 0, 0, 480, 320, ILI9481_BLACK);
+  tft_filled_rectangle(&tft, 0, 0, 480, 320, TFT_COLOR_BLACK);
   els_function.refresh_todo = true;
 }
 
@@ -521,16 +521,16 @@ static void els_function_not_implemented_update(void) {
   if (els_function.refresh_todo) {
     const char *label = function_type_labels[els_function.function_curr];
     if (els_function.locked) {
-      tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_RED);
-      tft_font_write_bg(&tft, 8, 0, label, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_RED);
-      tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, ILI9481_WHITE, ILI9481_RED);
+      tft_filled_rectangle(&tft, 0, 0, 480, 50, TFT_COLOR_RED);
+      tft_font_write_bg(&tft, 8, 0, label, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_RED);
+      tft_font_write_bg(&tft, 446, 6, "C", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_RED);
     }
     else {
-      tft_filled_rectangle(&tft, 0, 0, 480, 50, ILI9481_GRAY);
-      tft_font_write_bg(&tft, 8, 0, label, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_GRAY);
-      tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, ILI9481_WHITE, ILI9481_GRAY);
+      tft_filled_rectangle(&tft, 0, 0, 480, 50, TFT_COLOR_GRAY);
+      tft_font_write_bg(&tft, 8, 0, label, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_GRAY);
+      tft_font_write_bg(&tft, 446, 6, "D", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_GRAY);
     }
-    tft_font_write_bg(&tft, 175, 150, "TO DO", &noto_sans_mono_bold_26, ILI9481_RED, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 175, 150, "TO DO", &noto_sans_mono_bold_26, TFT_COLOR_RED, TFT_COLOR_BLACK);
   }
 
   els_function.refresh_todo = false;

@@ -110,6 +110,10 @@ This primarily a carrier / breakout board with an IDC ribbon cable connector to 
 * ILI9481 TFT LCD, https://www.aliexpress.com/item/1005001288341298.html
 * The main board is connected to the LCD module using an adapter board that breaks out the pins to a 16 pin IDC socket.
 
+There is some limited / preliminary support for ILI9486 and ILI9488 TFT displays.
+
+https://www.aliexpress.com/item/1005001288341298.html
+
 ### Output buffer / pulse shaper
 
 Kicad files in hw/buffer

@@ -13,33 +13,33 @@
 
 
 static void tft_write_bus(const tft_device_t *tft, uint8_t data) {
-  tft_gpio_clear(tft->ili9481.data.port, tft->ili9481.data.pin);
-  tft_gpio_set(tft->ili9481.data.port, data);
+  tft_gpio_clear(tft->ili948x.data.port, tft->ili948x.data.pin);
+  tft_gpio_set(tft->ili948x.data.port, data);
 
   // write strobe.
-  tft_gpio_clear(tft->ili9481.wr.port, tft->ili9481.wr.pin);
+  tft_gpio_clear(tft->ili948x.wr.port, tft->ili948x.wr.pin);
   __asm("nop");
   __asm("nop");
   #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
   __asm("nop");
   __asm("nop");
   #endif
-  tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
+  tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
 }
 
 static uint8_t tft_read_bus(const tft_device_t *tft) {
   uint8_t data;
 
-  tft_gpio_set(tft->ili9481.rd.port, tft->ili9481.rd.pin);
-  tft_gpio_clear(tft->ili9481.rd.port, tft->ili9481.rd.pin);
+  tft_gpio_set(tft->ili948x.rd.port, tft->ili948x.rd.pin);
+  tft_gpio_clear(tft->ili948x.rd.port, tft->ili948x.rd.pin);
   tft_delay_microseconds(1);
-  data = tft_gpio_get(tft->ili9481.data.port, tft->ili9481.data.pin) & 0xFF;
-  tft_gpio_set(tft->ili9481.rd.port, tft->ili9481.rd.pin);
+  data = tft_gpio_get(tft->ili948x.data.port, tft->ili948x.data.pin) & 0xFF;
+  tft_gpio_set(tft->ili948x.rd.port, tft->ili948x.rd.pin);
   return data;
 }
 
 static uint8_t tft_read_data8(const tft_device_t *tft) {
-  tft_gpio_set(tft->ili9481.rs.port, tft->ili9481.rs.pin);
+  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
   return tft_read_bus(tft);
 }
 
@@ -51,43 +51,43 @@ static uint16_t tft_read_data16(const tft_device_t *tft) {
 }
 
 static void tft_write_data8(const tft_device_t *tft, uint8_t data) {
-  tft_gpio_set(tft->ili9481.rs.port, tft->ili9481.rs.pin);
+  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
   tft_write_bus(tft, data);
 }
 
 static void tft_write_data16(const tft_device_t *tft, uint16_t data) {
-  tft_gpio_set(tft->ili9481.rs.port, tft->ili9481.rs.pin);
+  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
   tft_write_bus(tft, data >> 8);
   tft_write_bus(tft, data & 0xff);
 }
 
 static void tft_write_comm8(const tft_device_t *tft, uint8_t comm) {
-  tft_gpio_clear(tft->ili9481.rs.port, tft->ili9481.rs.pin);
+  tft_gpio_clear(tft->ili948x.rs.port, tft->ili948x.rs.pin);
   tft_write_bus(tft, comm);
-  tft_gpio_set(tft->ili9481.rs.port, tft->ili9481.rs.pin);
+  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
 }
 
 static void tft_write_comm16(const tft_device_t *tft, uint16_t comm) {
-  tft_gpio_clear(tft->ili9481.rs.port, tft->ili9481.rs.pin);
+  tft_gpio_clear(tft->ili948x.rs.port, tft->ili948x.rs.pin);
   tft_write_bus(tft, comm >> 8);
   tft_write_bus(tft, comm & 0xff);
-  tft_gpio_set(tft->ili9481.rs.port, tft->ili9481.rs.pin);
+  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
 }
 
 static void tft_write_comm_data(const tft_device_t *tft, uint16_t comm, uint16_t data) {
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   tft_write_comm16(tft, comm);
   tft_write_data16(tft, data);
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 }
 
 static uint16_t tft_read_register(const tft_device_t *tft, uint16_t reg, int index) {
   uint16_t ret = 0, high, low;
 
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   tft_write_comm16(tft, reg);
   tft_delay_microseconds(1);
-  tft_gpio_mode_input(tft->ili9481.data.port, tft->ili9481.data.pin);
+  tft_gpio_mode_input(tft->ili948x.data.port, tft->ili948x.data.pin);
 
   do {
     high = tft_read_data8(tft);
@@ -95,8 +95,8 @@ static uint16_t tft_read_register(const tft_device_t *tft, uint16_t reg, int ind
     ret  = (high << 8 | low);
   } while (--index >= 0);
 
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
-  tft_gpio_mode_output(tft->ili9481.data.port, tft->ili9481.data.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
+  tft_gpio_mode_output(tft->ili948x.data.port, tft->ili948x.data.pin);
 
   return ret;
 }
@@ -118,39 +118,42 @@ static uint32_t tft_read_register40(const tft_device_t *tft, uint16_t reg) {
 
 void tft_init(const tft_device_t *tft) {
   // init pins
-  tft_gpio_mode_output(tft->ili9481.rd.port, tft->ili9481.rd.pin);
-  tft_gpio_mode_output(tft->ili9481.wr.port, tft->ili9481.wr.pin);
-  tft_gpio_mode_output(tft->ili9481.rs.port, tft->ili9481.rs.pin);
-  tft_gpio_mode_output(tft->ili9481.cs.port, tft->ili9481.cs.pin);
-  tft_gpio_mode_output(tft->ili9481.rst.port, tft->ili9481.rst.pin);
+  tft_gpio_mode_output(tft->ili948x.rd.port, tft->ili948x.rd.pin);
+  tft_gpio_mode_output(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+  tft_gpio_mode_output(tft->ili948x.rs.port, tft->ili948x.rs.pin);
+  tft_gpio_mode_output(tft->ili948x.cs.port, tft->ili948x.cs.pin);
+  tft_gpio_mode_output(tft->ili948x.rst.port, tft->ili948x.rst.pin);
 
   // data out by default
-  tft_gpio_mode_output(tft->ili9481.data.port, tft->ili9481.data.pin);
+  tft_gpio_mode_output(tft->ili948x.data.port, tft->ili948x.data.pin);
 
   // idle
-  tft_gpio_set(tft->ili9481.rd.port, tft->ili9481.rd.pin);
-  tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
-  tft_gpio_set(tft->ili9481.rs.port, tft->ili9481.rs.pin);
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
-  tft_gpio_set(tft->ili9481.rst.port, tft->ili9481.rst.pin);
+  tft_gpio_set(tft->ili948x.rd.port, tft->ili948x.rd.pin);
+  tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
+  tft_gpio_set(tft->ili948x.rst.port, tft->ili948x.rst.pin);
   tft_delay_milliseconds(1);
 
-  tft_gpio_clear(tft->ili9481.rst.port, tft->ili9481.rst.pin);
+  tft_gpio_clear(tft->ili948x.rst.port, tft->ili948x.rst.pin);
   tft_delay_milliseconds(1);
-  tft_gpio_set(tft->ili9481.rst.port, tft->ili9481.rst.pin);
+  tft_gpio_set(tft->ili948x.rst.port, tft->ili948x.rst.pin);
   tft_delay_milliseconds(1);
 
   // unlock E0 F0
   tft_write_comm_data(tft, 0xB0, 0x0000);
 
-#ifdef DEBUG
-  uint32_t r40 = tft_read_register40(tft, 0xBF);
-  printf("ID = 0x%04x\n", (uint16_t)(r40 & 0xFFFF));
-#endif
+  // ILI9481
+  // uint32_t r40 = tft_read_register40(tft, 0xBF);
+  // printf("ID = 0x%04x\n", (uint16_t)(r40 & 0xFFFF));
+  //
+  // ILI9486, ILI9488
+  // uint32_t r32 = tft_read_register32(tft, 0xD3);
+  // printf("ID = 0x%04x\n", (uint16_t)(r32 & 0xFFFF));
 
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
-  tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
+  tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 
   // soft reset
   tft_write_comm8(tft, 0x01);
@@ -159,7 +162,7 @@ void tft_init(const tft_device_t *tft) {
   // display off
   tft_write_comm8(tft, 0x28);
 
-  // pixel, read=565, write=656
+  // pixel, 16bpp
   tft_write_comm8(tft, 0x3A);
   tft_write_data8(tft, 0x55);
 
@@ -167,7 +170,7 @@ void tft_init(const tft_device_t *tft) {
   tft_write_comm8(tft, 0xB0);
   tft_write_data8(tft, 0x00);
 
-  //Frame Memory, interface [02 00 00 00]
+  // Frame Memory, interface [02 00 00 00]
   tft_write_comm8(tft, 0xB3);
   tft_write_data8(tft, 0x02);
   tft_write_data8(tft, 0x00);
@@ -251,14 +254,14 @@ void tft_init(const tft_device_t *tft) {
   // display on
   tft_write_comm8(tft, 0x29);
 
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 }
 
 void tft_set_window(const tft_device_t *tft, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
   // allows you to use clipping within a flood fill.
   bool reset = false;
-  if (tft_gpio_get(tft->ili9481.cs.port, tft->ili9481.cs.pin)) {
-    tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  if (tft_gpio_get(tft->ili948x.cs.port, tft->ili948x.cs.pin)) {
+    tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
     reset = true;
   }
 
@@ -271,7 +274,7 @@ void tft_set_window(const tft_device_t *tft, uint16_t x, uint16_t y, uint16_t w,
   tft_write_comm8(tft, 0x2C);
 
   if (reset) {
-    tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+    tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   }
 }
 
@@ -309,22 +312,22 @@ void tft_rotate(const tft_device_t *tft, tft_rotation_t rotation) {
         break;
   }
 
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   tft_write_comm8(tft, 0x36);
   tft_write_data8(tft, data);
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 }
 
 void tft_invert(const tft_device_t *tft, bool invert) {
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   tft_write_comm8(tft, invert ? 0x21 : 20);
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 
   tft_write_comm_data(tft, 0x61, invert);
 }
 
 void tft_pixel_set(const tft_device_t *tft, uint16_t x, uint16_t y, tft_rgb_t color) {
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   // write memory
   tft_write_comm8(tft, 0x2C);
   tft_set_window(tft, x, y, 1, 1);
@@ -337,22 +340,22 @@ void tft_pixel_set(const tft_device_t *tft, uint16_t x, uint16_t y, tft_rgb_t co
     ((uint16_t)color.r & 0x1f)
   );
 
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 }
 
 void tft_pixel_get(const tft_device_t *tft, uint16_t x, uint16_t y, tft_rgb_t *color) {
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   // read memory
   tft_set_window(tft, x, y, 1, 1);
   tft_write_comm8(tft, 0x2E);
 
-  tft_gpio_mode_input(tft->ili9481.data.port, tft->ili9481.data.pin);
+  tft_gpio_mode_input(tft->ili948x.data.port, tft->ili948x.data.pin);
   // dummy read.
   tft_read_data8(tft);
   // 5:6:5 16-bit color space.
   uint16_t data = tft_read_data16(tft);
-  tft_gpio_mode_output(tft->ili9481.data.port, tft->ili9481.data.pin);
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_mode_output(tft->ili948x.data.port, tft->ili948x.data.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 
   color->r = (data >>  0) & 0x1f;
   color->g = (data >>  5) & 0x3f;
@@ -366,7 +369,7 @@ uint16_t tft_rgb_to_rgb16(tft_rgb_t color) {
 }
 
 void tft_flood_start(const tft_device_t *tft) {
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   // write memory
   tft_write_comm8(tft, 0x2C);
 }
@@ -376,7 +379,7 @@ void tft_flood_write_rgb16(const tft_device_t *tft, uint16_t data) {
 }
 
 void tft_flood_finish(const tft_device_t *tft) {
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 }
 
 void tft_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint16_t w, uint16_t h, tft_rgb_t color) {
@@ -397,14 +400,14 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
 
   uint32_t count = w * h - 1;
 
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   tft_set_window(tft, x, y, w, h);
 
   // write memory
   tft_write_comm8(tft, 0x2C);
 
   // set rs pin for pixel data feed.
-  tft_gpio_set(tft->ili9481.rs.port, tft->ili9481.rs.pin);
+  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
 
   // first pixel.
   tft_write_bus(tft, cvalue_hi);
@@ -414,19 +417,19 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
     // write strobe, data already set up above.
     for (uint32_t i = 0; i < count; i++) {
       // cvalue_hi
-      tft_gpio_clear(tft->ili9481.wr.port, tft->ili9481.wr.pin);
+      tft_gpio_clear(tft->ili948x.wr.port, tft->ili948x.wr.pin);
       #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
       __asm("nop");
       __asm("nop");
       #endif
-      tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
+      tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
       // cvalue_lo
-      tft_gpio_clear(tft->ili9481.wr.port, tft->ili9481.wr.pin);
+      tft_gpio_clear(tft->ili948x.wr.port, tft->ili948x.wr.pin);
       #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
       __asm("nop");
       __asm("nop");
       #endif
-      tft_gpio_set(tft->ili9481.wr.port, tft->ili9481.wr.pin);
+      tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
     }
   }
   else {
@@ -436,7 +439,7 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
     }
   }
 
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 }
 
 void tft_line(const tft_device_t *tft, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, tft_rgb_t color) {
@@ -470,7 +473,7 @@ void tft_line(const tft_device_t *tft, uint16_t x0, uint16_t y0, uint16_t x1, ui
     ystep = -1;
   }
 
-  tft_gpio_clear(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
   for (; x0 <= x1; x0++) {
     tft_write_comm8(tft, 0x2C);
     if (steep)
@@ -485,7 +488,7 @@ void tft_line(const tft_device_t *tft, uint16_t x0, uint16_t y0, uint16_t x1, ui
       err += dx;
     }
   }
-  tft_gpio_set(tft->ili9481.cs.port, tft->ili9481.cs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 }
 
 void tft_triangle(const tft_device_t *tft,

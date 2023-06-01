@@ -21,8 +21,14 @@ cd ../
 git clone <repo-url>
 cd els
 
-# edit Makefile to pick target
-make
+# edit Makefile to pick target and a TFT version
+make TFT=ILI9481
+
+# or
+make TFT=ILI9486
+
+# or
+make TFT=ILI9488
 ```
 
 ## Technical documentation

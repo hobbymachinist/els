@@ -2,32 +2,47 @@ GIT_SHA   = $(shell git rev-parse --short HEAD)
 BUILD_TS  = $(shell date +%Y-%m-%dT%H:%M:%S)
 BINARY    = els
 
-SRCS      = $(wildcard src/*.c) $(wildcard src/tft/*.c) $(wildcard src/tft/drivers/*.c) $(wildcard src/tft/fonts/*.c)
-SRCS     += $(wildcard src/bitmaps/*.c)
-OBJS      = $(addprefix obj/, $(SRCS:.c=.o))
-VERBOSE  ?= 0
-
-STLINK   ?= 0
-
-STM32F446 = 1
-
-#CFLAGS   += -DELS_DEBUG=1
-
 ################################################################################
 # TFT
 # ------------------------------------------------------------------------------
 #
-# Uncomment the display used and comment the rest, defaults to ILI9481
+# Set the TFT to the display used
 #
 ################################################################################
-CFLAGS   += -DTFT_ILI9481
-#CFLAGS   += -DTFT_ILI9486
-#CFLAGS   += -DTFT_ILI9488
+TFT      ?= ILI9481 # supported values ILI9481, ILI9486, ILI9488
+
+SRCS      = $(wildcard src/*.c) $(wildcard src/tft/*.c) $(wildcard src/tft/fonts/*.c)
+SRCS     += $(wildcard src/bitmaps/*.c)
+
+ifneq (, $(findstring ILI9481, $(TFT)))
+  SRCS   += $(wildcard src/tft/drivers/ili9481.c)
+  CFLAGS += -DTFT_ILI9481
+endif
+
+# TODO: custom 9486 driver
+ifneq (, $(findstring ILI9486, $(TFT)))
+  SRCS   += $(wildcard src/tft/drivers/ili9481.c)
+  CFLAGS += -DTFT_ILI9486
+endif
+
+# TODO: custom 9488 driver
+ifneq (, $(findstring ILI9488, $(TFT)))
+  SRCS   += $(wildcard src/tft/drivers/ili9481.c)
+  CFLAGS += -DTFT_ILI9488
+endif
+
+OBJS      = $(addprefix obj/, $(SRCS:.c=.o))
+VERBOSE  ?= 0
+
+STLINK   ?= 0
+STM32F446 = 1
 
 CFLAGS   += -DGIT_SHA=\"$(GIT_SHA)\" -DBUILD_TS=\"$(BUILD_TS)\"
 CFLAGS   += -Isrc -DVERBOSE=$(VERBOSE)
 CFLAGS   += -std=gnu99 -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 CFLAGS   += -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Os
+
+#CFLAGS   += -DELS_DEBUG=1
 #CFLAGS   += -ffast-math
 #CFLAGS   += -frounding-math -fsignaling-nans -ffloat-store -ffp-contract=off
 

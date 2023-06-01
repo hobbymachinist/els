@@ -217,24 +217,24 @@ void els_threading_start(void) {
 
   els_threading_configure_gpio();
 
-  tft_filled_rectangle(&tft, 0,   0, 480, 320, ILI9481_BLACK);
+  tft_filled_rectangle(&tft, 0,   0, 480, 320, TFT_COLOR_BLACK);
 
-  tft_filled_rectangle(&tft, 0,  50, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0,  50, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0,  50, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0,  50, 480,   1, TFT_COLOR_LITEGRAY);
 
-  tft_filled_rectangle(&tft, 0, 100, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0, 100, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0, 100, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0, 100, 480,   1, TFT_COLOR_LITEGRAY);
 
-  tft_filled_rectangle(&tft, 0, 190, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0, 190, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0, 190, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0, 190, 480,   1, TFT_COLOR_LITEGRAY);
 
   els_threading_display_header();
 
   // angle symbol
-  tft_font_write_bg(&tft, 165,  62, "J", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 165,  62, "J", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   // pulse symbol
-  tft_font_write_bg(&tft, 355,  58, "K", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 355,  58, "K", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   // reset state
   els_threading.prev_state = 0;
@@ -247,7 +247,7 @@ void els_threading_start(void) {
 
   els_threading_display_pitch();
 
-  tft_font_write_bg(&tft, 8, 190, "DRO", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 8, 190, "DRO", &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
   els_threading_display_axes();
 
   els_threading_display_refresh();
@@ -387,25 +387,25 @@ static void els_threading_display_pitch(void) {
 
   els_sprint_double13(text, sizeof(text), els_threading.pitch_um / 1000.0, "PITCH");
   if (els_threading.state == ELS_THREADING_SET_PITCH)
-    tft_font_write_bg(&tft, 249, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 249, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 249, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 249, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
 
   if (els_threading.pitch_type == ELS_THREADING_PITCH_STD) {
-    tft_filled_rectangle(&tft, 249, 200, 260, 25, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 249, 200, 260, 25, TFT_COLOR_BLACK);
     tft_font_write_bg(&tft,
       249, 200,
       pitch_table_label[els_threading.pitch_table_index],
-      &inconsolata_lgc_bold_14, ILI9481_YELLOW, ILI9481_BLACK);
+      &inconsolata_lgc_bold_14, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   }
 }
 
 static void els_threading_display_pitch_type(void) {
   if (els_threading.pitch_type == ELS_THREADING_PITCH_STD)
-    tft_font_write_bg(&tft, 249, 262, "COARSE", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 249, 262, "COARSE", &noto_sans_mono_bold_26, TFT_COLOR_FOREST, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 249, 262, "CUSTOM", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 249, 262, "CUSTOM", &noto_sans_mono_bold_26, TFT_COLOR_FOREST, TFT_COLOR_BLACK);
 }
 
 static void els_threading_display_axes(void) {
@@ -413,29 +413,29 @@ static void els_threading_display_axes(void) {
 
   els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
   if (els_threading.state & ELS_THREADING_SET_ZAXES)
-    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_threading.length, "LEN");
   if (els_threading.state == ELS_THREADING_SET_LENGTH)
-    tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 270, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
-  tft_font_write_bg(&tft, 8, 142, "LIMITS ON", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 8, 142, "LIMITS ON", &noto_sans_mono_bold_26, TFT_COLOR_FOREST, TFT_COLOR_BLACK);
 }
 
 static void els_threading_display_header(void) {
   if (els_threading.pitch_reverse) {
-    tft_rgb_t color = els_threading.locked ? ILI9481_RED : ILI9481_GREEN;
+    tft_rgb_t color = els_threading.locked ? TFT_COLOR_RED : TFT_COLOR_GREEN;
     tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
-    tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING - L", &noto_sans_mono_bold_26, ILI9481_BLACK, color);
+    tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING - L", &noto_sans_mono_bold_26, TFT_COLOR_BLACK, color);
   }
   else {
-    tft_rgb_t color = els_threading.locked ? ILI9481_RED : ILI9481_FOREST;
+    tft_rgb_t color = els_threading.locked ? TFT_COLOR_RED : TFT_COLOR_FOREST;
     tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
-    tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING - R", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+    tft_font_write_bg(&tft, 8, 0, "MANUAL THREADING - R", &noto_sans_mono_bold_26, TFT_COLOR_WHITE, color);
   }
 
   els_threading_display_encoder_pips();
@@ -446,64 +446,64 @@ static void els_threading_display_encoder_pips(void) {
   size_t pips = els_threading.encoder_multiplier;
   pips = pips > 10 ? 3 : pips > 1 ? 2 : 1;
 
-  tft_rgb_t color = (els_threading.pitch_reverse ? ILI9481_BLACK : ILI9481_WHITE);
+  tft_rgb_t color = (els_threading.pitch_reverse ? TFT_COLOR_BLACK : TFT_COLOR_WHITE);
 
   for (size_t n = 0, spacing = 0; n < 3; n++, spacing++)
     tft_filled_rectangle(&tft,
       440, 32 - (n * 10 + spacing * 2),
       15 + n * 10, 10,
-      (n < pips ? color : els_threading.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR2));
+      (n < pips ? color : els_threading.locked ? TFT_COLOR_LITEGRAY : TFT_COLOR_BGCOLOR2));
 }
 
 static void els_threading_display_refresh(void) {
   els_spindle_direction_t dir = els_spindle_get_direction();
   if (dir != els_threading.prev_dir) {
     els_threading.prev_dir = dir;
-    tft_filled_rectangle(&tft, 0, 55, 60, 45, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 0, 55, 60, 45, TFT_COLOR_BLACK);
     switch (dir) {
       case ELS_S_DIRECTION_CW:
         // cw symbol
-        tft_font_write_bg(&tft, 5, 62, "A", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 5, 62, "A", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
       case ELS_S_DIRECTION_CCW:
         // ccw symbol
-        tft_font_write_bg(&tft, 5, 62, "B", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 5, 62, "B", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
       default:
         // spindle symbol
-        tft_font_write_bg(&tft, 3, 52, "N", &gears_regular_50, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 3, 52, "N", &gears_regular_50, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
     }
   }
 
   if (els_threading.prev_state != els_threading.state) {
     els_threading.prev_state = els_threading.state;
-    tft_filled_rectangle(&tft, 249, 265, 149, 35, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 249, 265, 149, 35, TFT_COLOR_BLACK);
     const uint16_t x = 249, y = 262;
     switch (els_threading.state) {
       case ELS_THREADING_IDLE:
-        tft_font_write_bg(&tft, x, y, "IDLE", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
+        tft_font_write_bg(&tft, x, y, "IDLE", &noto_sans_mono_bold_26, TFT_COLOR_FOREST, TFT_COLOR_BLACK);
         break;
       case ELS_THREADING_PAUSED:
-        tft_font_write_bg(&tft, x, y, "READY", &noto_sans_mono_bold_26, ILI9481_ORANGE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, x, y, "READY", &noto_sans_mono_bold_26, TFT_COLOR_ORANGE, TFT_COLOR_BLACK);
         break;
       case ELS_THREADING_ACTIVE:
-        tft_font_write_bg(&tft, x, y, "ACTIVE", &noto_sans_mono_bold_26, ILI9481_GREEN, ILI9481_BLACK);
+        tft_font_write_bg(&tft, x, y, "ACTIVE", &noto_sans_mono_bold_26, TFT_COLOR_GREEN, TFT_COLOR_BLACK);
         break;
       case ELS_THREADING_SET_PITCH:
         els_threading_display_pitch_type();
         break;
       case ELS_THREADING_SET_ZAXES:
-        tft_font_write_bg(&tft, x, y, "Z AXIS", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
+        tft_font_write_bg(&tft, x, y, "Z AXIS", &noto_sans_mono_bold_26, TFT_COLOR_FOREST, TFT_COLOR_BLACK);
         break;
       case ELS_THREADING_SET_XAXES:
-        tft_font_write_bg(&tft, x, y, "X AXIS", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
+        tft_font_write_bg(&tft, x, y, "X AXIS", &noto_sans_mono_bold_26, TFT_COLOR_FOREST, TFT_COLOR_BLACK);
         break;
       case ELS_THREADING_SET_LENGTH:
-        tft_font_write_bg(&tft, x, y, "LENGTH", &noto_sans_mono_bold_26, ILI9481_FOREST, ILI9481_BLACK);
+        tft_font_write_bg(&tft, x, y, "LENGTH", &noto_sans_mono_bold_26, TFT_COLOR_FOREST, TFT_COLOR_BLACK);
         break;
       case ELS_THREADING_ZLIM:
-        tft_font_write_bg(&tft, x, y, "Z LIMIT", &noto_sans_mono_bold_26, ILI9481_RED, ILI9481_BLACK);
+        tft_font_write_bg(&tft, x, y, "Z LIMIT", &noto_sans_mono_bold_26, TFT_COLOR_RED, TFT_COLOR_BLACK);
         break;
       default:
         break;
@@ -512,32 +512,32 @@ static void els_threading_display_refresh(void) {
 
   char text[32];
   snprintf(text, sizeof(text), "%04d", els_spindle_get_rpm());
-  tft_font_write_bg(&tft, 62, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 62, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   double angle = els_spindle_get_angle();
   snprintf(text, sizeof(text), "%03d.%02d", (int)angle, (int)((angle - (int)angle) * 100));
-  tft_font_write_bg(&tft, 200, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 200, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   snprintf(text, sizeof(text), "%04d", els_spindle_get_counter());
-  tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
   if (els_threading.state & ELS_THREADING_SET_ZAXES)
-    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double33(text, sizeof(text), (els_dro.zpos_um / 1000.0), "Z");
   if (els_threading.state & ELS_THREADING_SET_ZAXES)
-    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double33(text, sizeof(text), (els_dro.xpos_um / 1000.0), "X");
   if (els_threading.state & ELS_THREADING_SET_XAXES)
-    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 }
 
 // ----------------------------------------------------------------------------------

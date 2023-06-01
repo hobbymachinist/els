@@ -191,16 +191,16 @@ void els_taper_int_setup(void) {
 void els_taper_int_start(void) {
   char text[32];
 
-  tft_filled_rectangle(&tft, 0,   0, 480, 320, ILI9481_BLACK);
+  tft_filled_rectangle(&tft, 0,   0, 480, 320, TFT_COLOR_BLACK);
 
-  tft_filled_rectangle(&tft, 0,  50, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0,  50, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0,  50, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0,  50, 480,   1, TFT_COLOR_LITEGRAY);
 
-  tft_filled_rectangle(&tft, 0, 100, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0, 100, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0, 100, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0, 100, 480,   1, TFT_COLOR_LITEGRAY);
 
-  tft_filled_rectangle(&tft, 0, 190, 480,   5, ILI9481_GRAY);
-  tft_filled_rectangle(&tft, 0, 190, 480,   1, ILI9481_LITEGRAY);
+  tft_filled_rectangle(&tft, 0, 190, 480,   5, TFT_COLOR_GRAY);
+  tft_filled_rectangle(&tft, 0, 190, 480,   1, TFT_COLOR_LITEGRAY);
 
   els_taper_int_display_header();
 
@@ -208,10 +208,10 @@ void els_taper_int_start(void) {
     els_taper_int_display_diagram();
 
   // angle symbol
-  tft_font_write_bg(&tft, 165,  62, "J", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 165,  62, "J", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   // pulse symbol
-  tft_font_write_bg(&tft, 355,  58, "K", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 355,  58, "K", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   // reset state
   els_taper_int.prev_state = 0;
@@ -306,34 +306,34 @@ static void els_taper_int_display_setting(void) {
 
   els_sprint_double2(text, sizeof(text), els_taper_int.feed_um / 1000.0, "Zf");
   if (els_taper_int.state == ELS_TAPER_INT_SET_FEED)
-    tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double2(text, sizeof(text), els_taper_int.depth_of_cut_um / 1000.0, "Xs");
   if (els_taper_int.state == ELS_TAPER_INT_SET_DOC)
-    tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 135, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_taper_int.length, "L");
   if (els_taper_int.state == ELS_TAPER_INT_SET_LEN)
-    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double3(text, sizeof(text), els_taper_int.depth, "D");
   if (els_taper_int.state == ELS_TAPER_INT_SET_DEPTH)
-    tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 310, 262, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   if (els_taper_int.only_finish_pass) {
-    tft_filled_rectangle(&tft, 227, 149, 73, 25, ILI9481_WHITE);
-    tft_font_write_bg(&tft, 230, 149, "FINISH", &noto_sans_mono_bold_14, ILI9481_BLACK, ILI9481_WHITE);
+    tft_filled_rectangle(&tft, 227, 149, 73, 25, TFT_COLOR_WHITE);
+    tft_font_write_bg(&tft, 230, 149, "FINISH", &noto_sans_mono_bold_14, TFT_COLOR_BLACK, TFT_COLOR_WHITE);
   }
   else {
-    tft_filled_rectangle(&tft, 227, 149, 80, 30, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 227, 149, 80, 30, TFT_COLOR_BLACK);
   }
 }
 
@@ -342,28 +342,28 @@ static void els_taper_int_display_axes(void) {
 
   els_sprint_double33(text, sizeof(text), els_stepper->zpos, "Z");
   if (els_taper_int.state & ELS_TAPER_INT_SET_ZAXES)
-    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 102, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_sprint_double33(text, sizeof(text), els_stepper->xpos, "X");
   if (els_taper_int.state & ELS_TAPER_INT_SET_XAXES)
-    tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
   else
-    tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 135, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   if (els_taper_int.show_dro) {
-    tft_font_write_bg(&tft, 8, 190, "DRO", &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 190, "DRO", &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
     els_sprint_double33(text, sizeof(text), (els_dro.zpos_um / 1000.0), "Z");
-    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 228, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
     els_sprint_double33(text, sizeof(text), (els_dro.xpos_um / 1000.0), "X");
-    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 8, 262, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
     els_sprint_double24(text, sizeof(text), atan(els_taper_int.depth / els_taper_int.length) * 180 / M_PI, NULL);
-    tft_font_write_bg(&tft, 226, 240, "J", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
-    tft_font_write_bg(&tft, 226, 280, text, &noto_sans_mono_bold_14, ILI9481_WHITE, ILI9481_BLACK);
+    tft_font_write_bg(&tft, 226, 240, "J", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
+    tft_font_write_bg(&tft, 226, 280, text, &noto_sans_mono_bold_14, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
   }
 }
 
@@ -371,33 +371,33 @@ static void els_taper_int_display_diagram(void) {
   // ----------------------------------------------------------------------------------------------
   // diagram
   // ----------------------------------------------------------------------------------------------
-  tft_filled_rectangle(&tft, 100, 220, 156, 80, ILI9481_WHITE);
-  tft_filled_triangle(&tft,  254, 220, 156, 240, 254, 240, ILI9481_ORANGE);
-  tft_filled_triangle(&tft,  254, 280, 156, 280, 254, 300, ILI9481_ORANGE);
-  tft_filled_rectangle(&tft, 156, 240, 100, 40, ILI9481_BLACK);
+  tft_filled_rectangle(&tft, 100, 220, 156, 80, TFT_COLOR_WHITE);
+  tft_filled_triangle(&tft,  254, 220, 156, 240, 254, 240, TFT_COLOR_ORANGE);
+  tft_filled_triangle(&tft,  254, 280, 156, 280, 254, 300, TFT_COLOR_ORANGE);
+  tft_filled_rectangle(&tft, 156, 240, 100, 40, TFT_COLOR_BLACK);
 
-  tft_font_write_bg(&tft, 156, 178, "A", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 205, 194, "L", &inconsolata_lgc_bold_14, ILI9481_WHITE, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 240, 178, "C", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 156, 178, "A", &noto_sans_mono_bold_arrows_24, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
+  tft_font_write_bg(&tft, 205, 194, "L", &inconsolata_lgc_bold_14, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
+  tft_font_write_bg(&tft, 240, 178, "C", &noto_sans_mono_bold_arrows_24, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
-  tft_font_write_bg(&tft, 260, 184, "D", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 280, 216, "D", &inconsolata_lgc_bold_14, ILI9481_WHITE, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 260, 224, "B", &noto_sans_mono_bold_arrows_24, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 260, 184, "D", &noto_sans_mono_bold_arrows_24, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
+  tft_font_write_bg(&tft, 280, 216, "D", &inconsolata_lgc_bold_14, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
+  tft_font_write_bg(&tft, 260, 224, "B", &noto_sans_mono_bold_arrows_24, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   // origin
-  tft_font_write_bg(&tft, 250, 245, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 250, 245, ".", &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
 
   // legend
-  tft_font_write_bg(&tft, 8, 200, ".", &noto_sans_mono_bold_26, ILI9481_YELLOW, ILI9481_BLACK);
-  tft_font_write_bg(&tft, 26, 220, "(0,0)", &inconsolata_lgc_bold_14, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 8, 200, ".", &noto_sans_mono_bold_26, TFT_COLOR_YELLOW, TFT_COLOR_BLACK);
+  tft_font_write_bg(&tft, 26, 220, "(0,0)", &inconsolata_lgc_bold_14, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
   // ----------------------------------------------------------------------------------------------
 }
 
 static void els_taper_int_display_header(void) {
-  tft_rgb_t color = (els_taper_int.locked ? ILI9481_RED : ILI9481_DIANNE);
+  tft_rgb_t color = (els_taper_int.locked ? TFT_COLOR_RED : TFT_COLOR_DIANNE);
 
   tft_filled_rectangle(&tft, 0, 0, 480, 50, color);
-  tft_font_write_bg(&tft, 8, 0, "TAPER INTERNAL", &noto_sans_mono_bold_26, ILI9481_WHITE, color);
+  tft_font_write_bg(&tft, 8, 0, "TAPER INTERNAL", &noto_sans_mono_bold_26, TFT_COLOR_WHITE, color);
   els_taper_int_display_encoder_pips();
 }
 
@@ -410,52 +410,52 @@ static void els_taper_int_display_encoder_pips(void) {
     tft_filled_rectangle(&tft,
       440, 32 - (n * 10 + spacing * 2),
       15 + n * 10, 10,
-      (n < pips ? ILI9481_WHITE : els_taper_int.locked ? ILI9481_LITEGRAY : ILI9481_BGCOLOR1));
+      (n < pips ? TFT_COLOR_WHITE : els_taper_int.locked ? TFT_COLOR_LITEGRAY : TFT_COLOR_BGCOLOR1));
 }
 
 static void els_taper_int_display_refresh(void) {
   els_spindle_direction_t dir = els_spindle_get_direction();
   if (dir != els_taper_int.prev_dir) {
     els_taper_int.prev_dir = dir;
-    tft_filled_rectangle(&tft, 0, 55, 60, 45, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 0, 55, 60, 45, TFT_COLOR_BLACK);
     switch (dir) {
       case ELS_S_DIRECTION_CW:
         // cw symbol
-        tft_font_write_bg(&tft, 5, 62, "A", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 5, 62, "A", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
       case ELS_S_DIRECTION_CCW:
         // ccw symbol
-        tft_font_write_bg(&tft, 5, 62, "B", &gears_regular_32, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 5, 62, "B", &gears_regular_32, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
       default:
         // spindle symbol
-        tft_font_write_bg(&tft, 3, 52, "N", &gears_regular_50, ILI9481_WHITE, ILI9481_BLACK);
+        tft_font_write_bg(&tft, 3, 52, "N", &gears_regular_50, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
         break;
     }
   }
 
   char text[32];
   snprintf(text, sizeof(text), "%04d", els_spindle_get_rpm());
-  tft_font_write_bg(&tft, 62, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 62, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   double angle = els_spindle_get_angle();
   snprintf(text, sizeof(text), "%03d.%02d", (int)angle, (int)((angle - (int)angle) * 100));
-  tft_font_write_bg(&tft, 200, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 200, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   snprintf(text, sizeof(text), "%04d", els_spindle_get_counter());
-  tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, ILI9481_WHITE, ILI9481_BLACK);
+  tft_font_write_bg(&tft, 396, 52, text, &noto_sans_mono_bold_26, TFT_COLOR_WHITE, TFT_COLOR_BLACK);
 
   els_taper_int_display_axes();
 
   if (els_taper_int.op_state != els_taper_int.prev_op_state) {
     els_taper_int.prev_op_state = els_taper_int.op_state;
-    tft_filled_rectangle(&tft, 310, 195, 169, 35, ILI9481_BLACK);
+    tft_filled_rectangle(&tft, 310, 195, 169, 35, TFT_COLOR_BLACK);
     if (els_taper_int.op_state == ELS_TAPER_INT_OP_TURNING && els_taper_int.finish_pass_count > 0) {
-      tft_font_write_bg(&tft, 310, 190, "FINISH", &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
+      tft_font_write_bg(&tft, 310, 190, "FINISH", &noto_sans_mono_bold_26, TFT_COLOR_CERULEAN, TFT_COLOR_BLACK);
     }
     else {
       const char *label = op_labels[els_taper_int.op_state];
-      tft_font_write_bg(&tft, 310, 190, label, &noto_sans_mono_bold_26, ILI9481_CERULEAN, ILI9481_BLACK);
+      tft_font_write_bg(&tft, 310, 190, label, &noto_sans_mono_bold_26, TFT_COLOR_CERULEAN, TFT_COLOR_BLACK);
     }
   }
 }
@@ -501,7 +501,7 @@ static void els_taper_int_keypad_process(void) {
       break;
     case ELS_KEY_FUN_F2:
       els_taper_int.show_dro = !els_taper_int.show_dro;
-      tft_filled_rectangle(&tft, 0, 200, 300, 120, ILI9481_BLACK);
+      tft_filled_rectangle(&tft, 0, 200, 300, 120, TFT_COLOR_BLACK);
       if (els_taper_int.show_dro)
         els_taper_int_display_axes();
       else

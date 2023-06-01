@@ -28,12 +28,12 @@
 #include "tft/tft.h"
 
 tft_device_t tft = {
-  .ili9481.rd   = {.port = GPIOB, .pin = GPIO0},
-  .ili9481.wr   = {.port = GPIOB, .pin = GPIO6},
-  .ili9481.rs   = {.port = GPIOB, .pin = GPIO7},
-  .ili9481.cs   = {.port = GPIOB, .pin = GPIO8},
-  .ili9481.rst  = {.port = GPIOB, .pin = GPIO9},
-  .ili9481.data = {.port = GPIOA, .pin = GPIO0 | GPIO1 | GPIO2 | GPIO3 | GPIO4 | GPIO5 | GPIO6 | GPIO7 }
+  .ili948x.rd   = {.port = GPIOB, .pin = GPIO0},
+  .ili948x.wr   = {.port = GPIOB, .pin = GPIO6},
+  .ili948x.rs   = {.port = GPIOB, .pin = GPIO7},
+  .ili948x.cs   = {.port = GPIOB, .pin = GPIO8},
+  .ili948x.rst  = {.port = GPIOB, .pin = GPIO9},
+  .ili948x.data = {.port = GPIOA, .pin = GPIO0 | GPIO1 | GPIO2 | GPIO3 | GPIO4 | GPIO5 | GPIO6 | GPIO7 }
 };
 
 //==============================================================================
