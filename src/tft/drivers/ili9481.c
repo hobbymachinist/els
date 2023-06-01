@@ -17,9 +17,17 @@ static void tft_write_bus(const tft_device_t *tft, uint8_t data) {
   tft_gpio_set(tft->ili948x.data.port, data);
 
   // write strobe.
+  //
+  // datasheet for 9481 says twrl = 25ns, twrh = 30ns, but 10ns seems sufficient.
+  //
   tft_gpio_clear(tft->ili948x.wr.port, tft->ili948x.wr.pin);
   __asm("nop");
   __asm("nop");
+  //
+  // datasheet for 9486 & 9488 say twrl = 15ns, twrh = 15ns and seem strict about it.
+  //
+  // in-theory 3 no-ops should be enough, but seems to need about 20ns for twrl.
+  //
   #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
   __asm("nop");
   __asm("nop");
@@ -417,15 +425,30 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
     // write strobe, data already set up above.
     for (uint32_t i = 0; i < count; i++) {
       // cvalue_hi
+      //
+      // wr strobe
       tft_gpio_clear(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+      //
+      // datasheet for 9486 & 9488 say twrl = 15ns, twrh = 15ns and seem strict about it.
+      //
+      // ILI9481 somehow manages without it, mystery.
+      //
       #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+      __asm("nop");
       __asm("nop");
       __asm("nop");
       #endif
       tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+
       // cvalue_lo
       tft_gpio_clear(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+      //
+      // datasheet for 9486 & 9488 say twrl = 15ns, twrh = 15ns and seem strict about it.
+      //
+      // ILI9481 somehow manages without it, mystery.
+      //
       #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+      __asm("nop");
       __asm("nop");
       __asm("nop");
       #endif
