@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+dir = File.dirname(__FILE__)
+file = File.join(dir, "colors.txt")
+data = File.read(file).
+        split($/).
+        map {|s|
+          c = s.split(/\t+/)
+          [c.shift, c.map(&:to_i)]
+        }.
+        map {|s, c|
+          [
+            s,
+            [
+              (c[0] * 31.0 / 255.0).round.to_i,
+              (c[1] * 31.0 / 255.0).round.to_i,
+              (c[2] * 63.0 / 255).round.to_i
+            ]
+          ]
+        }
+
+data.each {|s, (r, g, b)|
+  puts "#define %-25s  (tft_rgb_t){.r = %3s, .g = %3s, .b = %3s}" % [s, r, g, b]
+}

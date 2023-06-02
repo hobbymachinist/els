@@ -31,6 +31,7 @@ static void tft_write_bus(const tft_device_t *tft, uint8_t data) {
   #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
   __asm("nop");
   __asm("nop");
+  __asm("nop");
   #endif
   tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
 }

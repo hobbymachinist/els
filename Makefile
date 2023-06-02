@@ -6,29 +6,34 @@ BINARY    = els
 # TFT
 # ------------------------------------------------------------------------------
 #
-# Set the TFT to the display used
+# Set the TFT to the display used. Some ILITEK ICs use a non-standard 556 16-bit
+# colorspace.
+#
+# You can define the TFT and COLORS in Makefile.tft if needed.
 #
 ################################################################################
+-include Makefile.tft
 TFT      ?= ILI9481 # supported values ILI9481, ILI9486, ILI9488
+COLORS   ?= TFT_RGB_565
 
 SRCS      = $(wildcard src/*.c) $(wildcard src/tft/*.c) $(wildcard src/tft/fonts/*.c)
 SRCS     += $(wildcard src/bitmaps/*.c)
 
 ifneq (, $(findstring ILI9481, $(TFT)))
   SRCS   += $(wildcard src/tft/drivers/ili9481.c)
-  CFLAGS += -DTFT_ILI9481
+  CFLAGS += -DTFT_ILI9481 -D$(COLORS)
 endif
 
 # TODO: custom 9486 driver
 ifneq (, $(findstring ILI9486, $(TFT)))
   SRCS   += $(wildcard src/tft/drivers/ili9481.c)
-  CFLAGS += -DTFT_ILI9486
+  CFLAGS += -DTFT_ILI9486 -D$(COLORS)
 endif
 
 # TODO: custom 9488 driver
 ifneq (, $(findstring ILI9488, $(TFT)))
   SRCS   += $(wildcard src/tft/drivers/ili9481.c)
-  CFLAGS += -DTFT_ILI9488
+  CFLAGS += -DTFT_ILI9488 -D$(COLORS)
 endif
 
 OBJS      = $(addprefix obj/, $(SRCS:.c=.o))

@@ -9,3 +9,6 @@
 obj/
 tmp/
 hw/els/els-backups/*
+*.log
+debug/
+Makefile.tft
