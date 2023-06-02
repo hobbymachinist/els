@@ -11,28 +11,26 @@
                        a = a ^ b; \
                      } while (0)
 
-
 static void tft_write_bus(const tft_device_t *tft, uint8_t data) {
   tft_gpio_clear(tft->ili948x.data.port, tft->ili948x.data.pin);
   tft_gpio_set(tft->ili948x.data.port, data);
 
   // write strobe.
   //
-  // datasheet for 9481 says twrl = 25ns, twrh = 30ns, but 10ns seems sufficient.
+  // datasheet for 9481 says twrl = 25ns, twrh = 30ns, but twrl=10n seems enough.
   //
   tft_gpio_clear(tft->ili948x.wr.port, tft->ili948x.wr.pin);
   __asm("nop");
   __asm("nop");
   //
-  // datasheet for 9486 & 9488 say twrl = 15ns, twrh = 15ns and seem strict about it.
-  //
-  // in-theory 3 no-ops should be enough, but seems to need about 20ns for twrl.
+  // datasheet for 9486 & 9488 say twrl = 15ns, twrh = 15ns. can't get to work when
+  // twrl < 20ns.
   //
   #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
   __asm("nop");
   __asm("nop");
-  __asm("nop");
   #endif
+  // twrh ~ 15ms, BX LR is about 4 cycles ~ 20ns seems enough.
   tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
 }
 
@@ -252,6 +250,44 @@ void tft_init(const tft_device_t *tft) {
   tft_write_data8(tft, 0x0C);
   tft_write_data8(tft, 0x00);
 
+  #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+  // PGAMCTRL (Positive Gamma Control)
+  tft_write_comm8(tft, 0xE0);
+  tft_write_data8(tft, 0x00);
+  tft_write_data8(tft, 0x03);
+  tft_write_data8(tft, 0x09);
+  tft_write_data8(tft, 0x08);
+  tft_write_data8(tft, 0x16);
+  tft_write_data8(tft, 0x0A);
+  tft_write_data8(tft, 0x3F);
+  tft_write_data8(tft, 0x78);
+  tft_write_data8(tft, 0x4C);
+  tft_write_data8(tft, 0x09);
+  tft_write_data8(tft, 0x0A);
+  tft_write_data8(tft, 0x08);
+  tft_write_data8(tft, 0x16);
+  tft_write_data8(tft, 0x1A);
+  tft_write_data8(tft, 0x0F);
+
+  // NGAMCTRL (Negative Gamma Control)
+  tft_write_comm8(tft, 0xE1);
+  tft_write_data8(tft, 0x00);
+  tft_write_data8(tft, 0x16);
+  tft_write_data8(tft, 0x19);
+  tft_write_data8(tft, 0x03);
+  tft_write_data8(tft, 0x0F);
+  tft_write_data8(tft, 0x05);
+  tft_write_data8(tft, 0x32);
+  tft_write_data8(tft, 0x45);
+  tft_write_data8(tft, 0x46);
+  tft_write_data8(tft, 0x04);
+  tft_write_data8(tft, 0x0E);
+  tft_write_data8(tft, 0x0D);
+  tft_write_data8(tft, 0x35);
+  tft_write_data8(tft, 0x37);
+  tft_write_data8(tft, 0x0F);
+  #endif
+
   // Panel Control [00]
   tft_write_comm8(tft, 0xCC);
   tft_write_data8(tft, 0x00);
@@ -432,10 +468,9 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
       //
       // datasheet for 9486 & 9488 say twrl = 15ns, twrh = 15ns and seem strict about it.
       //
-      // ILI9481 somehow manages without it, mystery.
+      // ILI9481 somehow manages without it, which is a mystery.
       //
       #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
-      __asm("nop");
       __asm("nop");
       __asm("nop");
       #endif
@@ -446,10 +481,9 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
       //
       // datasheet for 9486 & 9488 say twrl = 15ns, twrh = 15ns and seem strict about it.
       //
-      // ILI9481 somehow manages without it, mystery.
+      // ILI9481 somehow manages without it, which is a mystery.
       //
       #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
-      __asm("nop");
       __asm("nop");
       __asm("nop");
       #endif

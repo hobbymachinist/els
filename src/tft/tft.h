@@ -23,7 +23,7 @@ extern "C" {
   #define TFT_COLOR_WHITE            (tft_rgb_t){.r =  31, .g =  63, .b =  31}
   #define TFT_COLOR_ORANGE           (tft_rgb_t){.r =  31, .g =  20, .b =   0}
   #define TFT_COLOR_BLACK            (tft_rgb_t){.r =   0, .g =   0, .b =   0}
-  #define TFT_COLOR_CERULEAN         (tft_rgb_t){.r =   0, .g =  30, .b =  20}
+  #define TFT_COLOR_CERULEAN         (tft_rgb_t){.r =   4, .g =  42, .b =  26}
   #define TFT_COLOR_DIANNE           (tft_rgb_t){.r =   2, .g =  18, .b =  12}
   #define TFT_COLOR_FROG             (tft_rgb_t){.r =   2, .g =  25, .b =   2}
   #define TFT_COLOR_GRAY             (tft_rgb_t){.r =   7, .g =  14, .b =   7}
@@ -33,7 +33,7 @@ extern "C" {
   #define TFT_COLOR_BLUE1            (tft_rgb_t){.r =   0, .g =   4, .b =   5}
   #define TFT_COLOR_BLUE2            (tft_rgb_t){.r =   0, .g =  16, .b =   8}
 
-  #define TFT_COLOR_BGCOLOR1         (tft_rgb_t){.r =  10, .g =  40, .b =  30}
+  #define TFT_COLOR_BGCOLOR1         (tft_rgb_t){.r =  2, .g =  38, .b =  22}
   #define TFT_COLOR_BGCOLOR2         (tft_rgb_t){.r =   4, .g =  30, .b =   8}
   #define TFT_COLOR_BGCOLOR3         (tft_rgb_t){.r =  27, .g =  10, .b =   0}
 #endif
@@ -48,7 +48,7 @@ extern "C" {
   #define TFT_COLOR_WHITE            (tft_rgb_t){.r =  31, .g =  31, .b =  63}
   #define TFT_COLOR_ORANGE           (tft_rgb_t){.r =  31, .g =  10, .b =   0}
   #define TFT_COLOR_BLACK            (tft_rgb_t){.r =   0, .g =   0, .b =   0}
-  #define TFT_COLOR_CERULEAN         (tft_rgb_t){.r =   0, .g =  15, .b =  41}
+  #define TFT_COLOR_CERULEAN         (tft_rgb_t){.r =   4, .g =  21, .b =  53}
   #define TFT_COLOR_DIANNE           (tft_rgb_t){.r =   2, .g =   9, .b =  24}
   #define TFT_COLOR_FROG             (tft_rgb_t){.r =   2, .g =  12, .b =   4}
   #define TFT_COLOR_GRAY             (tft_rgb_t){.r =   7, .g =   7, .b =  14}
@@ -58,7 +58,7 @@ extern "C" {
   #define TFT_COLOR_BLUE1            (tft_rgb_t){.r =   0, .g =   2, .b =  10}
   #define TFT_COLOR_BLUE2            (tft_rgb_t){.r =   0, .g =   8, .b =  16}
 
-  #define TFT_COLOR_BGCOLOR1         (tft_rgb_t){.r =  10, .g =  20, .b =  61}
+  #define TFT_COLOR_BGCOLOR1         (tft_rgb_t){.r =   2, .g =  19, .b =  45}
   #define TFT_COLOR_BGCOLOR2         (tft_rgb_t){.r =   4, .g =  15, .b =  16}
   #define TFT_COLOR_BGCOLOR3         (tft_rgb_t){.r =  27, .g =   5, .b =   0}
 #endif
