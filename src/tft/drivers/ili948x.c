@@ -32,9 +32,15 @@ static void tft_write_bus(const tft_device_t *tft, uint8_t data) {
   #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
   __asm("nop");
   __asm("nop");
+  __asm("nop");
   #endif
   // twrh ~ 15ms, BX LR is about 4 cycles ~ 20ns seems enough for ILI9481.
   tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+  #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+  __asm("nop");
+  __asm("nop");
+  __asm("nop");
+  #endif
 }
 
 static uint8_t tft_read_bus(const tft_device_t *tft) {
@@ -49,7 +55,6 @@ static uint8_t tft_read_bus(const tft_device_t *tft) {
 }
 
 static uint8_t tft_read_data8(const tft_device_t *tft) {
-  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
   return tft_read_bus(tft);
 }
 
@@ -61,12 +66,10 @@ static uint16_t tft_read_data16(const tft_device_t *tft) {
 }
 
 static void tft_write_data8(const tft_device_t *tft, uint8_t data) {
-  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
   tft_write_bus(tft, data);
 }
 
 static void tft_write_data16(const tft_device_t *tft, uint16_t data) {
-  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
   tft_write_bus(tft, data >> 8);
   tft_write_bus(tft, data & 0xff);
 }
@@ -307,9 +310,9 @@ static void tft_init_ili9488(const tft_device_t *tft) {
   tft_write_data8(tft, 0x0F);
   #endif
 
-  // frame rate, 60fps
+  // frame rate, 30fps
   tft_write_comm8(tft, 0xB1);
-  tft_write_data8(tft, 0xA0);
+  tft_write_data8(tft, 0x10);
 
   // display inversion, 2-dot
   tft_write_comm8(tft, 0xB4);
@@ -509,9 +512,6 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
   // write memory
   tft_write_comm8(tft, 0x2C);
 
-  // set rs pin for pixel data feed.
-  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
-
   // first pixel.
   tft_write_bus(tft, cvalue_hi);
   tft_write_bus(tft, cvalue_lo);
@@ -531,6 +531,8 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
       #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
       __asm("nop");
       __asm("nop");
+      __asm("nop");
+      __asm("nop");
       #endif
       tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
 
@@ -542,6 +544,8 @@ void tft_filled_rectangle(const tft_device_t *tft, uint16_t x, uint16_t y, uint1
       // ILI9481 somehow manages without it, which is a mystery.
       //
       #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+      __asm("nop");
+      __asm("nop");
       __asm("nop");
       __asm("nop");
       #endif
