@@ -23,7 +23,9 @@
 //
 // See the scan code table below for mapping
 //------------------------------------------------------------------------------
-#define ELS_USART_ENABLE_KEYPAD_INPUT 0
+#ifndef ELS_USART_ENABLE_KEYPAD_INPUT
+  #define ELS_USART_ENABLE_KEYPAD_INPUT 0
+#endif
 
 static uint8_t usart_scancode_table[] = {
   0x1c, // A = Settings

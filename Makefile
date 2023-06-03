@@ -20,21 +20,21 @@ SRCS      = $(wildcard src/*.c) $(wildcard src/tft/*.c) $(wildcard src/tft/fonts
 SRCS     += $(wildcard src/bitmaps/*.c)
 
 ifneq (, $(findstring ILI9481, $(TFT)))
-  SRCS   += $(wildcard src/tft/drivers/ili9481.c)
+  SRCS   += $(wildcard src/tft/drivers/ili948x.c)
   CFLAGS += -DTFT_ILI9481 -D$(COLORS)
 endif
 
-# TODO: custom 9486 driver
 ifneq (, $(findstring ILI9486, $(TFT)))
-  SRCS   += $(wildcard src/tft/drivers/ili9481.c)
+  SRCS   += $(wildcard src/tft/drivers/ili948x.c)
   CFLAGS += -DTFT_ILI9486 -D$(COLORS)
 endif
 
-# TODO: custom 9488 driver
 ifneq (, $(findstring ILI9488, $(TFT)))
-  SRCS   += $(wildcard src/tft/drivers/ili9481.c)
+  SRCS   += $(wildcard src/tft/drivers/ili948x.c)
   CFLAGS += -DTFT_ILI9488 -D$(COLORS)
 endif
+
+-include Makefile.defines
 
 OBJS      = $(addprefix obj/, $(SRCS:.c=.o))
 VERBOSE  ?= 0

@@ -11,6 +11,9 @@
                        a = a ^ b; \
                      } while (0)
 
+//
+// timing assumptions are based on main clock running at 180MHz
+//
 static void tft_write_bus(const tft_device_t *tft, uint8_t data) {
   tft_gpio_clear(tft->ili948x.data.port, tft->ili948x.data.pin);
   tft_gpio_set(tft->ili948x.data.port, data);
@@ -30,7 +33,7 @@ static void tft_write_bus(const tft_device_t *tft, uint8_t data) {
   __asm("nop");
   __asm("nop");
   #endif
-  // twrh ~ 15ms, BX LR is about 4 cycles ~ 20ns seems enough.
+  // twrh ~ 15ms, BX LR is about 4 cycles ~ 20ns seems enough for ILI9481.
   tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
 }
 
@@ -123,44 +126,10 @@ static uint32_t tft_read_register40(const tft_device_t *tft, uint16_t reg) {
   return (h << 24) | (m << 8) | (l >> 8);
 }
 
-void tft_init(const tft_device_t *tft) {
-  // init pins
-  tft_gpio_mode_output(tft->ili948x.rd.port, tft->ili948x.rd.pin);
-  tft_gpio_mode_output(tft->ili948x.wr.port, tft->ili948x.wr.pin);
-  tft_gpio_mode_output(tft->ili948x.rs.port, tft->ili948x.rs.pin);
-  tft_gpio_mode_output(tft->ili948x.cs.port, tft->ili948x.cs.pin);
-  tft_gpio_mode_output(tft->ili948x.rst.port, tft->ili948x.rst.pin);
-
-  // data out by default
-  tft_gpio_mode_output(tft->ili948x.data.port, tft->ili948x.data.pin);
-
-  // idle
-  tft_gpio_set(tft->ili948x.rd.port, tft->ili948x.rd.pin);
-  tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
-  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
-  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
-  tft_gpio_set(tft->ili948x.rst.port, tft->ili948x.rst.pin);
-  tft_delay_milliseconds(1);
-
-  tft_gpio_clear(tft->ili948x.rst.port, tft->ili948x.rst.pin);
-  tft_delay_milliseconds(1);
-  tft_gpio_set(tft->ili948x.rst.port, tft->ili948x.rst.pin);
-  tft_delay_milliseconds(1);
-
-  // unlock E0 F0
-  tft_write_comm_data(tft, 0xB0, 0x0000);
-
+static void tft_init_ili9481(const tft_device_t *tft) {
   // ILI9481
   // uint32_t r40 = tft_read_register40(tft, 0xBF);
   // printf("ID = 0x%04x\n", (uint16_t)(r40 & 0xFFFF));
-  //
-  // ILI9486, ILI9488
-  // uint32_t r32 = tft_read_register32(tft, 0xD3);
-  // printf("ID = 0x%04x\n", (uint16_t)(r32 & 0xFFFF));
-
-  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
-  tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
-  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 
   // soft reset
   tft_write_comm8(tft, 0x01);
@@ -169,13 +138,12 @@ void tft_init(const tft_device_t *tft) {
   // display off
   tft_write_comm8(tft, 0x28);
 
-  // pixel, 16bpp
+  // pixel format, 16bpp
   tft_write_comm8(tft, 0x3A);
   tft_write_data8(tft, 0x55);
 
-  // unlocks E0, F0
-  tft_write_comm8(tft, 0xB0);
-  tft_write_data8(tft, 0x00);
+  // unlock E0 F0
+  tft_write_comm_data(tft, 0xB0, 0x0000);
 
   // Frame Memory, interface [02 00 00 00]
   tft_write_comm8(tft, 0xB3);
@@ -250,7 +218,58 @@ void tft_init(const tft_device_t *tft) {
   tft_write_data8(tft, 0x0C);
   tft_write_data8(tft, 0x00);
 
-  #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+  // Panel Control [00]
+  tft_write_comm8(tft, 0xCC);
+  tft_write_data8(tft, 0x00);
+
+  // sleep out
+  tft_write_comm8(tft, 0x11);
+  tft_delay_milliseconds(25);
+
+  // display on
+  tft_write_comm8(tft, 0x29);
+}
+
+static void tft_init_ili9488(const tft_device_t *tft) {
+  // ILI9486, ILI9488
+  // uint32_t r32 = tft_read_register32(tft, 0xD3);
+  // printf("ID = 0x%04x\n", (uint16_t)(r32 & 0xFFFF));
+
+  // soft reset
+  tft_write_comm8(tft, 0x01);
+  tft_delay_milliseconds(25);
+
+  // display off
+  tft_write_comm8(tft, 0x28);
+
+  // power control 1, v_reg1_out = 5v, v_reg2_out = 5v
+  //
+  // controls reg. voltage for +ve and -ve gamma correction.
+  //
+  tft_write_comm8(tft, 0xC0);
+  tft_write_data8(tft, 0x17);
+  tft_write_data8(tft, 0x17);
+  tft_delay_milliseconds(5);
+
+  // power control 2, v_gh, v_gl
+  tft_write_comm8(tft, 0xC1);
+  tft_write_data8(tft, 0x43);
+  tft_delay_milliseconds(5);
+
+  // vcomm
+  tft_write_comm8(tft, 0xC5);
+  tft_write_data8(tft, 0x00);
+  tft_write_data8(tft, 0x30);
+  tft_write_data8(tft, 0x00);
+  tft_write_data8(tft, 0x00);
+  tft_delay_milliseconds(5);
+
+  // pixel format, 16bpp
+  tft_write_comm8(tft, 0x3A);
+  tft_write_data8(tft, 0x55);
+
+  // Uncomment and customise for your TFT if necessary.
+  #if 0
   // PGAMCTRL (Positive Gamma Control)
   tft_write_comm8(tft, 0xE0);
   tft_write_data8(tft, 0x00);
@@ -288,9 +307,13 @@ void tft_init(const tft_device_t *tft) {
   tft_write_data8(tft, 0x0F);
   #endif
 
-  // Panel Control [00]
-  tft_write_comm8(tft, 0xCC);
-  tft_write_data8(tft, 0x00);
+  // frame rate, 60fps
+  tft_write_comm8(tft, 0xB1);
+  tft_write_data8(tft, 0xA0);
+
+  // display inversion, 2-dot
+  tft_write_comm8(tft, 0xB4);
+  tft_write_data8(tft, 0x02);
 
   // sleep out
   tft_write_comm8(tft, 0x11);
@@ -298,6 +321,41 @@ void tft_init(const tft_device_t *tft) {
 
   // display on
   tft_write_comm8(tft, 0x29);
+}
+
+void tft_init(const tft_device_t *tft) {
+  // init pins
+  tft_gpio_mode_output(tft->ili948x.rd.port, tft->ili948x.rd.pin);
+  tft_gpio_mode_output(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+  tft_gpio_mode_output(tft->ili948x.rs.port, tft->ili948x.rs.pin);
+  tft_gpio_mode_output(tft->ili948x.cs.port, tft->ili948x.cs.pin);
+  tft_gpio_mode_output(tft->ili948x.rst.port, tft->ili948x.rst.pin);
+
+  // data out by default
+  tft_gpio_mode_output(tft->ili948x.data.port, tft->ili948x.data.pin);
+
+  // idle
+  tft_gpio_set(tft->ili948x.rd.port, tft->ili948x.rd.pin);
+  tft_gpio_set(tft->ili948x.wr.port, tft->ili948x.wr.pin);
+  tft_gpio_set(tft->ili948x.rs.port, tft->ili948x.rs.pin);
+  tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
+  tft_gpio_set(tft->ili948x.rst.port, tft->ili948x.rst.pin);
+  tft_delay_milliseconds(1);
+
+  tft_gpio_clear(tft->ili948x.rst.port, tft->ili948x.rst.pin);
+  tft_delay_milliseconds(1);
+  tft_gpio_set(tft->ili948x.rst.port, tft->ili948x.rst.pin);
+  tft_delay_milliseconds(1);
+
+  tft_gpio_clear(tft->ili948x.cs.port, tft->ili948x.cs.pin);
+
+  #if defined(TFT_ILI9481)
+  tft_init_ili9481(tft);
+  #endif
+
+  #if defined(TFT_ILI9486) || defined(TFT_ILI9488)
+  tft_init_ili9488(tft);
+  #endif
 
   tft_gpio_set(tft->ili948x.cs.port, tft->ili948x.cs.pin);
 }

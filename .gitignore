@@ -12,3 +12,4 @@ hw/els/els-backups/*
 *.log
 debug/
 Makefile.tft
+Makefile.defines

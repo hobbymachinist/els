@@ -31,6 +31,12 @@ make TFT=ILI9486
 make TFT=ILI9488
 ```
 
+Some ILITEK ICs use a non-standard 556 16-bit colorspace, use `COLORS=TFT_RGB_556` option in that case.
+
+```
+make TFT=ILI9488 COLORS=TFT_RGB_556
+```
+
 ## Technical documentation
 
 See [Technical Documentation](docs/els.md)
