@@ -101,18 +101,23 @@ internal oscillator, set the `ELS_USE_HSE` directive to 0 in src/clock.c
 This is again optional but without an external FT24C64A EEPROM, you will not be able to save the settings and the
 defaults from constants.h will be used.
 
-### ILI9481 Breakout
+### TFT Breakout
+
+Supported TFT 480x320 Displays
+
+* ILI9481
+* ILI9486
+* ILI9488
+
+AliExpress Links
+
+* ILI9481 TFT LCD, https://www.aliexpress.com/item/1005001288341298.html
+* ILI9486, ILI9488 TFT, https://www.aliexpress.com/item/1005001288341298.html
 
 Kicad files in hw/lcd
 
-This primarily a carrier / breakout board with an IDC ribbon cable connector to main board.
-
-* ILI9481 TFT LCD, https://www.aliexpress.com/item/1005001288341298.html
-* The main board is connected to the LCD module using an adapter board that breaks out the pins to a 16 pin IDC socket.
-
-There is some limited / preliminary support for ILI9486 and ILI9488 TFT displays.
-
-https://www.aliexpress.com/item/1005001288341298.html
+This primarily a carrier / breakout board with an IDC ribbon cable connector to main board. The main board is
+connected to the LCD module using an adapter board that breaks out the pins to a 16 pin IDC socket.
 
 ### Output buffer / pulse shaper
 
