@@ -146,47 +146,48 @@ static void tft_init_ili9481(const tft_device_t *tft) {
   tft_write_data8(tft, 0x55);
 
   // unlock E0 F0
-  tft_write_comm_data(tft, 0xB0, 0x0000);
+  tft_write_comm8(tft, 0xB0);
+  tft_write_data8(tft, 0x00);
 
-  // Frame Memory, interface [02 00 00 00]
+  // frame memory, interface
   tft_write_comm8(tft, 0xB3);
   tft_write_data8(tft, 0x02);
   tft_write_data8(tft, 0x00);
   tft_write_data8(tft, 0x00);
   tft_write_data8(tft, 0x00);
 
-  // Frame mode [00]
+  // frame mode, internal clock & DBI
   tft_write_comm8(tft, 0xB4);
   tft_write_data8(tft, 0x00);
 
-  // Set Power [00 43 18] x1.00, x6, x3
+  // set power x1.00, x6, x3
   tft_write_comm8(tft, 0xD0);
   tft_write_data8(tft, 0x07);
   tft_write_data8(tft, 0x42);
-  tft_write_data8(tft, 0x17);
+  tft_write_data8(tft, 0x11);
 
-  // Set VCOM  [00 00 00] x0.72, x1.02
+  // set VCOM  [00 07 0F] x0.72, x1.00
   tft_write_comm8(tft, 0xD1);
   tft_write_data8(tft, 0x00);
   tft_write_data8(tft, 0x07);
-  tft_write_data8(tft, 0x10);
+  tft_write_data8(tft, 0x0F);
 
-  // Set Power for Normal Mode [01 22]
+  // set power for normal mode [01 22]
   tft_write_comm8(tft, 0xD2);
   tft_write_data8(tft, 0x01);
   tft_write_data8(tft, 0x02);
 
-  // Set Power for Partial Mode [01 22]
+  // set power for partial mode [01 22]
   tft_write_comm8(tft, 0xD3);
   tft_write_data8(tft, 0x01);
   tft_write_data8(tft, 0x02);
 
-  // Set Power for Idle Mode [01 22]
+  // set power for idle mode [01 22]
   tft_write_comm8(tft, 0xD4);
   tft_write_data8(tft, 0x01);
   tft_write_data8(tft, 0x02);
 
-  // Panel Driving BGR for 1581 [10 3B 00 02 11]
+  // panel driving bgr for 1581 [10 3B 00 02 11]
   tft_write_comm8(tft, 0xC0);
   tft_write_data8(tft, 0x12);
   tft_write_data8(tft, 0x3B);
@@ -194,17 +195,17 @@ static void tft_init_ili9481(const tft_device_t *tft) {
   tft_write_data8(tft, 0x02);
   tft_write_data8(tft, 0x11);
 
-  // Display Timing Normal [10 10 88]
+  // display timing normal [10 10 88]
   tft_write_comm8(tft, 0xC1);
   tft_write_data8(tft, 0x10);
   tft_write_data8(tft, 0x10);
   tft_write_data8(tft, 0x88);
 
-  // Frame Rate [03]
+  // frame rate, 50fps
   tft_write_comm8(tft, 0xC5);
-  tft_write_data8(tft, 0x03);
+  tft_write_data8(tft, 0x05);
 
-  // Interface Control [02]
+  // interface control [02]
   tft_write_comm8(tft, 0xC6);
   tft_write_data8(tft, 0x02);
   tft_write_comm8(tft, 0xC8);
@@ -219,10 +220,6 @@ static void tft_init_ili9481(const tft_device_t *tft) {
   tft_write_data8(tft, 0x77);
   tft_write_data8(tft, 0x54);
   tft_write_data8(tft, 0x0C);
-  tft_write_data8(tft, 0x00);
-
-  // Panel Control [00]
-  tft_write_comm8(tft, 0xCC);
   tft_write_data8(tft, 0x00);
 
   // sleep out
